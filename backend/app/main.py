@@ -38,7 +38,12 @@ app.include_router(dashboard.router, prefix="/api")
 @app.get("/health")
 def health():
     return {"status": "ok"}
-ogle.cloud import firestore
+
+def _check_firestore_connection():
+    import logging
+    _logger = logging.getLogger(__name__)
+    try:
+        from google.cloud import firestore
         project_id = os.getenv("GCP_PROJECT_ID")
         if not project_id:
             _logger.error("GCP_PROJECT_ID is not set. Firestore connection skipped.")
