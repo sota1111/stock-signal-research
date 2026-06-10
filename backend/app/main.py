@@ -1,0 +1,34 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .database import engine, Base
+from .routers import themes, papers, companies, supply_chain, investors, dashboard
+from . import seed
+from . import models
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    seed.run_seed()
+    yield
+
+app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(themes.router, prefix="/api")
+app.include_router(papers.router, prefix="/api")
+app.include_router(companies.router, prefix="/api")
+app.include_router(supply_chain.router, prefix="/api")
+app.include_router(investors.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
