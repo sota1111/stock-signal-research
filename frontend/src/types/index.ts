@@ -65,4 +65,47 @@ export interface DashboardData {
   top_keywords: { keyword: string; mom_change_pct: number; theme_name?: string }[]
   notable_companies: Company[]
   supply_chain_highlights: SupplyChainItem[]
+  alignment_highlights: {
+    high_alignment: AlignmentHighlight[]
+    paper_only: { theme: Theme; precursor_score: number }[]
+  }
+}
+
+export interface ExternalInfo {
+  id: string
+  info_id: string
+  info_type: 'news' | 'announcement' | 'earnings'
+  title: string
+  url?: string
+  summary?: string
+  source_name?: string
+  published_at?: string
+  related_company?: string
+  theme_id?: string
+  relevance_score: number
+}
+
+export interface AlignmentScore {
+  id: string
+  theme_id: string
+  score: number
+  news_score: number
+  announcement_score: number
+  earnings_score: number
+  confidence: number
+  evidence_count: number
+  calculated_at?: string
+  top_evidence: ExternalInfo[]
+}
+
+export interface ThemeExternalInfos {
+  news: ExternalInfo[]
+  announcements: ExternalInfo[]
+  earnings: ExternalInfo[]
+}
+
+export interface AlignmentHighlight {
+  theme: Theme
+  score: number
+  confidence: number
 }

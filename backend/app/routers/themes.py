@@ -47,3 +47,40 @@ def delete_theme(theme_id: str, db: Session = Depends(get_db)):
     db.delete(db_theme)
     db.commit()
     return {"message": "Theme deleted"}
+
+@router.get("/{theme_id}/external-infos", response_model=schemas.ThemeExternalInfosResponse)
+def get_theme_external_infos(theme_id: str, db: Session = Depends(get_db)):
+    def fetch(itype):
+        return db.query(models.ExternalInfo).filter(
+            models.ExternalInfo.theme_id == theme_id,
+            models.ExternalInfo.info_type == itype
+        ).order_by(models.ExternalInfo.published_at.desc()).limit(20).all()
+    return {
+        "news": fetch("news"),
+        "announcements": fetch("announcement"),
+        "earnings": fetch("earnings"),
+    }
+
+@router.get("/{theme_id}/alignment", response_model=schemas.AlignmentScoreResponse)
+def get_theme_alignment(theme_id: str, db: Session = Depends(get_db)):
+    alignment = db.query(models.AlignmentScore).filter(
+        models.AlignmentScore.theme_id == theme_id
+    ).first()
+    if alignment is None:
+        return schemas.AlignmentScoreResponse(
+            id="",
+            theme_id=theme_id,
+            score=0.0,
+            news_score=0.0,
+            announcement_score=0.0,
+            earnings_score=0.0,
+            confidence=0.0,
+            evidence_count=0,
+            top_evidence=[],
+        )
+    top_evidence = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id
+    ).order_by(models.ExternalInfo.relevance_score.desc()).limit(5).all()
+    result = schemas.AlignmentScoreResponse.model_validate(alignment)
+    result.top_evidence = top_evidence
+    return result

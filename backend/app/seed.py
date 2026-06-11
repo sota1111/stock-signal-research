@@ -121,5 +121,100 @@ def run_seed():
             db.add(db_inv)
 
         db.commit()
+
+        # 7. External Infos & Alignment (Conditional)
+        seed_external_infos(db)
+
     finally:
         db.close()
+
+def _compute_alignment(db, theme_id):
+    from . import models
+    from .services.scoring import calculate_alignment_score
+    from sqlalchemy.orm import Session
+
+    N = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id,
+        models.ExternalInfo.info_type == "news"
+    ).count()
+    A = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id,
+        models.ExternalInfo.info_type == "announcement"
+    ).count()
+    E = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id,
+        models.ExternalInfo.info_type == "earnings"
+    ).count()
+
+    # Get latest mom_change_pct for the theme
+    latest_pm = db.query(models.PaperMonthlyCount).filter(
+        models.PaperMonthlyCount.theme_id == theme_id
+    ).order_by(models.PaperMonthlyCount.year_month.desc()).first()
+    latest_mom = latest_pm.mom_change_pct if latest_pm else 0.0
+
+    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom)
+
+def seed_external_infos(db):
+    import os
+    if os.getenv("USE_SAMPLE_DATA") != "true":
+        return
+
+    sample_data = {
+        "GPU memory bottleneck": { # Often matched with "GPU" or "AI Infrastructure"
+            "news": [("sample-news-ai-001", "NVIDIA Announces Next-Gen AI Data Center Platform", "2024-03-15", "NVIDIA unveiled its next-generation AI infrastructure platform.", "techcrunch", None), ("sample-news-ai-002", "Google DeepMind Releases New AI Research on Transformer Scaling", "2024-03-10", "New research shows transformer scaling laws continue to hold.", "theverge", None), ("sample-news-ai-003", "Microsoft Azure AI Capacity Expansion Announced", "2024-02-28", "Microsoft doubles AI compute capacity in Azure data centers.", "bloomberg", None)],
+            "announcements": [("sample-ann-ai-001", "NVIDIA Q1 FY2025 Earnings: AI Revenue Grows 400%", "2024-02-21", "NVIDIA reports record AI revenue in quarterly earnings.", "NVIDIA IR", "NVIDIA"), ("sample-ann-ai-002", "AMD Launches MI300X AI Accelerator for Enterprise", "2024-03-06", "AMD announces general availability of MI300X.", "AMD IR", "AMD")],
+            "earnings": [("sample-earn-ai-001", "NVIDIA CEO: AI demand is insatiable - Q1 2025 Earnings Call", "2024-02-21", "Jensen Huang emphasizes strong and growing AI demand.", "earnings_call", "NVIDIA"), ("sample-earn-ai-002", "Microsoft CFO: Data center AI capex increasing significantly", "2024-01-30", "Microsoft increases AI infrastructure investment guidance.", "earnings_call", "Microsoft")]
+        },
+        "SSD / NVMe": {
+            "news": [("sample-news-gpu-001", "TSMC Boosts GPU Wafer Capacity for 2024", "2024-03-12", "TSMC increases N3 wafer capacity primarily for GPU clients.", "reuters", None), ("sample-news-gpu-002", "AMD RDNA 4 GPU Architecture Details Revealed", "2024-03-08", "AMD reveals next-generation GPU architecture.", "anandtech", None), ("sample-news-gpu-003", "Nvidia H200 GPU Shipments Begin at Scale", "2024-02-20", "Nvidia H200 with HBM3e enters volume production.", "tomshardware", None)],
+            "announcements": [("sample-ann-gpu-001", "NVIDIA Blackwell GPU Architecture Announced", "2024-03-18", "NVIDIA B100 and B200 GPUs announced for AI workloads.", "NVIDIA IR", "NVIDIA"), ("sample-ann-gpu-002", "AMD MI300 Series Production Ramp Confirmed", "2024-01-30", "AMD confirms MI300 series is in volume production.", "AMD IR", "AMD")],
+            "earnings": [("sample-earn-gpu-001", "NVIDIA: GPU backlog extends to 12 months due to AI demand", "2024-02-21", "Nvidia reports GPU order backlog extending well into 2025.", "earnings_call", "NVIDIA"), ("sample-earn-gpu-002", "TSMC: Advanced node capacity fully booked by GPU and AI clients", "2024-01-18", "TSMC reports CoWoS and N3 fully subscribed.", "earnings_call", "TSMC")]
+        },
+        "HBM": {
+            "news": [("sample-news-hbm-001", "SK Hynix HBM3E Enters Mass Production", "2024-03-19", "SK Hynix begins volume shipments of HBM3E for H200.", "koreatimes", None), ("sample-news-hbm-002", "Micron Accelerates HBM4 Development Timeline", "2024-02-15", "Micron targets HBM4 samples by end of 2024.", "digitimes", None), ("sample-news-hbm-003", "HBM Demand Surge Raises Memory Sector Valuations", "2024-02-10", "Analyst upgrades for HBM suppliers on AI demand.", "bloomberg", None)],
+            "announcements": [("sample-ann-hbm-001", "SK Hynix Announces $15B HBM Capacity Expansion", "2024-03-05", "SK Hynix to invest in new HBM production lines.", "SK Hynix IR", "SK Hynix"), ("sample-ann-hbm-002", "Samsung Develops 36GB HBM4 for AI Accelerators", "2024-01-18", "Samsung HBM4 doubles bandwidth vs HBM3E.", "Samsung IR", "Samsung")] ,
+            "earnings": [("sample-earn-hbm-001", "SK Hynix CFO: HBM ASP up 3x year-over-year", "2024-01-25", "HBM average selling prices tripled on AI demand.", "earnings_call", "SK Hynix"), ("sample-earn-hbm-002", "Micron CEO: HBM supply constrained through 2025", "2024-03-20", "Micron confirms HBM supply tightly constrained.", "earnings_call", "Micron")]
+        }
+    }
+
+    for theme_name, data in sample_data.items():
+        theme = db.query(models.Theme).filter(models.Theme.name.ilike(f"%{theme_name}%")).first()
+        if not theme:
+            continue
+        
+        # Insert records
+        for info_type, items in data.items():
+            # info_type in sample_data is news/announcements/earnings
+            # DB info_type is news/announcement/earnings
+            db_type = "announcement" if info_type == "announcements" else info_type
+            
+            for item in items:
+                info_id, title, published_at, summary, source_name, related_company = item
+                if db.query(models.ExternalInfo).filter(models.ExternalInfo.info_id == info_id).first():
+                    continue
+                
+                db_info = models.ExternalInfo(
+                    info_id=info_id,
+                    info_type=db_type,
+                    title=title,
+                    published_at=published_at,
+                    summary=summary,
+                    source_name=source_name,
+                    related_company=related_company,
+                    theme_id=theme.id,
+                    relevance_score=80.0 # Default for sample
+                )
+                db.add(db_info)
+        
+        db.commit()
+        
+        # Compute Alignment
+        stats = _compute_alignment(db, theme.id)
+        alignment = db.query(models.AlignmentScore).filter(models.AlignmentScore.theme_id == theme.id).first()
+        if not alignment:
+            alignment = models.AlignmentScore(theme_id=theme.id, **stats)
+            db.add(alignment)
+        else:
+            for k, v in stats.items():
+                setattr(alignment, k, v)
+        db.commit()

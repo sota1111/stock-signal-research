@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -43,3 +43,9 @@ export const createCompany = (data: { name: string; ticker?: string; description
 export const fetchSupplyChain = () => api.get<SupplyChainItem[]>('/supply-chain/').then(r => r.data)
 export const fetchInvestors = () => api.get<InstitutionalInvestor[]>('/investors/').then(r => r.data)
 export const fetchDashboard = () => api.get<DashboardData>('/dashboard/').then(r => r.data)
+
+export const fetchThemeExternalInfos = (themeId: string) =>
+  api.get<ThemeExternalInfos>(`/themes/${themeId}/external-infos`).then(r => r.data)
+
+export const fetchThemeAlignment = (themeId: string) =>
+  api.get<AlignmentScore>(`/themes/${themeId}/alignment`).then(r => r.data)

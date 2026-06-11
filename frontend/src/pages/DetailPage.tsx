@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain } from '../api'
+import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain, fetchThemeExternalInfos, fetchThemeAlignment } from '../api'
 
 export default function DetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -11,6 +11,8 @@ export default function DetailPage() {
   const { data: papers } = useQuery({ queryKey: ['papers', id], queryFn: () => fetchPapers(id), enabled: !!id })
   const { data: monthly } = useQuery({ queryKey: ['monthly', id], queryFn: () => fetchMonthlyData(id), enabled: !!id })
   const { data: supplyChain } = useQuery({ queryKey: ['supplyChain'], queryFn: fetchSupplyChain })
+  const { data: externalInfos } = useQuery({ queryKey: ['externalInfos', id], queryFn: () => fetchThemeExternalInfos(id!), enabled: !!id })
+  const { data: alignment } = useQuery({ queryKey: ['alignment', id], queryFn: () => fetchThemeAlignment(id!), enabled: !!id })
 
   const relatedSC = supplyChain?.filter(sc => sc.from_theme_id === id || sc.to_theme_id === id) ?? []
 
@@ -69,6 +71,105 @@ export default function DetailPage() {
                 <span className="text-gray-400">→</span>
                 <span className="bg-green-50 text-green-800 px-2 py-1 rounded">{sc.to_theme_name}</span>
                 {sc.description && <span className="text-gray-500 text-xs">({sc.description})</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {alignment && alignment.evidence_count > 0 && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">論文トレンドとの一致度</h2>
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="text-center">
+              <div className={`text-3xl font-bold ${alignment.score >= 60 ? 'text-blue-600' : alignment.score >= 40 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                {alignment.score.toFixed(0)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">総合一致度スコア</div>
+            </div>
+            <div className="flex gap-4 text-sm flex-wrap">
+              <div className="text-center">
+                <div className="font-semibold text-gray-700">{alignment.news_score.toFixed(0)}</div>
+                <div className="text-xs text-gray-500">ニュース</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-gray-700">{alignment.announcement_score.toFixed(0)}</div>
+                <div className="text-xs text-gray-500">企業発表</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-gray-700">{alignment.earnings_score.toFixed(0)}</div>
+                <div className="text-xs text-gray-500">決算説明</div>
+              </div>
+            </div>
+            <div className="text-sm">
+              <span className={`px-2 py-1 rounded text-xs font-medium ${alignment.confidence >= 0.8 ? 'bg-green-100 text-green-700' : alignment.confidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                信頼度: {alignment.confidence >= 0.8 ? '高' : alignment.confidence >= 0.5 ? '中' : '低'} (根拠 {alignment.evidence_count}件)
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3">※ このスコアは情報収集・分析支援を目的としています。投資推奨ではありません。</p>
+        </section>
+      )}
+
+      {externalInfos && externalInfos.news.length > 0 && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — ニュース ({externalInfos.news.length}件)</h2>
+          <div className="space-y-3">
+            {externalInfos.news.map(item => (
+              <div key={item.id} className="border-b pb-3">
+                <p className="font-medium text-sm">
+                  {item.url
+                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
+                    : item.title}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{item.published_at} · {item.source_name}</p>
+                {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {externalInfos && externalInfos.announcements.length > 0 && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — 企業発表 ({externalInfos.announcements.length}件)</h2>
+          <div className="space-y-3">
+            {externalInfos.announcements.map(item => (
+              <div key={item.id} className="border-b pb-3">
+                <p className="font-medium text-sm">
+                  {item.url
+                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
+                    : item.title}
+                </p>
+                <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
+                  <span>{item.published_at}</span>
+                  {item.related_company && <span className="bg-gray-100 px-1 rounded">{item.related_company}</span>}
+                  <span>{item.source_name}</span>
+                </div>
+                {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {externalInfos && externalInfos.earnings.length > 0 && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — 決算説明 ({externalInfos.earnings.length}件)</h2>
+          <div className="space-y-3">
+            {externalInfos.earnings.map(item => (
+              <div key={item.id} className="border-b pb-3">
+                <p className="font-medium text-sm">
+                  {item.url
+                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
+                    : item.title}
+                </p>
+                <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
+                  <span>{item.published_at}</span>
+                  {item.related_company && <span className="bg-gray-100 px-1 rounded">{item.related_company}</span>}
+                  <span>{item.source_name}</span>
+                </div>
+                {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
               </div>
             ))}
           </div>
