@@ -17,6 +17,34 @@
 
 ---
 
+## 認証情報なし開発クイックスタート
+
+**GCP・APIキーなしで即座にローカル動作確認が可能です。**
+
+サンプルデータモード（`USE_SAMPLE_DATA=true`）を使用するため、外部サービスへの接続は不要です。
+
+```bash
+# 1. リポジトリのクローン
+git clone https://github.com/sota1111/stock-signal-research.git
+cd stock-signal-research
+
+# 2. 環境変数設定（デフォルトでサンプルデータモード有効）
+cp .env.example .env
+
+# 3. 起動
+docker compose up --build
+```
+
+- フロントエンド: http://localhost:5173
+- バックエンド API: http://localhost:8000/docs
+
+**認証情報が不要な理由:**
+- `USE_SAMPLE_DATA=true` のとき、すべてのデータ収集はサンプルデータで代替されます
+- Firestore・GCP・外部APIへの接続は行われません
+- `SEMANTIC_SCHOLAR_API_KEY`, `NEWS_API_KEY`, `LLM_API_KEY` は未設定でOKです
+
+---
+
 ## アーキテクチャ概要
 
 ```
