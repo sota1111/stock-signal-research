@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routers import themes, papers, companies, supply_chain, investors, dashboard
+from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos
 from .auth import router as auth_router, get_current_user
 from . import seed
 from . import models
@@ -36,6 +36,7 @@ app.include_router(companies.router, prefix="/api", dependencies=[Depends(get_cu
 app.include_router(supply_chain.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(investors.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(dashboard.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(external_infos.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 @app.get("/health")
 def health():

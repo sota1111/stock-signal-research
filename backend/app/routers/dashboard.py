@@ -36,9 +36,37 @@ def get_dashboard(db: Session = Depends(get_db)):
         res_item.to_theme_name = to_theme.name if to_theme else None
         supply_chain_highlights.append(res_item)
         
+    # alignment_highlights
+    alignment_rows = db.query(models.AlignmentScore).order_by(
+        models.AlignmentScore.score.desc()
+    ).limit(10).all()
+
+    high_alignment = []
+    paper_only_ids = set()
+    for row in alignment_rows:
+        theme = db.query(models.Theme).filter(models.Theme.id == row.theme_id).first()
+        if not theme:
+            continue
+        if row.score >= 30:
+            high_alignment.append({"theme": theme, "score": row.score, "confidence": row.confidence})
+            paper_only_ids.add(theme.id)
+
+    paper_only = []
+    for theme in db.query(models.Theme).order_by(models.Theme.precursor_score.desc()).limit(10).all():
+        if theme.id not in paper_only_ids and theme.precursor_score >= 20:
+            paper_only.append({"theme": theme, "precursor_score": theme.precursor_score})
+        if len(paper_only) >= 5:
+            break
+
+    alignment_highlights = {
+        "high_alignment": high_alignment[:5],
+        "paper_only": paper_only[:5],
+    }
+
     return {
         "trending_themes": trending_themes,
         "top_keywords": top_keywords,
         "notable_companies": notable_companies,
-        "supply_chain_highlights": supply_chain_highlights
+        "supply_chain_highlights": supply_chain_highlights,
+        "alignment_highlights": alignment_highlights
     }

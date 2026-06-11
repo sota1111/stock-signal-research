@@ -105,8 +105,47 @@ class InstitutionalInvestorResponse(InstitutionalInvestorBase):
     company_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+class ExternalInfoBase(BaseModel):
+    info_id: str
+    info_type: str
+    title: str
+    url: Optional[str] = None
+    summary: Optional[str] = None
+    source_name: Optional[str] = None
+    published_at: Optional[str] = None
+    related_company: Optional[str] = None
+    theme_id: Optional[str] = None
+    relevance_score: float = 0.0
+
+class ExternalInfoCreate(ExternalInfoBase):
+    pass
+
+class ExternalInfoResponse(ExternalInfoBase):
+    id: str
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class AlignmentScoreResponse(BaseModel):
+    id: str
+    theme_id: str
+    score: float
+    news_score: float
+    announcement_score: float
+    earnings_score: float
+    confidence: float
+    evidence_count: int
+    calculated_at: Optional[datetime] = None
+    top_evidence: List[ExternalInfoResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class ThemeExternalInfosResponse(BaseModel):
+    news: List[ExternalInfoResponse]
+    announcements: List[ExternalInfoResponse]
+    earnings: List[ExternalInfoResponse]
+
 class DashboardResponse(BaseModel):
     trending_themes: List[ThemeResponse]
     top_keywords: List[dict]
     notable_companies: List[CompanyResponse]
     supply_chain_highlights: List[SupplyChainResponse]
+    alignment_highlights: dict = {}

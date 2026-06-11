@@ -71,3 +71,30 @@ class InstitutionalInvestor(Base):
     report_date = Column(String)
     report_type = Column(String)
     notes = Column(String)
+
+class ExternalInfo(Base):
+    __tablename__ = "external_infos"
+    id              = Column(String, primary_key=True, default=generate_uuid)
+    info_id         = Column(String, unique=True, index=True, nullable=False)
+    info_type       = Column(String, nullable=False)  # "news" | "announcement" | "earnings"
+    title           = Column(String, nullable=False)
+    url             = Column(String)
+    summary         = Column(String)
+    source_name     = Column(String)
+    published_at    = Column(String)
+    related_company = Column(String)
+    theme_id        = Column(String, ForeignKey("themes.id"), nullable=True)
+    relevance_score = Column(Float, default=0.0)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+class AlignmentScore(Base):
+    __tablename__ = "alignment_scores"
+    id                 = Column(String, primary_key=True, default=generate_uuid)
+    theme_id           = Column(String, ForeignKey("themes.id"), unique=True, nullable=False)
+    score              = Column(Float, default=0.0)
+    news_score         = Column(Float, default=0.0)
+    announcement_score = Column(Float, default=0.0)
+    earnings_score     = Column(Float, default=0.0)
+    confidence         = Column(Float, default=0.0)
+    evidence_count     = Column(Integer, default=0)
+    calculated_at      = Column(DateTime(timezone=True), server_default=func.now())
