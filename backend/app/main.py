@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from .routers import themes, papers, companies, supply_chain, investors, dashboard
+from .auth import router as auth_router, get_current_user
 from . import seed
 from . import models
 
@@ -28,12 +29,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(themes.router, prefix="/api")
-app.include_router(papers.router, prefix="/api")
-app.include_router(companies.router, prefix="/api")
-app.include_router(supply_chain.router, prefix="/api")
-app.include_router(investors.router, prefix="/api")
-app.include_router(dashboard.router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(themes.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(papers.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(companies.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(supply_chain.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(investors.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(dashboard.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 @app.get("/health")
 def health():

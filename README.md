@@ -35,10 +35,26 @@ cp .env.example .env
 docker compose up --build
 ```
 
-- フロントエンド: http://localhost:5173
-- バックエンド API: http://localhost:8000/docs
+## 認証設定
 
-**認証情報が不要な理由:**
+このアプリはログイン認証が必要です。`.env` に以下の変数を設定してください。
+
+| 変数名 | 説明 | 例 |
+|--------|------|-----|
+| AUTH_USERNAME | ログインユーザー名 | admin |
+| AUTH_PASSWORD | ログインパスワード | changeme |
+| AUTH_SECRET_KEY | JWT署名キー（必ず変更してください） | random-secret-string |
+
+### 動作確認方法
+
+1. `docker compose up --build` で起動
+2. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
+3. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
+4. ログアウトはナビバー右上の「ログアウト」ボタンから
+
+---
+
+## 認証情報が不要な理由:
 - `USE_SAMPLE_DATA=true` のとき、すべてのデータ収集はサンプルデータで代替されます
 - Firestore・GCP・外部APIへの接続は行われません
 - `SEMANTIC_SCHOLAR_API_KEY`, `NEWS_API_KEY`, `LLM_API_KEY` は未設定でOKです
