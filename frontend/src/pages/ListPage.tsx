@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { fetchThemes, fetchPapers, fetchCompanies, fetchInvestors } from '../api'
+import { fetchThemes, fetchPapers, fetchCompanies, fetchInvestors, fetchDashboard } from '../api'
 
 const TABS = ['テーマ', '論文', '企業', '投資家'] as const
 type Tab = typeof TABS[number]
@@ -14,6 +14,22 @@ export default function ListPage() {
   const { data: papers } = useQuery({ queryKey: ['papers'], queryFn: () => fetchPapers(), enabled: tab === '論文' })
   const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies, enabled: tab === '企業' })
   const { data: investors } = useQuery({ queryKey: ['investors'], queryFn: fetchInvestors, enabled: tab === '投資家' })
+  const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard, enabled: tab === 'テーマ' })
+
+  const alignmentMap = new Map<string, { score: number; confidence: number }>()
+  dashboard?.alignment_highlights?.high_alignment?.forEach(item => {
+    alignmentMap.set(item.theme.id, { score: item.score, confidence: item.confidence })
+  })
+
+  const [sortBy, setSortBy] = useState<'precursor_score' | 'alignment_score'>('precursor_score')
+  const sortedThemes = [...(themes ?? [])].sort((a, b) => {
+    if (sortBy === 'alignment_score') {
+      const aScore = alignmentMap.get(a.id)?.score ?? 0
+      const bScore = alignmentMap.get(b.id)?.score ?? 0
+      return bScore - aScore
+    }
+    return b.precursor_score - a.precursor_score
+  })
 
   return (
     <div>
@@ -37,13 +53,20 @@ export default function ListPage() {
               <tr>
                 <th className="px-4 py-2 text-left">テーマ名</th>
                 <th className="px-4 py-2 text-left">カテゴリ</th>
-                <th className="px-4 py-2 text-right">前兆スコア</th>
+                <th className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => setSortBy('precursor_score')}>
+                  前兆スコア {sortBy === 'precursor_score' ? '↓' : ''}
+                </th>
+                <th className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => setSortBy('alignment_score')}>
+                  一致度スコア {sortBy === 'alignment_score' ? '↓' : ''}
+                </th>
                 <th className="px-4 py-2 text-center">トレンド</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {themes?.map(t => (
+              {sortedThemes.map(t => (
                 <tr key={t.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium">{t.name}</td>
                   <td className="px-4 py-2 text-gray-500">{t.category}</td>
@@ -51,6 +74,20 @@ export default function ListPage() {
                     <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${t.precursor_score >= 70 ? 'bg-red-500' : t.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'}`}>
                       {t.precursor_score.toFixed(0)}
                     </span>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {alignmentMap.has(t.id) ? (
+                      <div className="inline-flex flex-col items-end gap-0.5">
+                        <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded font-bold">
+                          {alignmentMap.get(t.id)!.score.toFixed(0)}
+                        </span>
+                        {alignmentMap.get(t.id)!.confidence < 0.5 && (
+                          <span className="text-xs text-gray-400">低信頼</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">−</span>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-center">{t.is_trending ? '🔥' : ''}</td>
                   <td className="px-4 py-2">

@@ -36,6 +36,63 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-700 mb-3">外部情報との一致度 — 前兆候補</h2>
+          <div className="space-y-3">
+            {/* High alignment themes */}
+            {data.alignment_highlights.high_alignment?.length > 0 && (
+              <div>
+                <p className="text-xs text-blue-600 font-medium mb-2">論文トレンド + 外部情報一致</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {data.alignment_highlights.high_alignment.map(item => (
+                    <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">{item.theme.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">{item.theme.category}</p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <span className="block bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                            一致度 {item.score.toFixed(0)}
+                          </span>
+                          <span className="block text-xs text-gray-500">
+                            信頼度 {item.confidence >= 0.8 ? '高' : item.confidence >= 0.5 ? '中' : '低'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-2">前兆候補</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Paper-only themes */}
+            {data.alignment_highlights.paper_only?.length > 0 && (
+              <div>
+                <p className="text-xs text-orange-600 font-medium mb-2">論文トレンドのみ高い（外部情報との一致度は未確認）</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {data.alignment_highlights.paper_only.map(item => (
+                    <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-400">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">{item.theme.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">{item.theme.category}</p>
+                        </div>
+                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                          前兆スコア {item.precursor_score.toFixed(0)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-orange-600 mt-2">関連候補</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">急増キーワード ランキング</h2>
         <div className="bg-white rounded-lg shadow overflow-hidden">
