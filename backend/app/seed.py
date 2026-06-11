@@ -130,6 +130,9 @@ def run_seed():
 
 def _compute_alignment(db, theme_id):
     from . import models
+    from .services.scoring import calculate_alignment_score
+    from sqlalchemy.orm import Session
+
     N = db.query(models.ExternalInfo).filter(
         models.ExternalInfo.theme_id == theme_id,
         models.ExternalInfo.info_type == "news"
@@ -142,23 +145,14 @@ def _compute_alignment(db, theme_id):
         models.ExternalInfo.theme_id == theme_id,
         models.ExternalInfo.info_type == "earnings"
     ).count()
-    total = N + A + E
-    news_score = min(N / 5, 1.0) * 100
-    announcement_score = min(A / 3, 1.0) * 100
-    earnings_score = min(E / 2, 1.0) * 100
-    raw_score = news_score * 0.35 + announcement_score * 0.40 + earnings_score * 0.25
-    source_types_present = sum(1 for x in [N, A, E] if x > 0)
-    diversity_factor = 1.0 if source_types_present >= 2 else 0.6
-    score = min(raw_score * diversity_factor, 100.0)
-    confidence = min(total / 5, 1.0)
-    return dict(
-        score=score,
-        news_score=news_score,
-        announcement_score=announcement_score,
-        earnings_score=earnings_score,
-        confidence=confidence,
-        evidence_count=total,
-    )
+
+    # Get latest mom_change_pct for the theme
+    latest_pm = db.query(models.PaperMonthlyCount).filter(
+        models.PaperMonthlyCount.theme_id == theme_id
+    ).order_by(models.PaperMonthlyCount.year_month.desc()).first()
+    latest_mom = latest_pm.mom_change_pct if latest_pm else 0.0
+
+    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom)
 
 def seed_external_infos(db):
     import os
