@@ -78,3 +78,4 @@ Thumbs.db
 .terraform.lock.hcl
 
 # Sample data is intentionally tracked at data/sample/*.json
+_cloudbuild_*_tmp.yaml
