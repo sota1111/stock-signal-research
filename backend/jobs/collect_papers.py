@@ -52,6 +52,7 @@ def _get_theme_queries() -> List[str]:
         logger.warning(f"Failed to fetch themes for queries, using defaults: {e}")
         return default_queries
 
+
 SAMPLE_PAPERS = [
     {
         "paper_id": "sample-2401.00001",
