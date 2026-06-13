@@ -76,7 +76,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu=1 \
   --timeout=300 \
   --concurrency=80 \
-  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
+  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},AUTH_USERNAME=${AUTH_USERNAME:-admin},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
   --set-secrets="AUTH_PASSWORD=stock-signal-auth-password:latest,AUTH_SECRET_KEY=stock-signal-auth-secret-key:latest,SEMANTIC_SCHOLAR_API_KEY=stock-signal-semantic-scholar-api-key:latest,NEWS_API_KEY=stock-signal-news-api-key:latest,LLM_API_KEY=stock-signal-llm-api-key:latest,APP_ADMIN_TOKEN=stock-signal-app-admin-token:latest" \
   --allow-unauthenticated \
   --quiet

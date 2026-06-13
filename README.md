@@ -318,6 +318,8 @@ bash scripts/gcp/create-schedulers.sh
 
 | シークレット名 | 説明 | 必須 |
 |---|---|---|
+| `stock-signal-auth-password` | ログインパスワード（AUTH_PASSWORD） | Yes |
+| `stock-signal-auth-secret-key` | JWT署名キー（AUTH_SECRET_KEY） | Yes |
 | `SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar API キー | No（なければskip） |
 | `NEWS_API_KEY` | ニュース API キー | No（なければskip） |
 | `LLM_API_KEY` | LLM API キー（OpenAI等） | No（なければskip） |
@@ -347,7 +349,7 @@ echo -n "your-admin-token" | gcloud secrets create APP_ADMIN_TOKEN \
 | `GCP_PROJECT_ID` | GCP プロジェクト ID | 本番必須 | - |
 | `GCP_REGION` | GCP リージョン | 本番必須 | `asia-northeast1` |
 | `FIRESTORE_DATABASE` | Firestore DB 名 | Yes | `(default)` |
-| `USE_SAMPLE_DATA` | サンプルデータモード有効化 | No | `false` |
+| `USE_SAMPLE_DATA` | サンプルデータモード有効化 | No | `false`（ローカル開発: `.env.example` で `true`）|
 | `JOB_NAME` | 実行するジョブ名 | Jobsのみ必須 | - |
 | `SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar API キー | No | - |
 | `NEWS_API_KEY` | ニュース API キー | No | - |
@@ -403,7 +405,7 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/${POOL_ID}/attribute.repository/sota1111/stock-signal-research"
 ```
 
-main ブランチへのマージ時に自動デプロイされます（`.github/workflows/deploy.yml`）。
+手動デプロイは `scripts/deploy_local_gcp.sh` を使用してください。
 
 ### サンプルデータモード
 
