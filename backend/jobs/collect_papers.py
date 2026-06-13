@@ -210,22 +210,13 @@ def _parse_arxiv_xml(xml_data: bytes) -> List[Dict[str, Any]]:
 
 def _save_paper(paper: Dict[str, Any], use_firestore: bool) -> bool:
     """論文を保存（冪等）"""
-    if not use_firestore:
-        logger.debug(f"Skipping Firestore save (APP_ENV=local): {paper['paper_id']}")
-        return True
-
     try:
-        from firestore_client import upsert_document
-        from datetime import datetime, timezone
-        doc_id = paper["paper_id"].replace("/", "_")
-        data = {
-            **paper,
-            "authors": json.dumps(paper.get("authors", [])),
-            "extracted_keywords": json.dumps(paper.get("extracted_keywords", [])),
-            "createdAt": datetime.now(timezone.utc),
-            "source": paper.get("source", "arxiv"),
-        }
-        return upsert_document("papers", doc_id, data)
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        from app.repositories.paper_repository import get_paper_repository
+        repo = get_paper_repository()
+        return repo.save(paper)
     except Exception as e:
         logger.error(f"Failed to save paper {paper.get('paper_id')}: {e}")
         return False
