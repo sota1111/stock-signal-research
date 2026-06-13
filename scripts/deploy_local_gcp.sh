@@ -54,6 +54,17 @@ gcloud builds submit "${REPO_ROOT}" \
 rm -f "${CLOUDBUILD_TMP}"
 
 # Cloud Run へデプロイ
+# Secret Manager: 初回デプロイ前に以下を実行してください
+# echo -n "value" | gcloud secrets create stock-signal-auth-password --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create stock-signal-auth-secret-key --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create stock-signal-semantic-scholar-api-key --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create stock-signal-news-api-key --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create stock-signal-llm-api-key --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create stock-signal-app-admin-token --data-file=- --project=$PROJECT_ID
+# gcloud run services add-iam-policy-binding stock-signal-service \
+#   --member="serviceAccount:$(gcloud run services describe stock-signal-service --region=$REGION --project=$PROJECT_ID --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || echo PROJECT_NUMBER-compute@developer.gserviceaccount.com)" \
+#   --role="roles/secretmanager.secretAccessor" --region=$REGION --project=$PROJECT_ID
+
 gcloud run deploy "${SERVICE_NAME}" \
   --image="${IMAGE}:latest" \
   --project="${PROJECT_ID}" \
@@ -65,7 +76,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu=1 \
   --timeout=300 \
   --concurrency=80 \
-  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION}" \
+  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
+  --set-secrets="AUTH_PASSWORD=stock-signal-auth-password:latest,AUTH_SECRET_KEY=stock-signal-auth-secret-key:latest,SEMANTIC_SCHOLAR_API_KEY=stock-signal-semantic-scholar-api-key:latest,NEWS_API_KEY=stock-signal-news-api-key:latest,LLM_API_KEY=stock-signal-llm-api-key:latest,APP_ADMIN_TOKEN=stock-signal-app-admin-token:latest" \
   --allow-unauthenticated \
   --quiet
 
