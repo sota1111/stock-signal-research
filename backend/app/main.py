@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from .database import engine, Base
 from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos
 from .auth import router as auth_router, get_current_user
@@ -38,6 +40,13 @@ app.include_router(investors.router, prefix="/api", dependencies=[Depends(get_cu
 app.include_router(dashboard.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(external_infos.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
+# Serve React static files if dist/ exists (Cloud Run production mode)
+_dist_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dist"))
+if os.path.isdir(_dist_dir):
+    _assets_dir = os.path.join(_dist_dir, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -56,3 +65,11 @@ def _check_firestore_connection():
         _logger.info("Firestore connection: OK")
     except Exception as e:
         _logger.error(f"Firestore connection failed: {e}")
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(full_path: str):
+    """Serve React SPA for all non-API routes."""
+    index_path = os.path.join(_dist_dir, "index.html") if os.path.isdir(_dist_dir) else None
+    if index_path and os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return {"error": "Frontend not built", "path": full_path}

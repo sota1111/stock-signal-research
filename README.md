@@ -47,10 +47,11 @@ docker compose up --build
 
 ### 動作確認方法
 
-1. `docker compose up --build` で起動
-2. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
-3. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
-4. ログアウトはナビバー右上の「ログアウト」ボタンから
+1. `cp .env.example .env` で環境変数ファイルを作成（初回のみ）
+2. `docker compose up --build` で起動
+3. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
+4. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
+5. ログアウトはナビバー右上の「ログアウト」ボタンから
 
 ---
 
@@ -72,7 +73,7 @@ docker-compose.yml フロント・バック同時起動
 データフロー:
 ```
 Browser → Vite Dev Server (localhost:5173)
-        → proxy /api → FastAPI (localhost:8000)
+        → proxy /api → FastAPI (localhost:8080)
                      → SQLite (backend/data/app.db)
 ```
 
@@ -89,8 +90,8 @@ docker compose up --build
 ```
 
 - フロントエンド: http://localhost:5173
-- バックエンド API: http://localhost:8000
-- API ドキュメント: http://localhost:8000/docs
+- バックエンド API: http://localhost:8080
+- API ドキュメント: http://localhost:8080/docs
 
 ### ローカル起動
 
@@ -98,7 +99,7 @@ docker compose up --build
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8080
 ```
 
 **フロントエンド（別ターミナル）:**
