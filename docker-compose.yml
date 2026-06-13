@@ -4,14 +4,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+      target: backend
     ports:
       - "8080:8080"
     volumes:
       - ./backend/data:/app/data
+    env_file:
+      - .env
     environment:
       - APP_ENV=local
       - DATABASE_URL=sqlite:////app/data/app.db
       - PORT=8080
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:-local-dev-secret-key-not-for-production}
+      - USE_SAMPLE_DATA=${USE_SAMPLE_DATA:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 
   frontend:
     build: ./frontend
@@ -21,11 +30,14 @@ services:
       - backend
     environment:
       - VITE_API_URL=http://localhost:8080
+      - VITE_PROXY_TARGET=http://backend:8080
 
   jobs:
     build:
       context: .
       dockerfile: Dockerfile.jobs
+    env_file:
+      - .env
     environment:
       - APP_ENV=local
       - JOB_NAME=collect-papers
