@@ -13,8 +13,45 @@ from typing import List, Dict, Any
 logger = logging.getLogger(__name__)
 
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
+SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 BATCH_SIZE = 50
 MAX_RESULTS = 100
+
+
+def _get_theme_queries() -> List[str]:
+    """テーマ一覧から検索クエリを生成。失敗時はデフォルトクエリにフォールバック"""
+    default_queries = ["AI infrastructure", "large language model", "memory semiconductor"]
+    try:
+        app_env = os.getenv("APP_ENV", "local")
+        if app_env == "local":
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+            from app.database import SessionLocal
+            from app.models import Theme
+            db = SessionLocal()
+            try:
+                themes = db.query(Theme).all()
+                if not themes:
+                    return default_queries
+                return [f"{t.name} {t.description or ''}".strip() for t in themes]
+            finally:
+                db.close()
+        else:
+            from firestore_client import get_db
+            db = get_db()
+            docs = db.collection("themes").stream()
+            queries = []
+            for doc in docs:
+                data = doc.to_dict()
+                name = data.get("name", "")
+                desc = data.get("description", "")
+                if name:
+                    queries.append(f"{name} {desc}".strip())
+            return queries if queries else default_queries
+    except Exception as e:
+        logger.warning(f"Failed to fetch themes for queries, using defaults: {e}")
+        return default_queries
+
 
 SAMPLE_PAPERS = [
     {
@@ -77,6 +114,10 @@ def run():
             papers = SAMPLE_PAPERS
         else:
             papers = _fetch_from_arxiv()
+            ss_papers = _fetch_from_semantic_scholar()
+            if ss_papers:
+                logger.info(f"Adding {len(ss_papers)} papers from Semantic Scholar")
+                papers = papers + ss_papers
 
         fetched_count = len(papers)
 
@@ -103,7 +144,7 @@ def run():
         "fetchedCount": fetched_count,
         "insertedCount": inserted_count,
         "skippedCount": skipped_count,
-        "source": "arxiv",
+        "source": "arxiv,semantic_scholar",
     }
     if error_message:
         log_data["errorMessage"] = error_message
@@ -119,7 +160,7 @@ def run():
                 fetchedCount=fetched_count,
                 insertedCount=inserted_count,
                 skippedCount=skipped_count,
-                source="arxiv",
+                source="arxiv,semantic_scholar",
                 errorMessage=error_message,
             )
         except Exception as e:
@@ -128,7 +169,7 @@ def run():
 
 def _fetch_from_arxiv() -> List[Dict[str, Any]]:
     """arXiv APIから論文を取得（APIキー不要）"""
-    search_queries = ["AI infrastructure", "large language model", "memory semiconductor"]
+    search_queries = _get_theme_queries()
     papers = []
 
     for query in search_queries:
@@ -156,6 +197,58 @@ def _fetch_from_arxiv() -> List[Dict[str, Any]]:
             logger.warning(f"Failed to fetch from arXiv for query '{query}': {e}. Skipping.")
         except Exception as e:
             logger.warning(f"Unexpected error fetching arXiv for query '{query}': {e}. Skipping.")
+
+    return papers
+
+
+def _fetch_from_semantic_scholar() -> List[Dict[str, Any]]:
+    """Semantic Scholar APIから論文を取得（SEMANTIC_SCHOLAR_API_KEY が必要）"""
+    api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
+    if not api_key:
+        logger.info("SEMANTIC_SCHOLAR_API_KEY not set, skipping Semantic Scholar")
+        return []
+
+    search_queries = _get_theme_queries()
+    papers = []
+    fields = "paperId,title,authors,year,abstract,externalIds,publicationDate"
+
+    for query in search_queries:
+        try:
+            params = urllib.parse.urlencode({
+                "query": query,
+                "limit": 10,
+                "fields": fields,
+            })
+            url = f"{SEMANTIC_SCHOLAR_API_URL}?{params}"
+            req = urllib.request.Request(url, headers={"x-api-key": api_key})
+            logger.info(f"Fetching Semantic Scholar papers for query: {query}")
+
+            with urllib.request.urlopen(req, timeout=30) as response:
+                data = json.loads(response.read())
+
+            for item in data.get("data", []):
+                paper_id = item.get("paperId", "")
+                if not paper_id:
+                    continue
+                authors = [a.get("name", "") for a in item.get("authors", [])]
+                pub_date = item.get("publicationDate") or str(item.get("year", ""))
+                papers.append({
+                    "paper_id": f"ss-{paper_id}",
+                    "title": item.get("title", ""),
+                    "url": f"https://www.semanticscholar.org/paper/{paper_id}",
+                    "authors": authors,
+                    "published_at": pub_date[:10] if pub_date else "",
+                    "abstract": (item.get("abstract") or "")[:1000],
+                    "extracted_keywords": [],
+                    "source": "semantic_scholar",
+                })
+            logger.info(f"Fetched {len(data.get('data', []))} papers from Semantic Scholar for: {query}")
+            time.sleep(1)
+
+        except urllib.error.HTTPError as e:
+            logger.warning(f"Semantic Scholar HTTP error for '{query}': {e}. Skipping.")
+        except Exception as e:
+            logger.warning(f"Semantic Scholar error for '{query}': {e}. Skipping.")
 
     return papers
 
@@ -210,22 +303,13 @@ def _parse_arxiv_xml(xml_data: bytes) -> List[Dict[str, Any]]:
 
 def _save_paper(paper: Dict[str, Any], use_firestore: bool) -> bool:
     """論文を保存（冪等）"""
-    if not use_firestore:
-        logger.debug(f"Skipping Firestore save (APP_ENV=local): {paper['paper_id']}")
-        return True
-
     try:
-        from firestore_client import upsert_document
-        from datetime import datetime, timezone
-        doc_id = paper["paper_id"].replace("/", "_")
-        data = {
-            **paper,
-            "authors": json.dumps(paper.get("authors", [])),
-            "extracted_keywords": json.dumps(paper.get("extracted_keywords", [])),
-            "createdAt": datetime.now(timezone.utc),
-            "source": paper.get("source", "arxiv"),
-        }
-        return upsert_document("papers", doc_id, data)
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        from app.repositories.paper_repository import get_paper_repository
+        repo = get_paper_repository()
+        return repo.save(paper)
     except Exception as e:
         logger.error(f"Failed to save paper {paper.get('paper_id')}: {e}")
         return False
