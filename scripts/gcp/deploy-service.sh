@@ -9,13 +9,26 @@ SA_EMAIL="stock-signal-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "Deploying Cloud Run Service: $SERVICE_NAME"
 
-# Build and push Docker image
+# Build and push Docker image using Dockerfile.service
 echo "Building and pushing Docker image..."
-gcloud builds submit \
-  --tag="${IMAGE_NAME}:latest" \
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CLOUDBUILD_TMP="/tmp/_cloudbuild_service_tmp.yaml"
+cat > "${CLOUDBUILD_TMP}" <<CBEOF
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${IMAGE_NAME}:latest', '-f', 'Dockerfile.service', '.']
+images:
+  - '${IMAGE_NAME}:latest'
+timeout: 600s
+CBEOF
+
+gcloud builds submit "${REPO_ROOT}" \
   --project="$PROJECT_ID" \
-  --config=cloudbuild.yaml \
-  /workspaces/stock-signal-research
+  --config="${CLOUDBUILD_TMP}" \
+  --timeout=600s
+
+rm -f "${CLOUDBUILD_TMP}"
 
 # Deploy to Cloud Run
 gcloud run deploy "$SERVICE_NAME" \
@@ -30,7 +43,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout=300 \
   --concurrency=80 \
   --service-account="$SA_EMAIL" \
-  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION}" \
+  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},AUTH_USERNAME=${AUTH_USERNAME:-admin},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
+  --set-secrets="AUTH_PASSWORD=stock-signal-auth-password:latest,AUTH_SECRET_KEY=stock-signal-auth-secret-key:latest" \
   --allow-unauthenticated
 
 echo ""
