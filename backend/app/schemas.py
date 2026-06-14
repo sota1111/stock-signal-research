@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -143,9 +143,22 @@ class ThemeExternalInfosResponse(BaseModel):
     announcements: List[ExternalInfoResponse]
     earnings: List[ExternalInfoResponse]
 
+class HighAlignmentHighlightResponse(BaseModel):
+    theme: ThemeResponse
+    score: float
+    confidence: float
+
+class PaperOnlyHighlightResponse(BaseModel):
+    theme: ThemeResponse
+    precursor_score: float
+
+class AlignmentHighlightsResponse(BaseModel):
+    high_alignment: List[HighAlignmentHighlightResponse] = Field(default_factory=list)
+    paper_only: List[PaperOnlyHighlightResponse] = Field(default_factory=list)
+
 class DashboardResponse(BaseModel):
     trending_themes: List[ThemeResponse]
     top_keywords: List[dict]
     notable_companies: List[CompanyResponse]
     supply_chain_highlights: List[SupplyChainResponse]
-    alignment_highlights: dict = {}
+    alignment_highlights: AlignmentHighlightsResponse = Field(default_factory=AlignmentHighlightsResponse)

@@ -215,8 +215,7 @@ def _parse_rss(xml_data: bytes, source: str) -> List[Dict[str, Any]]:
 def _save_news(item: Dict[str, Any], use_firestore: bool) -> bool:
     """ニュースを保存（冪等）"""
     if not use_firestore:
-        logger.debug(f"Skipping Firestore save (APP_ENV=local): {item['news_id']}")
-        return True
+        return _save_news_to_sqlite(item)
 
     try:
         from firestore_client import upsert_document
@@ -229,4 +228,53 @@ def _save_news(item: Dict[str, Any], use_firestore: bool) -> bool:
         return upsert_document("news", doc_id, data)
     except Exception as e:
         logger.error(f"Failed to save news {item.get('news_id')}: {e}")
+        return False
+
+
+def _save_news_to_sqlite(item: Dict[str, Any]) -> bool:
+    """ニュースを SQLite に保存"""
+    try:
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        from app.database import SessionLocal
+        from app.models import ExternalInfo, Theme
+
+        db = SessionLocal()
+        try:
+            # Idempotent check
+            existing = db.query(ExternalInfo).filter(ExternalInfo.info_id == item["news_id"]).first()
+            if existing:
+                return True
+
+            # Theme lookup
+            theme_id = None
+            theme_name = item.get("theme")
+            if theme_name:
+                theme = db.query(Theme).filter(Theme.name.ilike(theme_name)).first()
+                if theme:
+                    theme_id = theme.id
+
+            new_info = ExternalInfo(
+                info_id=item["news_id"],
+                info_type="news",
+                title=item["title"],
+                url=item.get("url", ""),
+                summary=item.get("summary", ""),
+                source_name=item.get("source", ""),
+                published_at=item.get("published_at", ""),
+                related_company=item.get("company"),
+                theme_id=theme_id,
+                relevance_score=item.get("relevance_score", 0.5),
+            )
+            db.add(new_info)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            logger.error(f"SQLite save failed for news {item.get('news_id')}: {e}")
+            return False
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"SQLite repository error in _save_news_to_sqlite: {e}")
         return False
