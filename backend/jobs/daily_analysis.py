@@ -76,8 +76,10 @@ def _aggregate_trends(job_run_id: str, use_firestore: bool):
         return
 
     try:
-        from firestore_client import get_db, upsert_document
-...
+        logger.warning("Firestore trend aggregation is not implemented; skipping")
+    except Exception as e:
+        logger.error(f"Firestore trend aggregation failed: {e}")
+        raise
     logger.info(json.dumps({"jobRunId": job_run_id, "step": "aggregate-trends", "status": "completed"}))
 
 
@@ -125,8 +127,10 @@ def _recalculate_scores(job_run_id: str, use_firestore: bool):
         return
 
     try:
-        from firestore_client import get_db, upsert_document
-...
+        logger.warning("Firestore score recalculation is not implemented; skipping")
+    except Exception as e:
+        logger.error(f"Firestore score recalculation failed: {e}")
+        raise
     logger.info(json.dumps({"jobRunId": job_run_id, "step": "recalculate-scores", "status": "completed"}))
 
 
