@@ -1,42 +1,54 @@
 import { useState, useEffect, type ReactNode } from 'react'
-import axios from 'axios'
-import { AuthContext, TOKEN_KEY } from './authContextValue'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
+import { AuthContext } from './authContextValue'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [username, setUsername] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    if (!token) return
-    axios.get('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch('/api/auth/me', { credentials: 'include' })
       .then(res => {
-        setIsAuthenticated(true)
-        setUsername(res.data.username)
+        if (res.ok) {
+          setIsAuthenticated(true)
+        } else {
+          setIsAuthenticated(false)
+          setEmail(null)
+        }
       })
       .catch(() => {
-        localStorage.removeItem(TOKEN_KEY)
+        setIsAuthenticated(false)
+        setEmail(null)
       })
   }, [])
 
-  const login = async (user: string, password: string) => {
-    const res = await axios.post('/api/auth/login', { username: user, password })
-    const token: string = res.data.access_token
-    localStorage.setItem(TOKEN_KEY, token)
+  const login = async (emailAddr: string, password: string) => {
+    const credential = await signInWithEmailAndPassword(auth, emailAddr, password)
+    const idToken = await credential.user.getIdToken()
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ idToken }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail ?? '認証に失敗しました')
+    }
     setIsAuthenticated(true)
-    setUsername(user)
+    setEmail(emailAddr)
   }
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY)
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    await signOut(auth)
     setIsAuthenticated(false)
-    setUsername(null)
+    setEmail(null)
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, username, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, email, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
