@@ -208,7 +208,7 @@ def seed_external_infos(db):
         
         db.commit()
         
-        # Compute Alignment
+        # Compute Alignment for themes with sample data
         stats = _compute_alignment(db, theme.id)
         alignment = db.query(models.AlignmentScore).filter(models.AlignmentScore.theme_id == theme.id).first()
         if not alignment:
@@ -218,3 +218,12 @@ def seed_external_infos(db):
             for k, v in stats.items():
                 setattr(alignment, k, v)
         db.commit()
+
+    # Ensure ALL themes have an AlignmentScore row
+    all_themes = db.query(models.Theme).all()
+    for t in all_themes:
+        existing_as = db.query(models.AlignmentScore).filter(models.AlignmentScore.theme_id == t.id).first()
+        if not existing_as:
+            stats = _compute_alignment(db, t.id)
+            db.add(models.AlignmentScore(theme_id=t.id, **stats))
+    db.commit()

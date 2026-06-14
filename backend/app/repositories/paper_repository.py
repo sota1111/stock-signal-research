@@ -19,9 +19,19 @@ class SQLitePaperRepository(PaperRepository):
     def save(self, paper: Dict[str, Any]) -> bool:
         try:
             from app.database import SessionLocal
-            from app.models import Paper
+            from app.models import Paper, Theme
             db = SessionLocal()
+
+            def _get_theme_id(db, theme_name: str):
+                if not theme_name:
+                    return None
+                theme = db.query(Theme).filter(
+                    Theme.name.ilike(theme_name)
+                ).first()
+                return theme.id if theme else None
+
             try:
+                theme_id = _get_theme_id(db, paper.get("theme", ""))
                 existing = db.query(Paper).filter(Paper.paper_id == paper["paper_id"]).first()
                 if existing:
                     existing.title = paper.get("title", existing.title)
@@ -31,6 +41,8 @@ class SQLitePaperRepository(PaperRepository):
                     existing.abstract = paper.get("abstract", existing.abstract)
                     existing.extracted_keywords = json.dumps(paper.get("extracted_keywords", []))
                     existing.source = paper.get("source", existing.source)
+                    if not existing.theme_id and theme_id:
+                        existing.theme_id = theme_id
                 else:
                     new_paper = Paper(
                         paper_id=paper["paper_id"],
@@ -41,6 +53,7 @@ class SQLitePaperRepository(PaperRepository):
                         abstract=paper.get("abstract", ""),
                         extracted_keywords=json.dumps(paper.get("extracted_keywords", [])),
                         source=paper.get("source", "arxiv"),
+                        theme_id=theme_id,
                     )
                     db.add(new_paper)
                 db.commit()
