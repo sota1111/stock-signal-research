@@ -1,12 +1,15 @@
-import { createContext } from 'react'
+import { createContext } from "react"
 
 export interface AuthContextType {
   isAuthenticated: boolean
-  username: string | null
-  login: (username: string, password: string) => Promise<void>
+  email: string | null
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
 }
 
-export const AuthContext = createContext<AuthContextType | null>(null)
-
-export const TOKEN_KEY = 'auth_token'
+export const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  email: null,
+  login: async () => {},
+  logout: () => {},
+})

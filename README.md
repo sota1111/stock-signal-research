@@ -37,21 +37,25 @@ docker compose up --build
 
 ## 認証設定
 
-このアプリはログイン認証が必要です。`.env` に以下の変数を設定してください。
+このアプリは Firebase Authentication を使用して認証を行います。`.env` に以下の変数を設定してください。
 
 | 変数名 | 説明 | 例 |
 |--------|------|-----|
-| AUTH_USERNAME | ログインユーザー名 | admin |
-| AUTH_PASSWORD | ログインパスワード | changeme |
-| AUTH_SECRET_KEY | JWT署名キー（必ず変更してください） | random-secret-string |
+| VITE_FIREBASE_API_KEY | Firebase API Key | AIza... |
+| VITE_FIREBASE_AUTH_DOMAIN | Firebase Auth Domain | your-project.firebaseapp.com |
+| VITE_FIREBASE_PROJECT_ID | Firebase Project ID | your-project-id |
+| VITE_FIREBASE_APP_ID | Firebase App ID | 1:123... |
+| ALLOWED_USER_EMAILS | 許可するメール（カンマ区切り） | user@example.com |
+| AUTH_SECRET | セッション署名用シークレット | random-string |
 
 ### 動作確認方法
 
-1. `cp .env.example .env` で環境変数ファイルを作成（初回のみ）
-2. `docker compose up --build` で起動
-3. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
-4. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
-5. ログアウトはナビバー右上の「ログアウト」ボタンから
+1. `cp .env.example .env` で環境変数ファイルを作成
+2. Firebase Console で Email/Password 認証を有効にし、ユーザーを作成
+3. `docker compose up --build` で起動
+4. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
+5. Firebase で作成したメールアドレスとパスワードでログイン
+6. ログアウトはナビバー右上の「ログアウト」ボタンから
 
 ---
 
@@ -205,7 +209,7 @@ MVPはサンプルデータのみで動作します。将来的に以下の外�
 - MVPのため、論文データは自動収集せず手動登録またはサンプルデータのみ
 - 大口投資家データはサンプルデータのみ（EDINET/SEC連携は未実装）
 - 投資判断の直接推奨は行わない設計（前兆候補・関連候補として表示）
-- SQLiteはローカル専用。本番運用にはPostgreSQL等への移行を推奨
+- SQLiteはローカル専用. 本番運用にはPostgreSQL等への移行を推奨
 
 ---
 
@@ -266,8 +270,8 @@ Cloud Run へのデプロイ前に、以下の機密情報をSecret Managerに�
 
 ```bash
 # Secret の作成
-echo -n "パスワード" | gcloud secrets create stock-signal-auth-password --data-file=- --project=YOUR_PROJECT_ID
-echo -n "秘密鍵" | gcloud secrets create stock-signal-auth-secret-key --data-file=- --project=YOUR_PROJECT_ID
+echo -n "your-random-secret" | gcloud secrets create AUTH_SECRET --data-file=- --project=YOUR_PROJECT_ID
+echo -n "user1@example.com,user2@example.com" | gcloud secrets create ALLOWED_USER_EMAILS --data-file=- --project=YOUR_PROJECT_ID
 echo -n "APIキー" | gcloud secrets create stock-signal-semantic-scholar-api-key --data-file=- --project=YOUR_PROJECT_ID
 echo -n "APIキー" | gcloud secrets create stock-signal-news-api-key --data-file=- --project=YOUR_PROJECT_ID
 echo -n "APIキー" | gcloud secrets create stock-signal-llm-api-key --data-file=- --project=YOUR_PROJECT_ID
@@ -318,8 +322,8 @@ bash scripts/gcp/create-schedulers.sh
 
 | シークレット名 | 説明 | 必須 |
 |---|---|---|
-| `stock-signal-auth-password` | ログインパスワード（AUTH_PASSWORD） | Yes |
-| `stock-signal-auth-secret-key` | JWT署名キー（AUTH_SECRET_KEY） | Yes |
+| `AUTH_SECRET` | セッション署名用シークレット | Yes |
+| `ALLOWED_USER_EMAILS` | 許可するメールアドレス（カンマ区切り） | Yes |
 | `SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar API キー | No（なければskip） |
 | `NEWS_API_KEY` | ニュース API キー | No（なければskip） |
 | `LLM_API_KEY` | LLM API キー（OpenAI等） | No（なければskip） |
@@ -405,7 +409,7 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/${POOL_ID}/attribute.repository/sota1111/stock-signal-research"
 ```
 
-手動デプロイは `scripts/deploy_local_gcp.sh` を使用してください。
+手動デプロイは `scripts/deploy_local_gcp.sh` を使用してください.
 
 ### サンプルデータモード
 

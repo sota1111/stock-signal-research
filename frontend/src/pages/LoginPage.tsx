@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/useAuth'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,10 +15,19 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(username, password)
+      await login(email, password)
       navigate('/')
-    } catch {
-      setError('ユーザー名またはパスワードが正しくありません')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password') || msg.includes('auth/user-not-found')) {
+        setError('メールアドレスまたはパスワードが正しくありません')
+      } else if (msg.includes('auth/too-many-requests')) {
+        setError('ログイン試行が多すぎます。しばらく待ってから再試行してください')
+      } else if (msg.includes('許可されていません')) {
+        setError('このメールアドレスは許可されていません')
+      } else {
+        setError('ログインに失敗しました')
+      }
     } finally {
       setLoading(false)
     }
@@ -33,14 +42,15 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              ユーザー名
+              メールアドレス
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               required
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="your-email@example.com"
             />
           </div>
           <div>
@@ -55,13 +65,11 @@ export default function LoginPage() {
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-900 text-white rounded px-4 py-2 font-medium hover:bg-blue-800 disabled:opacity-50"
+            className="w-full bg-blue-600 text-white rounded py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? 'ログイン中...' : 'ログイン'}
           </button>
