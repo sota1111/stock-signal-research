@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Signal Research — Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #333; line-height: 1.6; }
+    .hero {
+      background: linear-gradient(135deg, #1a73e8 0%, #1558b0 100%);
+      color: white;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin-bottom: 16px; }
+    .hero p { font-size: clamp(1rem, 2.5vw, 1.25rem); opacity: 0.9; max-width: 600px; margin: 0 auto 32px; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 16px; font-size: 0.85rem; margin: 4px; }
+    .btn {
+      display: inline-block;
+      background: white;
+      color: #1a73e8;
+      text-decoration: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      margin-top: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    .features { padding: 60px 24px; max-width: 1000px; margin: 0 auto; }
+    .features h2 { text-align: center; font-size: 1.8rem; margin-bottom: 40px; color: #222; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 28px 24px;
+      border-left: 4px solid #1a73e8;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .card .icon { font-size: 2rem; margin-bottom: 12px; }
+    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    .card p { font-size: 0.9rem; color: #666; }
+    .tech { background: #f0f4f8; padding: 40px 24px; text-align: center; }
+    .tech h2 { font-size: 1.4rem; margin-bottom: 20px; color: #555; }
+    .tech-badge {
+      display: inline-block;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 0.85rem;
+      margin: 4px;
+      color: #444;
+    }
+    footer { text-align: center; padding: 24px; color: #999; font-size: 0.85rem; }
+    footer a { color: #1a73e8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Stock Signal Research</h1>
+    <p>紙トレンド・サプライチェーン・機関投資家データから株価変動の早期シグナルを多次元データ解析で検出する調査ツール</p>
+    <div><span class="badge">📊 Data Analysis</span><span class="badge">🔍 Signal Detection</span><span class="badge">🐍 Python</span></div>
+    <br>
+    <a href="https://github.com/sota1111/stock-signal-research" class="btn" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+  <section class="features">
+    <h2>主な機能</h2>
+    <div class="grid">
+            <div class="card">
+        <div class="icon">📄</div>
+        <h3>紙トレンド分析</h3>
+        <p>業界紙・専門誌のトレンドから株価動向を予測</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔗</div>
+        <h3>サプライチェーン追跡</h3>
+        <p>部品・原材料の需給変動から企業業績を先読み</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏦</div>
+        <h3>機関投資家データ解析</h3>
+        <p>大口投資家の動向から市場シグナルを早期検出</p>
+      </div>
+      <div class="card">
+        <div class="icon">📈</div>
+        <h3>シグナル可視化</h3>
+        <p>複数シグナルの相関を直感的なダッシュボードで表示</p>
+      </div>
+    </div>
+  </section>
+  <div class="tech">
+    <h2>技術スタック</h2>
+    <span class="tech-badge">Python</span> <span class="tech-badge">Data Analysis</span> <span class="tech-badge">Financial APIs</span> <span class="tech-badge">Signal Processing</span>
+  </div>
+  <footer>
+    <p>Built with ❤️ · <a href="https://github.com/sota1111/stock-signal-research" target="_blank">GitHub</a></p>
+  </footer>
+</body>
+</html>
