@@ -241,7 +241,7 @@ MVPはサンプルデータのみで動作します。将来的に以下の外�
 ### アーキテクチャ概要（クラウド）
 
 ```
-GitHub Actions（main merge）
+ローカル gcloud CLI（手動実行）
   └─► Artifact Registry（Dockerイメージ）
         ├─► Cloud Run Service（ダッシュボード / API）
         └─► Cloud Run Jobs
@@ -250,7 +250,7 @@ GitHub Actions（main merge）
               └─ daily-analysis   (JST 07:00 毎日)
                     ├─ aggregate-trends
                     └─ recalculate-scores
-
+```
 Firestore (default database)  ←→  Cloud Run Service / Jobs
 Secret Manager                 ←   Cloud Run（認証情報取得）
 Cloud Logging                  ←   全サービスのログ出力
@@ -261,7 +261,6 @@ Cloud Logging                  ←   全サービスのログ出力
 - GCP プロジェクト作成済み（課金有効化済み）
 - `gcloud` CLI インストール・認証済み
 - Docker インストール済み
-- GitHub リポジトリの Secrets 設定済み（後述）
 
 ### GCPセットアップ手順
 ### GCP Secret Manager セットアップ (Cloud Run本番デプロイ時)
@@ -287,13 +286,19 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 ローカル開発では `.env` ファイルに値を直接設定してください。
 
 
-環境変数を設定してから各スクリプトを実行してください。
+gcloud を認証してから環境変数を設定し、各スクリプトを実行してください。
 
 ```bash
+# gcloud 認証（初回または期限切れ時）
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project your-project-id
+gcloud config set run/region asia-northeast1
+
 export GCP_PROJECT_ID=your-project-id
 export GCP_REGION=asia-northeast1
 export GCP_SERVICE_ACCOUNT=stock-signal-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
-
+```
 # 1. 必要APIを有効化
 bash scripts/gcp/enable-apis.sh
 
@@ -368,48 +373,20 @@ cp .env.example .env
 # .env を編集して実際の値を設定
 ```
 
-### GitHub Actions 設定
+### ローカルデプロイ（scripts/deploy_local_gcp.sh）
 
-以下の GitHub Secrets を設定してください（Settings → Secrets and variables → Actions）:
-
-| Secret 名 | 説明 |
-|---|---|
-| `GCP_PROJECT_ID` | GCP プロジェクト ID |
-| `GCP_REGION` | デプロイリージョン（例: `asia-northeast1`） |
-| `GCP_SERVICE_ACCOUNT` | Cloud Run 実行用サービスアカウント（例: `stock-signal-sa@project.iam.gserviceaccount.com`） |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation プロバイダ URL |
-
-Workload Identity Federation のセットアップ:
+Cloud Run Service のビルド・デプロイは `scripts/deploy_local_gcp.sh` で一括実行できます:
 
 ```bash
-# Workload Identity Pool 作成
-gcloud iam workload-identity-pools create github-pool \
-  --project=$GCP_PROJECT_ID \
-  --location=global \
-  --display-name="GitHub Actions Pool"
+# .env を準備して実行
+cp .env.example .env
+# .env を編集して GCP_PROJECT_ID 等を設定
 
-# Pool ID 取得
-POOL_ID=$(gcloud iam workload-identity-pools describe github-pool \
-  --project=$GCP_PROJECT_ID --location=global --format="value(name)")
-
-# Provider 作成
-gcloud iam workload-identity-pools providers create-oidc github-provider \
-  --project=$GCP_PROJECT_ID \
-  --location=global \
-  --workload-identity-pool=github-pool \
-  --display-name="GitHub Actions Provider" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
-  --issuer-uri="https://token.actions.githubusercontent.com"
-
-# サービスアカウントへの権限付与
-gcloud iam service-accounts add-iam-policy-binding \
-  stock-signal-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com \
-  --project=$GCP_PROJECT_ID \
-  --role=roles/iam.workloadIdentityUser \
-  --member="principalSet://iam.googleapis.com/${POOL_ID}/attribute.repository/sota1111/stock-signal-research"
+source .env && bash scripts/deploy_local_gcp.sh
 ```
 
-手動デプロイは `scripts/deploy_local_gcp.sh` を使用してください.
+Cloud Run Jobs のデプロイは `scripts/gcp/deploy-jobs.sh` で実行してください。
+スケジューラ設定は `scripts/gcp/create-schedulers.sh` を使用してください。
 
 ### サンプルデータモード
 
@@ -514,7 +491,7 @@ gcloud artifacts docker images list \
 ### セキュリティ注意事項
 
 - **`.env` をコミットしない** — `.gitignore` で除外済み
-- **サービスアカウントキーをリポジトリに置かない** — Workload Identity Federation を使用
+- **サービスアカウントキーをリポジトリに置かない** — `gcloud auth login` / `gcloud auth application-default login` で認証
 - **Cloud Run Service は現在 unauthenticated アクセス許可**（MVP のため）。本番運用では IAP または認証ミドルウェアの追加を検討してください
 - **管理 API** は `APP_ADMIN_TOKEN` による Bearer 認証で保護できます
 - **個人情報・機密情報は表示しない**設計です（情報収集・分析支援ツール）
