@@ -3,9 +3,10 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class InvestorRepository(ABC):
     @abstractmethod
@@ -15,6 +16,7 @@ class InvestorRepository(ABC):
     @abstractmethod
     def save(self, investor_data: Dict[str, Any]) -> bool:
         ...
+
 
 class SQLiteInvestorRepository(InvestorRepository):
     def list_all(self) -> List[Dict[str, Any]]:
@@ -65,6 +67,7 @@ class SQLiteInvestorRepository(InvestorRepository):
         finally:
             db.close()
 
+
 class FirestoreInvestorRepository(InvestorRepository):
     def list_all(self) -> List[Dict[str, Any]]:
         try:
@@ -97,7 +100,7 @@ class FirestoreInvestorRepository(InvestorRepository):
                 name = investor_data["investor_name"].replace(" ", "_")
                 doc_id = f"{name}_{investor_data['company_id']}_{investor_data['report_date']}"
             investor_data["id"] = doc_id
-            
+
             data = {
                 **investor_data,
                 "updatedAt": datetime.now(timezone.utc),
@@ -107,6 +110,7 @@ class FirestoreInvestorRepository(InvestorRepository):
         except Exception as e:
             logger.error(f"Firestore save investor failed: {e}")
             return False
+
 
 def get_investor_repository() -> InvestorRepository:
     app_env = os.getenv("APP_ENV", "local")

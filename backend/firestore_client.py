@@ -1,10 +1,11 @@
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 _db = None
+
 
 def get_db():
     """Firestoreクライアントを取得（シングルトン）"""
@@ -14,23 +15,23 @@ def get_db():
             from google.cloud import firestore
             project_id = os.getenv("GCP_PROJECT_ID")
             database = os.getenv("FIRESTORE_DATABASE", "(default)")
-            
+
             if database and database != "(default)":
                 _db = firestore.Client(project=project_id, database=database)
             else:
                 _db = firestore.Client(project=project_id)
-                
+
             logger.info(f"Firestore client initialized: project={project_id}, database={database}")
         except Exception as e:
             logger.error(f"Failed to initialize Firestore client: {e}")
             raise
     return _db
 
+
 def upsert_document(collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
     """冪等にドキュメントを保存（存在すれば更新、なければ作成）"""
     try:
         db = get_db()
-        from google.cloud.firestore_v1 import SERVER_TIMESTAMP
         from datetime import datetime, timezone
         data["updatedAt"] = datetime.now(timezone.utc)
         db.collection(collection).document(doc_id).set(data, merge=True)
@@ -38,6 +39,7 @@ def upsert_document(collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
     except Exception as e:
         logger.error(f"Failed to upsert {collection}/{doc_id}: {e}")
         return False
+
 
 def save_job_run(job_run_id: str, job_name: str, status: str, **kwargs):
     """ジョブ実行履歴をFirestoreに保存"""

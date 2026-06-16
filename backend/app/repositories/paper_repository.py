@@ -41,10 +41,15 @@ class SQLitePaperRepository(PaperRepository):
                 if existing:
                     existing.title = paper.get("title", existing.title)
                     existing.url = paper.get("url", existing.url)
-                    existing.authors = json.dumps(paper.get("authors", [])) if isinstance(paper.get("authors"), list) else paper.get("authors", existing.authors)
+                    existing.authors = json.dumps(paper.get("authors", [])) if isinstance(
+                        paper.get("authors"), list) else paper.get("authors", existing.authors)
                     existing.published_at = paper.get("published_at", existing.published_at)
                     existing.abstract = paper.get("abstract", existing.abstract)
-                    existing.extracted_keywords = json.dumps(paper.get("extracted_keywords", [])) if isinstance(paper.get("extracted_keywords"), list) else paper.get("extracted_keywords", existing.extracted_keywords)
+                    existing.extracted_keywords = (
+                        json.dumps(paper.get("extracted_keywords", []))
+                        if isinstance(paper.get("extracted_keywords"), list)
+                        else paper.get("extracted_keywords", existing.extracted_keywords)
+                    )
                     existing.source = paper.get("source", existing.source)
                     if not existing.theme_id and theme_id:
                         existing.theme_id = theme_id
@@ -53,10 +58,12 @@ class SQLitePaperRepository(PaperRepository):
                         paper_id=paper["paper_id"],
                         title=paper.get("title", ""),
                         url=paper.get("url", ""),
-                        authors=json.dumps(paper.get("authors", [])) if isinstance(paper.get("authors"), list) else paper.get("authors", "[]"),
+                        authors=json.dumps(paper.get("authors", [])) if isinstance(
+                            paper.get("authors"), list) else paper.get("authors", "[]"),
                         published_at=paper.get("published_at", ""),
                         abstract=paper.get("abstract", ""),
-                        extracted_keywords=json.dumps(paper.get("extracted_keywords", [])) if isinstance(paper.get("extracted_keywords"), list) else paper.get("extracted_keywords", "[]"),
+                        extracted_keywords=json.dumps(paper.get("extracted_keywords", [])) if isinstance(
+                            paper.get("extracted_keywords"), list) else paper.get("extracted_keywords", "[]"),
                         source=paper.get("source", "arxiv"),
                         theme_id=theme_id,
                     )
@@ -113,8 +120,16 @@ class FirestorePaperRepository(PaperRepository):
             doc_id = paper["paper_id"].replace("/", "_")
             data = {
                 **paper,
-                "authors": json.dumps(paper.get("authors", [])) if isinstance(paper.get("authors"), list) else paper.get("authors", "[]"),
-                "extracted_keywords": json.dumps(paper.get("extracted_keywords", [])) if isinstance(paper.get("extracted_keywords"), list) else paper.get("extracted_keywords", "[]"),
+                "authors": (
+                    json.dumps(paper.get("authors", []))
+                    if isinstance(paper.get("authors"), list)
+                    else paper.get("authors", "[]")
+                ),
+                "extracted_keywords": (
+                    json.dumps(paper.get("extracted_keywords", []))
+                    if isinstance(paper.get("extracted_keywords"), list)
+                    else paper.get("extracted_keywords", "[]")
+                ),
                 "createdAt": datetime.now(timezone.utc),
                 "source": paper.get("source", "arxiv"),
             }
@@ -130,7 +145,7 @@ class FirestorePaperRepository(PaperRepository):
             query = db.collection("papers")
             if theme_id:
                 query = query.where("theme_id", "==", theme_id)
-            
+
             docs = query.stream()
             results = []
             for doc in docs:

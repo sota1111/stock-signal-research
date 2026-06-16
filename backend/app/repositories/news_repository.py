@@ -3,9 +3,10 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class NewsRepository(ABC):
     @abstractmethod
@@ -15,6 +16,7 @@ class NewsRepository(ABC):
     @abstractmethod
     def save(self, info_data: Dict[str, Any]) -> bool:
         ...
+
 
 class SQLiteNewsRepository(NewsRepository):
     def list_all(self, theme_id: str = None, info_type: str = None, limit: int = 50) -> List[Dict[str, Any]]:
@@ -27,7 +29,7 @@ class SQLiteNewsRepository(NewsRepository):
                 query = query.filter(ExternalInfo.theme_id == theme_id)
             if info_type:
                 query = query.filter(ExternalInfo.info_type == info_type)
-            
+
             infos = query.order_by(ExternalInfo.created_at.desc()).limit(limit).all()
             return [self._to_dict(i) for i in infos]
         finally:
@@ -74,6 +76,7 @@ class SQLiteNewsRepository(NewsRepository):
             "created_at": i.created_at,
         }
 
+
 class FirestoreNewsRepository(NewsRepository):
     def list_all(self, theme_id: str = None, info_type: str = None, limit: int = 50) -> List[Dict[str, Any]]:
         try:
@@ -81,12 +84,12 @@ class FirestoreNewsRepository(NewsRepository):
             from google.cloud import firestore
             db = get_db()
             query = db.collection("news")
-            
+
             if theme_id:
                 query = query.where("theme_id", "==", theme_id)
             if info_type:
                 query = query.where("info_type", "==", info_type)
-            
+
             # Note: Composite index might be needed for where + order_by
             docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit).stream()
             return [self._to_dict(doc.to_dict()) for doc in docs]
@@ -102,7 +105,7 @@ class FirestoreNewsRepository(NewsRepository):
             doc_id = info_data.get("info_id")
             if not doc_id:
                 return False
-            
+
             data = {
                 **info_data,
                 "createdAt": info_data.get("created_at") or datetime.now(timezone.utc),
@@ -129,6 +132,7 @@ class FirestoreNewsRepository(NewsRepository):
             "relevance_score": d.get("relevance_score", 0.0),
             "created_at": d.get("createdAt"),
         }
+
 
 def get_news_repository() -> NewsRepository:
     app_env = os.getenv("APP_ENV", "local")

@@ -5,6 +5,7 @@ from ..repositories.news_repository import get_news_repository
 
 router = APIRouter(prefix="/external-infos", tags=["external-infos"])
 
+
 @router.get("/", response_model=List[schemas.ExternalInfoResponse])
 def list_external_infos(
     theme_id: Optional[str] = Query(None),
@@ -13,6 +14,7 @@ def list_external_infos(
 ):
     repo = get_news_repository()
     return repo.list_all(theme_id=theme_id, info_type=info_type, limit=limit)
+
 
 @router.post("/", response_model=schemas.ExternalInfoResponse)
 def create_external_info(item: schemas.ExternalInfoCreate):

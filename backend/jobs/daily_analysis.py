@@ -2,8 +2,7 @@ import os
 import logging
 import uuid
 import json
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +118,7 @@ def _aggregate_trends_sqlite(job_run_id: str):
         import sys
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
         from app.database import SessionLocal
-        from app.models import Theme, PaperMonthlyCount, ExternalInfo
+        from app.models import Theme, PaperMonthlyCount
         from app.services.scoring import calculate_precursor_score
         db = SessionLocal()
         try:
@@ -129,15 +128,15 @@ def _aggregate_trends_sqlite(job_run_id: str):
                 pm_counts = db.query(PaperMonthlyCount).filter(
                     PaperMonthlyCount.theme_id == theme.id
                 ).order_by(PaperMonthlyCount.year_month.asc()).all()
-                
+
                 # 前兆スコア計算
                 theme.precursor_score = calculate_precursor_score(pm_counts)
-                
+
                 # 最新のMoM変化率でトレンド判定
                 if pm_counts:
                     latest_mom = pm_counts[-1].mom_change_pct
                     theme.is_trending = latest_mom > 20.0
-                
+
             db.commit()
             logger.info(f"Updated precursor_score and is_trending for {len(themes)} themes in SQLite")
         finally:
@@ -184,7 +183,6 @@ def _recalculate_scores_firestore(job_run_id: str):
     updated = 0
     for theme in themes:
         theme_id = theme["id"]
-        theme_name = theme["name"]
 
         # Firestoreの news コレクションは theme フィールドに theme名が入っている
         # info_type ごとにカウントする
@@ -232,27 +230,27 @@ def _recalculate_scores_sqlite(job_run_id: str):
             for theme in themes:
                 # 外部情報のカウント
                 N = db.query(ExternalInfo).filter(
-                    ExternalInfo.theme_id == theme.id, 
+                    ExternalInfo.theme_id == theme.id,
                     ExternalInfo.info_type == "news"
                 ).count()
                 A = db.query(ExternalInfo).filter(
-                    ExternalInfo.theme_id == theme.id, 
+                    ExternalInfo.theme_id == theme.id,
                     ExternalInfo.info_type == "announcement"
                 ).count()
                 E = db.query(ExternalInfo).filter(
-                    ExternalInfo.theme_id == theme.id, 
+                    ExternalInfo.theme_id == theme.id,
                     ExternalInfo.info_type == "earnings"
                 ).count()
-                
+
                 # 最新の論文MoM変化率を取得
                 latest_pmc = db.query(PaperMonthlyCount).filter(
                     PaperMonthlyCount.theme_id == theme.id
                 ).order_by(PaperMonthlyCount.year_month.desc()).first()
                 mom = latest_pmc.mom_change_pct if latest_pmc else 0.0
-                
+
                 # アライメントスコア計算
                 result = calculate_alignment_score(N, A, E, mom)
-                
+
                 # 保存 (Upsert)
                 existing = db.query(AlignmentScore).filter(AlignmentScore.theme_id == theme.id).first()
                 if existing:

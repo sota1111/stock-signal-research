@@ -1,12 +1,12 @@
 import logging
 import os
-import json
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class ThemeRepository(ABC):
     @abstractmethod
@@ -28,6 +28,7 @@ class ThemeRepository(ABC):
     @abstractmethod
     def list_external_infos_by_theme(self, theme_id: str, info_type: str = None) -> List[Dict[str, Any]]:
         ...
+
 
 class SQLiteThemeRepository(ThemeRepository):
     def list_all(self) -> List[Dict[str, Any]]:
@@ -137,6 +138,7 @@ class SQLiteThemeRepository(ThemeRepository):
             "updated_at": theme.updated_at,
         }
 
+
 class FirestoreThemeRepository(ThemeRepository):
     def list_all(self) -> List[Dict[str, Any]]:
         try:
@@ -164,7 +166,7 @@ class FirestoreThemeRepository(ThemeRepository):
             from firestore_client import upsert_document
             if not theme_data.get("id"):
                 theme_data["id"] = str(uuid.uuid4())
-            
+
             # Map snake_case to CamelCase if necessary, but task says align with SQLAlchemy
             data = {
                 **theme_data,
@@ -173,7 +175,7 @@ class FirestoreThemeRepository(ThemeRepository):
             }
             # Remove SQLAlchemy specific keys if present
             data.pop("_sa_instance_state", None)
-            
+
             return upsert_document("themes", data["id"], data)
         except Exception as e:
             logger.error(f"Firestore save theme failed: {e}")
@@ -230,6 +232,7 @@ class FirestoreThemeRepository(ThemeRepository):
             "created_at": d.get("createdAt"),
             "updated_at": d.get("updatedAt"),
         }
+
 
 def get_theme_repository() -> ThemeRepository:
     app_env = os.getenv("APP_ENV", "local")

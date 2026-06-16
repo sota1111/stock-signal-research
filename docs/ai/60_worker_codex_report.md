@@ -1,152 +1,126 @@
 # Worker Report
 
 ## Summary
-Verified local development and GCP deploy script setup after README changes. Bash syntax checks passed for all GCP deployment scripts. Docker Compose validation could not run because `docker` is not installed in this environment. Backend directory exists, but no `backend/tests/` directory is present, so pytest collection was not applicable. Frontend directory and `frontend/package.json` exist. README no longer contains the specified GitHub Actions references, includes the new local gcloud deploy content, and `.github/workflows/` is absent as expected.
+SOT-625 quality gate verification was executed for the Firestore migration branch.
+
+Verified:
+- flake8 lint for `backend/`
+- import checks for all new repositories, `jobs.daily_analysis`, and the migration script spec
+- project test discovery
+- Firestore migration acceptance criteria AC1-AC8
+
+Minimal lint fixes were applied. The fixes are formatting-only or unused-import cleanup, except `backend/app/main.py` keeps the SQLAlchemy model registration import with `# noqa: F401` because it is required before `Base.metadata.create_all()`.
+
+## Changed Files
+- `backend/app/database.py` - flake8 blank-line formatting.
+- `backend/app/main.py` - flake8 formatting; retained model registration import with `# noqa: F401`.
+- `backend/app/models.py` - flake8 formatting and unused import cleanup.
+- `backend/app/repositories/company_repository.py` - flake8 formatting and indentation cleanup.
+- `backend/app/repositories/investor_repository.py` - flake8 formatting and unused import cleanup.
+- `backend/app/repositories/news_repository.py` - flake8 formatting and unused import cleanup.
+- `backend/app/repositories/paper_repository.py` - flake8 formatting and long-line wrapping.
+- `backend/app/repositories/score_repository.py` - flake8 formatting.
+- `backend/app/repositories/supply_chain_repository.py` - flake8 formatting and unused import cleanup.
+- `backend/app/repositories/theme_repository.py` - flake8 formatting and unused import cleanup.
+- `backend/app/repositories/trend_repository.py` - flake8 formatting and unused import cleanup.
+- `backend/app/routers/companies.py` - flake8 blank-line formatting.
+- `backend/app/routers/dashboard.py` - flake8 formatting.
+- `backend/app/routers/external_infos.py` - flake8 blank-line formatting.
+- `backend/app/routers/investors.py` - flake8 formatting.
+- `backend/app/routers/papers.py` - flake8 blank-line formatting.
+- `backend/app/routers/supply_chain.py` - flake8 formatting.
+- `backend/app/routers/themes.py` - flake8 formatting.
+- `backend/app/schemas.py` - flake8 blank-line formatting.
+- `backend/app/seed.py` - flake8 formatting and long sample-data line wrapping.
+- `backend/app/services/scoring.py` - flake8 formatting.
+- `backend/firestore_client.py` - flake8 formatting and unused import cleanup.
+- `backend/jobs/daily_analysis.py` - flake8 formatting and unused import cleanup.
+- `backend/jobs/runner.py` - flake8 blank-line formatting.
+- `backend/scripts/migrate_sqlite_to_firestore.py` - flake8 formatting and unused import cleanup.
+- `docs/ai/60_worker_codex_report.md` - this report.
 
 ## Commands Run
 
 ```bash
-for f in /workspaces/stock-signal-research/scripts/gcp/*.sh; do
-  echo "Checking: $f"
-  bash -n "$f" && echo "OK: $f" || echo "SYNTAX ERROR: $f"
-done
+pip install --break-system-packages -q flake8 2>/dev/null || true
+pip install --user -q flake8 2>/dev/null || true
+python3 -m flake8 backend/ --max-line-length=120 --exclude=backend/.venv,backend/__pycache__,backend/data
+```
+
+Result: initially 262 lint findings. After minimal fixes, final result was success with no output.
+
+```bash
+APP_ENV=local DATABASE_URL="sqlite:///./data/app.db" python3 -c "..."
 ```
 
 Result:
 
 ```text
-Checking: /workspaces/stock-signal-research/scripts/gcp/create-firestore.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/create-firestore.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/create-schedulers.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/create-schedulers.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/create-secrets.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/create-secrets.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/deploy-jobs.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/deploy-jobs.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/deploy-service.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/deploy-service.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/enable-apis.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/enable-apis.sh
-Checking: /workspaces/stock-signal-research/scripts/gcp/set-iam.sh
-OK: /workspaces/stock-signal-research/scripts/gcp/set-iam.sh
+OK: All repositories import successfully
+OK: daily_analysis imports successfully
+Functions: ['datetime', 'json', 'logger', 'logging', 'os', 'run', 'timezone', 'uuid']
+OK: migrate script can be loaded
 ```
 
 ```bash
-bash -n /workspaces/stock-signal-research/scripts/deploy_local_gcp.sh && echo "OK: deploy_local_gcp.sh" || echo "SYNTAX ERROR: deploy_local_gcp.sh"
+find . -name "test_*.py" -o -name "*_test.py" | grep -v __pycache__ | head -10
 ```
 
-Result:
+Result: the specified command found only `backend/.venv` dependency test files. Running the specified pytest branch failed because `pytest` is not installed:
 
 ```text
-OK: deploy_local_gcp.sh
+/usr/bin/python3: No module named pytest
 ```
+
+Follow-up project test discovery excluding `backend/.venv`:
 
 ```bash
-cd /workspaces/stock-signal-research && docker compose config 2>&1 | head -20 || echo "docker compose config failed or not available"
+find backend -path backend/.venv -prune -o \( -name "test_*.py" -o -name "*_test.py" \) -print
 ```
 
 Result:
 
 ```text
-/bin/bash: line 1: docker: command not found
+No project test files found - skipping pytest
 ```
+
+Acceptance criteria command result:
+
+```text
+AC1: OK: SQLite guard present
+AC2: OK: FIRESTORE_DATABASE used
+AC3: OK: Dashboard uses repositories
+AC4: OK: Local env check present
+AC5: OK: FIRESTORE_DATABASE in .env.example
+AC6: OK: Migration script exists
+AC7: OK: Firestore mentioned in README
+AC8: OK: Firestore functions exist
+```
+
+Additional check:
 
 ```bash
-ls /workspaces/stock-signal-research/backend/ 2>/dev/null || echo "No backend/ directory"
-ls /workspaces/stock-signal-research/backend/tests/ 2>/dev/null || echo "No backend/tests/ directory"
+git diff --check
 ```
 
-Result:
-
-```text
-Dockerfile
-app
-data
-firestore_client.py
-jobs
-requirements.txt
-No backend/tests/ directory
-```
-
-Pytest collection was not run because `backend/tests/` does not exist.
-
-```bash
-ls /workspaces/stock-signal-research/frontend/ 2>/dev/null || echo "No frontend/ directory"
-ls /workspaces/stock-signal-research/frontend/package.json 2>/dev/null && echo "frontend/package.json exists" || echo "No frontend package.json"
-```
-
-Result:
-
-```text
-Dockerfile
-README.md
-dist
-eslint.config.js
-index.html
-node_modules
-package-lock.json
-package.json
-postcss.config.js
-public
-src
-tailwind.config.js
-tsconfig.app.json
-tsconfig.json
-tsconfig.node.json
-vite.config.ts
-/workspaces/stock-signal-research/frontend/package.json
-frontend/package.json exists
-```
-
-```bash
-grep -n "GitHub Actions\|GitHub Secrets\|Workload Identity\|GCP_WORKLOAD_IDENTITY_PROVIDER\|workflow" /workspaces/stock-signal-research/README.md && echo "FOUND GA REFERENCES" || echo "NO GA REFERENCES FOUND"
-```
-
-Result:
-
-```text
-NO GA REFERENCES FOUND
-```
-
-```bash
-grep -n "gcloud auth login\|deploy_local_gcp\|ローカル gcloud CLI" /workspaces/stock-signal-research/README.md
-```
-
-Result:
-
-```text
-244:ローカル gcloud CLI（手動実行）
-293:gcloud auth login
-376:### ローカルデプロイ（scripts/deploy_local_gcp.sh）
-378:Cloud Run Service のビルド・デプロイは `scripts/deploy_local_gcp.sh` で一括実行できます:
-385:source .env && bash scripts/deploy_local_gcp.sh
-494:- **サービスアカウントキーをリポジトリに置かない** — `gcloud auth login` / `gcloud auth application-default login` で認証
-```
-
-```bash
-ls /workspaces/stock-signal-research/.github/workflows/ 2>/dev/null && echo "WORKFLOWS FOUND (unexpected)" || echo "No .github/workflows/ directory (expected)"
-```
-
-Result:
-
-```text
-No .github/workflows/ directory (expected)
-```
+Result: success with no whitespace errors.
 
 ## Acceptance Criteria
-- [x] `scripts/gcp/*.sh` bash syntax check: pass
-- [x] `scripts/deploy_local_gcp.sh` bash syntax check: pass
-- [x] `docker compose config`: N/A (`docker` command not available)
-- [x] backend tests: N/A (`backend/tests/` directory absent)
-- [x] frontend build: N/A (frontend setup present; build was not requested/run)
-- [x] No GA references in README: confirmed
-- [x] New gcloud/local deploy content in README: confirmed
-- [x] .github/workflows/ is absent: confirmed
+- [x] lint エラー 0 (または許容範囲内)
+- [x] 全 import が成功する
+- [x] APP_ENV=production で SQLite が初期化されない
+- [x] Firestore クライアントに FIRESTORE_DATABASE が渡される
+- [x] ダッシュボード API が Firestore リポジトリを使う
+- [x] ローカル環境が従来通り動作する設計になっている
+- [x] .env.example に FIRESTORE_DATABASE がある
+- [x] 移行スクリプトが存在する
+- [x] daily_analysis に Firestore 実装がある
 
 ## Risks
-- `docker compose config` could not be validated because Docker is not installed in the execution environment.
-- Backend pytest collection could not be validated because `backend/tests/` does not exist.
-- Frontend build was not executed; only frontend setup and `package.json` presence were verified per instruction.
+- The provided test discovery command searches inside `backend/.venv`, which caused false-positive test discovery from installed dependencies.
+- `pytest` is not installed in the system Python used by the command.
+- No project-owned backend test files were found outside `backend/.venv`, so no application pytest suite was executed.
+- The migration script check creates an import spec but does not execute the module loader; this follows the provided command, but it is weaker than a full import execution.
 
 ## Next Action
 READY_FOR_REVIEW

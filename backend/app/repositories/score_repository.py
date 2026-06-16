@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class ScoreRepository(ABC):
     @abstractmethod
     def get_by_theme(self, theme_id: str) -> Optional[Dict[str, Any]]:
@@ -19,6 +20,7 @@ class ScoreRepository(ABC):
     @abstractmethod
     def save(self, score_data: Dict[str, Any]) -> bool:
         ...
+
 
 class SQLiteScoreRepository(ScoreRepository):
     def get_by_theme(self, theme_id: str) -> Optional[Dict[str, Any]]:
@@ -78,6 +80,7 @@ class SQLiteScoreRepository(ScoreRepository):
             "calculated_at": s.calculated_at,
         }
 
+
 class FirestoreScoreRepository(ScoreRepository):
     def get_by_theme(self, theme_id: str) -> Optional[Dict[str, Any]]:
         try:
@@ -106,7 +109,7 @@ class FirestoreScoreRepository(ScoreRepository):
             theme_id = score_data.get("theme_id")
             if not theme_id:
                 return False
-            
+
             data = {
                 **score_data,
                 "updatedAt": datetime.now(timezone.utc),
@@ -127,8 +130,9 @@ class FirestoreScoreRepository(ScoreRepository):
             "earnings_score": d.get("earnings_score", 0.0),
             "confidence": d.get("confidence", 0.0),
             "evidence_count": d.get("evidence_count", 0),
-            "calculated_at": d.get("updatedAt"), # or calculated_at
+            "calculated_at": d.get("updatedAt"),  # or calculated_at
         }
+
 
 def get_score_repository() -> ScoreRepository:
     app_env = os.getenv("APP_ENV", "local")

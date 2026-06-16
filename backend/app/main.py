@@ -8,7 +8,8 @@ from .database import engine, Base
 from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos
 from .auth import router as auth_router, get_current_user
 from . import seed
-from . import models
+from . import models  # noqa: F401  # Register SQLAlchemy models before create_all().
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,9 +48,11 @@ if os.path.isdir(_dist_dir):
     if os.path.isdir(_assets_dir):
         app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 def _check_firestore_connection():
     import logging
@@ -65,6 +68,7 @@ def _check_firestore_connection():
         _logger.info("Firestore connection: OK")
     except Exception as e:
         _logger.error(f"Firestore connection failed: {e}")
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):

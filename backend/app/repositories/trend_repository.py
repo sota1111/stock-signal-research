@@ -3,9 +3,10 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class TrendRepository(ABC):
     @abstractmethod
@@ -16,6 +17,7 @@ class TrendRepository(ABC):
     def save_monthly_count(self, count_data: Dict[str, Any]) -> bool:
         ...
 
+
 class SQLiteTrendRepository(TrendRepository):
     def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         from app.database import SessionLocal
@@ -25,7 +27,7 @@ class SQLiteTrendRepository(TrendRepository):
             query = db.query(PaperMonthlyCount)
             if theme_id:
                 query = query.filter(PaperMonthlyCount.theme_id == theme_id)
-            
+
             counts = query.order_by(PaperMonthlyCount.mom_change_pct.desc()).limit(limit).all()
             return [
                 {
@@ -51,13 +53,13 @@ class SQLiteTrendRepository(TrendRepository):
             theme_id = count_data.get("theme_id")
             keyword = count_data.get("keyword")
             year_month = count_data.get("year_month")
-            
+
             existing = db.query(PaperMonthlyCount).filter(
                 PaperMonthlyCount.theme_id == theme_id,
                 PaperMonthlyCount.keyword == keyword,
                 PaperMonthlyCount.year_month == year_month
             ).first()
-            
+
             if existing:
                 for key, value in count_data.items():
                     if hasattr(existing, key):
@@ -75,6 +77,7 @@ class SQLiteTrendRepository(TrendRepository):
         finally:
             db.close()
 
+
 class FirestoreTrendRepository(TrendRepository):
     def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         try:
@@ -82,10 +85,10 @@ class FirestoreTrendRepository(TrendRepository):
             from google.cloud import firestore
             db = get_db()
             query = db.collection("paper_monthly_counts")
-            
+
             if theme_id:
                 query = query.where("theme_id", "==", theme_id)
-            
+
             docs = query.order_by("mom_change_pct", direction=firestore.Query.DESCENDING).limit(limit).stream()
             return [
                 {
@@ -109,7 +112,7 @@ class FirestoreTrendRepository(TrendRepository):
             from firestore_client import upsert_document
             # {theme_id}_{keyword}_{year_month}
             doc_id = f"{count_data['theme_id']}_{count_data['keyword']}_{count_data['year_month']}"
-            
+
             data = {
                 **count_data,
                 "updatedAt": datetime.now(timezone.utc),
@@ -119,6 +122,7 @@ class FirestoreTrendRepository(TrendRepository):
         except Exception as e:
             logger.error(f"Firestore save monthly count failed: {e}")
             return False
+
 
 def get_trend_repository() -> TrendRepository:
     app_env = os.getenv("APP_ENV", "local")

@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class CompanyRepository(ABC):
     @abstractmethod
     def list_all(self) -> List[Dict[str, Any]]:
@@ -24,6 +25,7 @@ class CompanyRepository(ABC):
     @abstractmethod
     def delete(self, company_id: str) -> bool:
         ...
+
 
 class SQLiteCompanyRepository(CompanyRepository):
     def list_all(self) -> List[Dict[str, Any]]:
@@ -109,6 +111,7 @@ class SQLiteCompanyRepository(CompanyRepository):
             "theme_ids": c.theme_ids,
         }
 
+
 class FirestoreCompanyRepository(CompanyRepository):
     def list_all(self) -> List[Dict[str, Any]]:
         try:
@@ -136,15 +139,15 @@ class FirestoreCompanyRepository(CompanyRepository):
             from firestore_client import upsert_document
             if not company_data.get("id"):
                 company_data["id"] = str(uuid.uuid4())
-            
+
             data = {
                 **company_data,
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc),
             }
             if "theme_ids" in data and isinstance(data["theme_ids"], list):
-                 data["theme_ids"] = json.dumps(data["theme_ids"])
-            
+                data["theme_ids"] = json.dumps(data["theme_ids"])
+
             data.pop("_sa_instance_state", None)
             return upsert_document("companies", data["id"], data)
         except Exception as e:
@@ -171,6 +174,7 @@ class FirestoreCompanyRepository(CompanyRepository):
             "benefit_type": d.get("benefit_type", "indirect"),
             "theme_ids": d.get("theme_ids"),
         }
+
 
 def get_company_repository() -> CompanyRepository:
     app_env = os.getenv("APP_ENV", "local")

@@ -14,7 +14,6 @@ SQLite サンプルデータを Firestore へ初期投入するスクリプト�
 
 import os
 import sys
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -188,7 +187,7 @@ def main():
 
     # SQLite DB を読み込む
     from app.database import SessionLocal, engine, Base
-    from app import models, seed
+    from app import seed
     Base.metadata.create_all(bind=engine)
     seed.run_seed()
     sqlite_db = SessionLocal()
