@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
+
 class ThemeBase(BaseModel):
     name: str
     category: str
@@ -9,18 +10,22 @@ class ThemeBase(BaseModel):
     precursor_score: float = 0.0
     is_trending: bool = False
 
+
 class ThemeCreate(ThemeBase):
     pass
+
 
 class ThemeUpdate(ThemeBase):
     name: Optional[str] = None
     category: Optional[str] = None
+
 
 class ThemeResponse(ThemeBase):
     id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 class PaperBase(BaseModel):
     paper_id: str
@@ -33,12 +38,15 @@ class PaperBase(BaseModel):
     theme_id: Optional[str] = None
     source: str = "manual"
 
+
 class PaperCreate(PaperBase):
     pass
+
 
 class PaperResponse(PaperBase):
     id: str
     model_config = ConfigDict(from_attributes=True)
+
 
 class PaperMonthlyCountBase(BaseModel):
     theme_id: str
@@ -50,12 +58,15 @@ class PaperMonthlyCountBase(BaseModel):
     mom_change_pct: float = 0.0
     yoy_change_pct: float = 0.0
 
+
 class PaperMonthlyCountCreate(PaperMonthlyCountBase):
     pass
+
 
 class PaperMonthlyCountResponse(PaperMonthlyCountBase):
     id: str
     model_config = ConfigDict(from_attributes=True)
+
 
 class CompanyBase(BaseModel):
     name: str
@@ -65,12 +76,15 @@ class CompanyBase(BaseModel):
     benefit_type: str = "indirect"
     theme_ids: Optional[str] = None
 
+
 class CompanyCreate(CompanyBase):
     pass
+
 
 class CompanyResponse(CompanyBase):
     id: str
     model_config = ConfigDict(from_attributes=True)
+
 
 class SupplyChainBase(BaseModel):
     from_theme_id: str
@@ -79,14 +93,17 @@ class SupplyChainBase(BaseModel):
     description: Optional[str] = None
     order: int = 0
 
+
 class SupplyChainCreate(SupplyChainBase):
     pass
+
 
 class SupplyChainResponse(SupplyChainBase):
     id: str
     from_theme_name: Optional[str] = None
     to_theme_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 class InstitutionalInvestorBase(BaseModel):
     investor_name: str
@@ -97,13 +114,16 @@ class InstitutionalInvestorBase(BaseModel):
     report_type: str
     notes: Optional[str] = None
 
+
 class InstitutionalInvestorCreate(InstitutionalInvestorBase):
     pass
+
 
 class InstitutionalInvestorResponse(InstitutionalInvestorBase):
     id: str
     company_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 class ExternalInfoBase(BaseModel):
     info_id: str
@@ -117,13 +137,16 @@ class ExternalInfoBase(BaseModel):
     theme_id: Optional[str] = None
     relevance_score: float = 0.0
 
+
 class ExternalInfoCreate(ExternalInfoBase):
     pass
+
 
 class ExternalInfoResponse(ExternalInfoBase):
     id: str
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 class AlignmentScoreResponse(BaseModel):
     id: str
@@ -138,23 +161,28 @@ class AlignmentScoreResponse(BaseModel):
     top_evidence: List[ExternalInfoResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
+
 class ThemeExternalInfosResponse(BaseModel):
     news: List[ExternalInfoResponse]
     announcements: List[ExternalInfoResponse]
     earnings: List[ExternalInfoResponse]
+
 
 class HighAlignmentHighlightResponse(BaseModel):
     theme: ThemeResponse
     score: float
     confidence: float
 
+
 class PaperOnlyHighlightResponse(BaseModel):
     theme: ThemeResponse
     precursor_score: float
 
+
 class AlignmentHighlightsResponse(BaseModel):
     high_alignment: List[HighAlignmentHighlightResponse] = Field(default_factory=list)
     paper_only: List[PaperOnlyHighlightResponse] = Field(default_factory=list)
+
 
 class DashboardResponse(BaseModel):
     trending_themes: List[ThemeResponse]

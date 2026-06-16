@@ -1,29 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException
 from typing import List, Optional
-from ..database import get_db
-from .. import models, schemas
+from .. import schemas
+from ..repositories.paper_repository import get_paper_repository
+from ..repositories.trend_repository import get_trend_repository
 
 router = APIRouter(prefix="/papers", tags=["papers"])
 
+
 @router.get("/", response_model=List[schemas.PaperResponse])
-def read_papers(theme_id: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(models.Paper)
-    if theme_id:
-        query = query.filter(models.Paper.theme_id == theme_id)
-    return query.all()
+def read_papers(theme_id: Optional[str] = None):
+    repo = get_paper_repository()
+    return repo.list_all(theme_id=theme_id)
+
 
 @router.post("/", response_model=schemas.PaperResponse)
-def create_paper(paper: schemas.PaperCreate, db: Session = Depends(get_db)):
-    db_paper = models.Paper(**paper.model_dump())
-    db.add(db_paper)
-    db.commit()
-    db.refresh(db_paper)
-    return db_paper
+def create_paper(paper: schemas.PaperCreate):
+    repo = get_paper_repository()
+    paper_data = paper.model_dump()
+    if repo.save(paper_data):
+        return paper_data
+    raise HTTPException(status_code=500, detail="Failed to create paper")
+
 
 @router.get("/monthly", response_model=List[schemas.PaperMonthlyCountResponse])
-def read_paper_monthly_counts(theme_id: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(models.PaperMonthlyCount)
-    if theme_id:
-        query = query.filter(models.PaperMonthlyCount.theme_id == theme_id)
-    return query.all()
+def read_paper_monthly_counts(theme_id: Optional[str] = None):
+    repo = get_trend_repository()
+    return repo.list_monthly_counts(theme_id=theme_id)

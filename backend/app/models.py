@@ -1,10 +1,12 @@
-from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Integer, JSON
+from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Integer
 from sqlalchemy.sql import func
 from .database import Base
 import uuid
 
+
 def generate_uuid():
     return str(uuid.uuid4())
+
 
 class Theme(Base):
     __tablename__ = "themes"
@@ -16,6 +18,7 @@ class Theme(Base):
     is_trending = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 class Paper(Base):
     __tablename__ = "papers"
@@ -30,6 +33,7 @@ class Paper(Base):
     theme_id = Column(String, ForeignKey("themes.id"), nullable=True)
     source = Column(String, default="manual")
 
+
 class PaperMonthlyCount(Base):
     __tablename__ = "paper_monthly_counts"
     id = Column(String, primary_key=True, default=generate_uuid)
@@ -42,6 +46,7 @@ class PaperMonthlyCount(Base):
     mom_change_pct = Column(Float, default=0.0)
     yoy_change_pct = Column(Float, default=0.0)
 
+
 class Company(Base):
     __tablename__ = "companies"
     id = Column(String, primary_key=True, default=generate_uuid)
@@ -52,6 +57,7 @@ class Company(Base):
     benefit_type = Column(String, default="indirect")
     theme_ids = Column(String)  # Stored as JSON string
 
+
 class SupplyChain(Base):
     __tablename__ = "supply_chains"
     id = Column(String, primary_key=True, default=generate_uuid)
@@ -60,6 +66,7 @@ class SupplyChain(Base):
     relationship = Column(String, nullable=False)
     description = Column(String)
     order = Column(Integer, default=0)
+
 
 class InstitutionalInvestor(Base):
     __tablename__ = "institutional_investors"
@@ -72,29 +79,31 @@ class InstitutionalInvestor(Base):
     report_type = Column(String)
     notes = Column(String)
 
+
 class ExternalInfo(Base):
     __tablename__ = "external_infos"
-    id              = Column(String, primary_key=True, default=generate_uuid)
-    info_id         = Column(String, unique=True, index=True, nullable=False)
-    info_type       = Column(String, nullable=False)  # "news" | "announcement" | "earnings"
-    title           = Column(String, nullable=False)
-    url             = Column(String)
-    summary         = Column(String)
-    source_name     = Column(String)
-    published_at    = Column(String)
+    id = Column(String, primary_key=True, default=generate_uuid)
+    info_id = Column(String, unique=True, index=True, nullable=False)
+    info_type = Column(String, nullable=False)  # "news" | "announcement" | "earnings"
+    title = Column(String, nullable=False)
+    url = Column(String)
+    summary = Column(String)
+    source_name = Column(String)
+    published_at = Column(String)
     related_company = Column(String)
-    theme_id        = Column(String, ForeignKey("themes.id"), nullable=True)
+    theme_id = Column(String, ForeignKey("themes.id"), nullable=True)
     relevance_score = Column(Float, default=0.0)
-    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class AlignmentScore(Base):
     __tablename__ = "alignment_scores"
-    id                 = Column(String, primary_key=True, default=generate_uuid)
-    theme_id           = Column(String, ForeignKey("themes.id"), unique=True, nullable=False)
-    score              = Column(Float, default=0.0)
-    news_score         = Column(Float, default=0.0)
+    id = Column(String, primary_key=True, default=generate_uuid)
+    theme_id = Column(String, ForeignKey("themes.id"), unique=True, nullable=False)
+    score = Column(Float, default=0.0)
+    news_score = Column(Float, default=0.0)
     announcement_score = Column(Float, default=0.0)
-    earnings_score     = Column(Float, default=0.0)
-    confidence         = Column(Float, default=0.0)
-    evidence_count     = Column(Integer, default=0)
-    calculated_at      = Column(DateTime(timezone=True), server_default=func.now())
+    earnings_score = Column(Float, default=0.0)
+    confidence = Column(Float, default=0.0)
+    evidence_count = Column(Integer, default=0)
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now())

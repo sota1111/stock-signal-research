@@ -8,6 +8,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def main():
     job_name = os.getenv("JOB_NAME", "")
     logger.info(f"Starting job: {job_name}")
@@ -24,6 +25,7 @@ def main():
     else:
         logger.error(f"Unknown JOB_NAME: '{job_name}'. Valid values: collect-papers, collect-news, daily-analysis")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

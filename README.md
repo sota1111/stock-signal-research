@@ -70,7 +70,7 @@ docker compose up --build
 
 ```
 frontend/          React 18 + TypeScript + Vite + Tailwind CSS + Recharts
-backend/           Python 3.11 + FastAPI + SQLAlchemy + SQLite
+backend/           Python 3.11 + FastAPI + SQLAlchemy + SQLite (APP_ENV=local のみ)
 docker-compose.yml フロント・バック同時起動
 ```
 
@@ -209,7 +209,7 @@ MVPはサンプルデータのみで動作します。将来的に以下の外�
 - MVPのため、論文データは自動収集せず手動登録またはサンプルデータのみ
 - 大口投資家データはサンプルデータのみ（EDINET/SEC連携は未実装）
 - 投資判断の直接推奨は行わない設計（前兆候補・関連候補として表示）
-- SQLiteはローカル専用. 本番運用にはPostgreSQL等への移行を推奨
+- SQLiteはローカル専用 (APP_ENV=local のみ). 本番環境 (APP_ENV=production) では Firestore を使用します
 
 ---
 
@@ -496,6 +496,33 @@ gcloud artifacts docker images list \
 - **管理 API** は `APP_ADMIN_TOKEN` による Bearer 認証で保護できます
 - **個人情報・機密情報は表示しない**設計です（情報収集・分析支援ツール）
 - Cloud Run 実行用サービスアカウントは最小権限（Firestore 読み書き、Secret Manager アクセスのみ）
+
+## 本番DB（Firestore）初期化・データ移行
+
+### Firestore データベース作成
+
+scripts/gcp/create-firestore.sh を実行してFirestoreデータベースを作成します（初回のみ）。
+
+### SQLite サンプルデータの Firestore への投入
+
+ローカルの SQLite サンプルデータを Firestore に投入するには:
+
+````bash
+# ローカル SQLite を事前に初期化
+APP_ENV=local USE_SAMPLE_DATA=true python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 &
+sleep 3; kill %1
+
+# Firestore に移行
+cd backend
+APP_ENV=local GCP_PROJECT_ID=your-project-id python scripts/migrate_sqlite_to_firestore.py
+````
+
+### Firestore データの確認
+
+```bash
+# Cloud Run Jobs 実行後の確認
+gcloud firestore documents list --collection=themes --project=your-project-id
+```
 
 ### 投資助言に関する注意
 
