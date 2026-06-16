@@ -1,26 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException
 from typing import List
-from ..database import get_db
-from .. import models, schemas
+from .. import schemas
+from ..repositories.company_repository import get_company_repository
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 @router.get("/", response_model=List[schemas.CompanyResponse])
-def read_companies(db: Session = Depends(get_db)):
-    return db.query(models.Company).order_by(models.Company.benefit_score.desc()).all()
+def read_companies():
+    repo = get_company_repository()
+    return repo.list_all()
 
 @router.post("/", response_model=schemas.CompanyResponse)
-def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    db_company = models.Company(**company.model_dump())
-    db.add(db_company)
-    db.commit()
-    db.refresh(db_company)
-    return db_company
+def create_company(company: schemas.CompanyCreate):
+    repo = get_company_repository()
+    company_data = company.model_dump()
+    if repo.save(company_data):
+        return company_data
+    raise HTTPException(status_code=500, detail="Failed to create company")
 
 @router.get("/{company_id}", response_model=schemas.CompanyResponse)
-def read_company(company_id: str, db: Session = Depends(get_db)):
-    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+def read_company(company_id: str):
+    repo = get_company_repository()
+    db_company = repo.get_by_id(company_id)
     if db_company is None:
         raise HTTPException(status_code=404, detail="Company not found")
     return db_company

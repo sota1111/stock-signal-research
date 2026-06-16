@@ -12,13 +12,13 @@ from . import models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    seed.run_seed()
-
     app_env = os.getenv("APP_ENV", "local")
-    if app_env != "local":
+    if app_env in ("local", "test"):
+        Base.metadata.create_all(bind=engine)
+        seed.run_seed()
+    else:
+        # production: SQLiteは初期化しない。Firestore接続確認のみ。
         _check_firestore_connection()
-
     yield
 
 app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)

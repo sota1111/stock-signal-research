@@ -13,8 +13,14 @@ def get_db():
         try:
             from google.cloud import firestore
             project_id = os.getenv("GCP_PROJECT_ID")
-            _db = firestore.Client(project=project_id)
-            logger.info(f"Firestore client initialized: project={project_id}")
+            database = os.getenv("FIRESTORE_DATABASE", "(default)")
+            
+            if database and database != "(default)":
+                _db = firestore.Client(project=project_id, database=database)
+            else:
+                _db = firestore.Client(project=project_id)
+                
+            logger.info(f"Firestore client initialized: project={project_id}, database={database}")
         except Exception as e:
             logger.error(f"Failed to initialize Firestore client: {e}")
             raise

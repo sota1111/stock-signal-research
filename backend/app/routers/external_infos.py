@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, HTTPException
 from typing import List, Optional
-from ..database import get_db
-from .. import models, schemas
+from .. import schemas
+from ..repositories.news_repository import get_news_repository
 
 router = APIRouter(prefix="/external-infos", tags=["external-infos"])
 
@@ -11,19 +10,14 @@ def list_external_infos(
     theme_id: Optional[str] = Query(None),
     info_type: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
-    db: Session = Depends(get_db),
 ):
-    q = db.query(models.ExternalInfo)
-    if theme_id:
-        q = q.filter(models.ExternalInfo.theme_id == theme_id)
-    if info_type:
-        q = q.filter(models.ExternalInfo.info_type == info_type)
-    return q.order_by(models.ExternalInfo.published_at.desc()).limit(limit).all()
+    repo = get_news_repository()
+    return repo.list_all(theme_id=theme_id, info_type=info_type, limit=limit)
 
 @router.post("/", response_model=schemas.ExternalInfoResponse)
-def create_external_info(item: schemas.ExternalInfoCreate, db: Session = Depends(get_db)):
-    db_item = models.ExternalInfo(**item.model_dump())
-    db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
-    return db_item
+def create_external_info(item: schemas.ExternalInfoCreate):
+    repo = get_news_repository()
+    data = item.model_dump()
+    if repo.save(data):
+        return data
+    raise HTTPException(status_code=500, detail="Failed to create external info")
