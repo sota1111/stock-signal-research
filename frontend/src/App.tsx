@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage'
 import ListPage from './pages/ListPage'
 import DetailPage from './pages/DetailPage'
 import InputPage from './pages/InputPage'
+import EvaluationPage from './pages/EvaluationPage'
 import LoginPage from './pages/LoginPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,9 @@ function AppLayout() {
               <NavLink to="/input" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
                 登録
               </NavLink>
+              <NavLink to="/evaluation" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
+                一致度評価
+              </NavLink>
             </div>
             <button
               onClick={logout}
@@ -49,6 +53,7 @@ function AppLayout() {
           <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
           <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
           <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
+          <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
         </Routes>
       </main>
     </div>

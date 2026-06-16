@@ -109,3 +109,43 @@ export interface AlignmentHighlight {
   score: number
   confidence: number
 }
+
+export interface EvaluationWindowResult {
+  window_days: number
+  evaluated_count: number
+  direction_hit_rate: number
+  correlation: number
+  avg_return_high_signal: number
+  avg_return_low_signal: number
+}
+
+export interface CompanyWindowResult {
+  window_days: number
+  baseline_date: string
+  baseline_close: number
+  target_date: string
+  target_close: number
+  forward_return_pct: number
+  predicted_direction: 'up' | 'down'
+  actual_direction: 'up' | 'down'
+  hit: boolean
+}
+
+export interface CompanyEvaluation {
+  company_id: string
+  name: string
+  ticker: string
+  signal_score: number
+  results: CompanyWindowResult[]
+}
+
+export interface SignalAlignmentSummary {
+  baseline: string
+  windows: EvaluationWindowResult[]
+}
+
+export interface SignalAlignmentResponse {
+  baseline: string
+  summary: SignalAlignmentSummary
+  companies: CompanyEvaluation[]
+}
