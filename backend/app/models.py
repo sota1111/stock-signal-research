@@ -107,3 +107,12 @@ class AlignmentScore(Base):
     confidence = Column(Float, default=0.0)
     evidence_count = Column(Integer, default=0)
     calculated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class StockPrice(Base):
+    __tablename__ = "stock_prices"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    ticker = Column(String, index=True, nullable=False)
+    date = Column(String, nullable=False)   # "YYYY-MM-DD"
+    close = Column(Float, nullable=False)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=True)

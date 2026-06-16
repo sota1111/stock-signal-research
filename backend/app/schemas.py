@@ -190,3 +190,19 @@ class DashboardResponse(BaseModel):
     notable_companies: List[CompanyResponse]
     supply_chain_highlights: List[SupplyChainResponse]
     alignment_highlights: AlignmentHighlightsResponse = Field(default_factory=AlignmentHighlightsResponse)
+
+
+class StockPriceBase(BaseModel):
+    ticker: str
+    date: str
+    close: float
+    company_id: Optional[str] = None
+
+
+class StockPriceCreate(StockPriceBase):
+    pass
+
+
+class StockPriceResponse(StockPriceBase):
+    id: str
+    model_config = ConfigDict(from_attributes=True)

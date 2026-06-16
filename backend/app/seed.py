@@ -152,13 +152,54 @@ def run_seed():
             )
             db.add(db_inv)
 
+        # 7. Stock Prices
+        seed_stock_prices(db, companies)
+
         db.commit()
 
-        # 7. External Infos & Alignment (Conditional)
+        # 8. External Infos & Alignment (Conditional)
         seed_external_infos(db)
 
     finally:
         db.close()
+
+
+def seed_stock_prices(db, companies):
+    import random
+    import datetime
+    from . import models
+
+    # Deterministic seeding
+    start_date = datetime.date(2024, 1, 1)
+    end_date = datetime.date(2024, 12, 31)
+
+    for company in companies.values():
+        if not company.ticker:
+            continue
+
+        # Give each ticker a unique but deterministic seed based on ticker string
+        ticker_seed = sum(ord(c) for c in company.ticker)
+        ticker_rng = random.Random(ticker_seed)
+
+        current_price = ticker_rng.uniform(50.0, 500.0)
+        volatility = ticker_rng.uniform(0.01, 0.03)
+        drift = ticker_rng.uniform(-0.0001, 0.0005)
+
+        current_date = start_date
+        while current_date <= end_date:
+            # Simple random walk
+            change = current_price * (drift + volatility * ticker_rng.normalvariate(0, 1))
+            current_price += change
+            if current_price < 0.1:
+                current_price = 0.1
+
+            db.add(models.StockPrice(
+                ticker=company.ticker,
+                date=current_date.strftime("%Y-%m-%d"),
+                close=round(current_price, 2),
+                company_id=company.id
+            ))
+            current_date += datetime.timedelta(days=1)
 
 
 def _compute_alignment(db, theme_id):
