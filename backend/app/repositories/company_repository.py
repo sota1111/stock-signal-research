@@ -178,6 +178,6 @@ class FirestoreCompanyRepository(CompanyRepository):
 
 def get_company_repository() -> CompanyRepository:
     app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
+    if app_env in ("local", "test"):
         return SQLiteCompanyRepository()
     return FirestoreCompanyRepository()

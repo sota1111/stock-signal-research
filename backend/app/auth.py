@@ -4,11 +4,7 @@ import hashlib
 from fastapi import APIRouter, Depends, HTTPException, Cookie, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import firebase_admin
-from firebase_admin import auth as firebase_auth
 
-if not firebase_admin._apps:
-    firebase_admin.initialize_app()
 
 router = APIRouter()
 
@@ -23,6 +19,15 @@ def _compute_token(secret: str) -> str:
     return hmac.new(
         secret.encode(), f"{_APP_NAME}-auth".encode(), hashlib.sha256
     ).hexdigest()
+
+
+def _get_firebase_auth():
+    import firebase_admin
+    from firebase_admin import auth as firebase_auth
+
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+    return firebase_auth
 
 
 def get_current_user(auth_token: str = Cookie(None)) -> str:
@@ -54,6 +59,7 @@ def create_session(request: SessionRequest):
         )
 
     try:
+        firebase_auth = _get_firebase_auth()
         decoded = firebase_auth.verify_id_token(request.idToken)
         email: str = decoded.get("email", "")
     except Exception:

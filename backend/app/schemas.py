@@ -206,3 +206,43 @@ class StockPriceCreate(StockPriceBase):
 class StockPriceResponse(StockPriceBase):
     id: str
     model_config = ConfigDict(from_attributes=True)
+
+
+class EvaluationWindowResult(BaseModel):
+    window_days: int
+    evaluated_count: int
+    direction_hit_rate: float
+    correlation: float
+    avg_return_high_signal: float
+    avg_return_low_signal: float
+
+
+class CompanyWindowResult(BaseModel):
+    window_days: int
+    baseline_date: str
+    baseline_close: float
+    target_date: str
+    target_close: float
+    forward_return_pct: float
+    predicted_direction: str
+    actual_direction: str
+    hit: bool
+
+
+class CompanyEvaluation(BaseModel):
+    company_id: str
+    name: str
+    ticker: str
+    signal_score: float
+    results: List[CompanyWindowResult]
+
+
+class SignalAlignmentSummary(BaseModel):
+    baseline: str
+    windows: List[EvaluationWindowResult]
+
+
+class SignalAlignmentResponse(BaseModel):
+    baseline: str
+    summary: SignalAlignmentSummary
+    companies: List[CompanyEvaluation]
