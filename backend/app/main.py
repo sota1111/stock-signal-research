@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .database import engine, Base
-from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos
+from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos, evaluation
 from .auth import router as auth_router, get_current_user
 from . import seed
 from . import models  # noqa: F401  # Register SQLAlchemy models before create_all().
@@ -40,6 +40,7 @@ app.include_router(supply_chain.router, prefix="/api", dependencies=[Depends(get
 app.include_router(investors.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(dashboard.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(external_infos.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(evaluation.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 # Serve React static files if dist/ exists (Cloud Run production mode)
 _dist_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dist"))
