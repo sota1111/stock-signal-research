@@ -76,11 +76,41 @@ def _aggregate_trends(job_run_id: str, use_firestore: bool):
         return
 
     try:
-        logger.warning("Firestore trend aggregation is not implemented; skipping")
+        _aggregate_trends_firestore(job_run_id)
     except Exception as e:
         logger.error(f"Firestore trend aggregation failed: {e}")
         raise
     logger.info(json.dumps({"jobRunId": job_run_id, "step": "aggregate-trends", "status": "completed"}))
+
+
+def _aggregate_trends_firestore(job_run_id: str):
+    """Firestoreを使ったトレンド集計"""
+    import sys
+    from types import SimpleNamespace
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    from app.repositories.theme_repository import get_theme_repository
+    from app.repositories.trend_repository import get_trend_repository
+    from app.services.scoring import calculate_precursor_score
+
+    theme_repo = get_theme_repository()
+    trend_repo = get_trend_repository()
+
+    themes = theme_repo.list_all()
+    updated = 0
+    for theme in themes:
+        theme_id = theme["id"]
+        pm_counts = trend_repo.list_monthly_counts(theme_id=theme_id, limit=100)
+        # scoring 関数は .mom_change_pct と .count 属性を持つオブジェクトを期待する
+        pm_objs = sorted(
+            [SimpleNamespace(**pm) for pm in pm_counts],
+            key=lambda x: x.year_month
+        )
+        precursor_score = calculate_precursor_score(pm_objs)
+        is_trending = bool(pm_objs) and pm_objs[-1].mom_change_pct > 20.0
+        theme_repo.save({**theme, "precursor_score": precursor_score, "is_trending": is_trending})
+        updated += 1
+
+    logger.info(f"Updated precursor_score and is_trending for {updated} themes in Firestore")
 
 
 def _aggregate_trends_sqlite(job_run_id: str):
@@ -121,17 +151,70 @@ def _recalculate_scores(job_run_id: str, use_firestore: bool):
     """スコア再計算: テーマ別・企業別の前兆スコアを保存"""
     logger.info(json.dumps({"jobRunId": job_run_id, "step": "recalculate-scores", "status": "started"}))
 
-    if not use_firestore:
-        _recalculate_scores_sqlite(job_run_id)
+    if use_firestore:
+        try:
+            _recalculate_scores_firestore(job_run_id)
+        except Exception as e:
+            logger.error(f"Firestore score recalculation failed: {e}")
+            raise
         logger.info(json.dumps({"jobRunId": job_run_id, "step": "recalculate-scores", "status": "completed"}))
         return
 
-    try:
-        logger.warning("Firestore score recalculation is not implemented; skipping")
-    except Exception as e:
-        logger.error(f"Firestore score recalculation failed: {e}")
-        raise
+    _recalculate_scores_sqlite(job_run_id)
     logger.info(json.dumps({"jobRunId": job_run_id, "step": "recalculate-scores", "status": "completed"}))
+
+
+def _recalculate_scores_firestore(job_run_id: str):
+    """FirestoreによるAlignmentScore再計算"""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    from app.repositories.theme_repository import get_theme_repository
+    from app.repositories.news_repository import get_news_repository
+    from app.repositories.trend_repository import get_trend_repository
+    from app.repositories.score_repository import get_score_repository
+    from app.services.scoring import calculate_alignment_score
+    from datetime import datetime, timezone
+
+    theme_repo = get_theme_repository()
+    news_repo = get_news_repository()
+    trend_repo = get_trend_repository()
+    score_repo = get_score_repository()
+
+    themes = theme_repo.list_all()
+    updated = 0
+    for theme in themes:
+        theme_id = theme["id"]
+        theme_name = theme["name"]
+
+        # Firestoreの news コレクションは theme フィールドに theme名が入っている
+        # info_type ごとにカウントする
+        all_news = news_repo.list_all(theme_id=theme_id, limit=1000)
+        N = sum(1 for n in all_news if n.get("info_type") == "news")
+        A = sum(1 for n in all_news if n.get("info_type") == "announcement")
+        E = sum(1 for n in all_news if n.get("info_type") == "earnings")
+
+        # 最新の論文MoM変化率を取得
+        pm_counts = trend_repo.list_monthly_counts(theme_id=theme_id, limit=1)
+        latest_mom = pm_counts[0]["mom_change_pct"] if pm_counts else 0.0
+
+        # スコア計算
+        result = calculate_alignment_score(N, A, E, latest_mom)
+
+        # scores コレクションへ保存（ドキュメントID = theme_id）
+        score_data = {
+            "theme_id": theme_id,
+            "score": result["score"],
+            "news_score": result["news_score"],
+            "announcement_score": result["announcement_score"],
+            "earnings_score": result["earnings_score"],
+            "confidence": result["confidence"],
+            "evidence_count": result["evidence_count"],
+            "calculated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        score_repo.save(score_data)
+        updated += 1
+
+    logger.info(f"Recalculated AlignmentScore for {updated} themes in Firestore")
 
 
 def _recalculate_scores_sqlite(job_run_id: str):
