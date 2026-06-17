@@ -21,11 +21,14 @@ class PaperRepository(ABC):
 
 
 class SQLitePaperRepository(PaperRepository):
+    def __init__(self, session_factory=None):
+        from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
     def save(self, paper: Dict[str, Any]) -> bool:
         try:
-            from app.database import SessionLocal
             from app.models import Paper, Theme
-            db = SessionLocal()
+            db = self._session_factory()
 
             def _get_theme_id(db, theme_name: str):
                 if not theme_name:
@@ -39,6 +42,7 @@ class SQLitePaperRepository(PaperRepository):
                 theme_id = _get_theme_id(db, paper.get("theme", ""))
                 existing = db.query(Paper).filter(Paper.paper_id == paper["paper_id"]).first()
                 if existing:
+                    paper["id"] = existing.id
                     existing.title = paper.get("title", existing.title)
                     existing.url = paper.get("url", existing.url)
                     existing.authors = json.dumps(paper.get("authors", [])) if isinstance(
@@ -54,7 +58,12 @@ class SQLitePaperRepository(PaperRepository):
                     if not existing.theme_id and theme_id:
                         existing.theme_id = theme_id
                 else:
+                    if not paper.get("id"):
+                        import uuid
+                        paper["id"] = str(uuid.uuid4())
+                    
                     new_paper = Paper(
+                        id=paper["id"],
                         paper_id=paper["paper_id"],
                         title=paper.get("title", ""),
                         url=paper.get("url", ""),
@@ -82,9 +91,8 @@ class SQLitePaperRepository(PaperRepository):
 
     def list_all(self, theme_id: str = None) -> List[Dict[str, Any]]:
         try:
-            from app.database import SessionLocal
             from app.models import Paper
-            db = SessionLocal()
+            db = self._session_factory()
             try:
                 query = db.query(Paper)
                 if theme_id:
@@ -169,12 +177,13 @@ class FirestorePaperRepository(PaperRepository):
             return []
 
 
-def get_paper_repository() -> PaperRepository:
-    """Factory: returns SQLite repo for local, Firestore repo for production."""
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
+def get_paper_repository(session_factory=None) -> PaperRepository:
+    """Factory: returns SQLite repo for local/test, Firestore repo for production."""
+    from . import use_sqlite
+    if use_sqlite():
         logger.debug("PaperRepository: using SQLitePaperRepository")
-        return SQLitePaperRepository()
+        return SQLitePaperRepository(session_factory=session_factory)
     else:
+        app_env = os.getenv("APP_ENV", "local")
         logger.debug(f"PaperRepository: using FirestorePaperRepository (APP_ENV={app_env})")
         return FirestorePaperRepository()

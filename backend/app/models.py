@@ -32,6 +32,7 @@ class Paper(Base):
     extracted_keywords = Column(String)  # Stored as JSON string
     theme_id = Column(String, ForeignKey("themes.id"), nullable=True)
     source = Column(String, default="manual")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class PaperMonthlyCount(Base):

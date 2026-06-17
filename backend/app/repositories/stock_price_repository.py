@@ -23,10 +23,13 @@ class StockPriceRepository(ABC):
 
 
 class SQLiteStockPriceRepository(StockPriceRepository):
-    def list_by_ticker(self, ticker: str, start: Optional[str] = None, end: Optional[str] = None) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_by_ticker(self, ticker: str, start: Optional[str] = None, end: Optional[str] = None) -> List[Dict[str, Any]]:
         from app.models import StockPrice
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             query = db.query(StockPrice).filter(StockPrice.ticker == ticker)
             if start:
@@ -39,9 +42,8 @@ class SQLiteStockPriceRepository(StockPriceRepository):
             db.close()
 
     def get_price_on_or_after(self, ticker: str, date: str) -> Optional[Dict[str, Any]]:
-        from app.database import SessionLocal
         from app.models import StockPrice
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             price = db.query(StockPrice).filter(
                 StockPrice.ticker == ticker,
@@ -52,9 +54,8 @@ class SQLiteStockPriceRepository(StockPriceRepository):
             db.close()
 
     def save_many(self, prices: List[Dict[str, Any]]) -> bool:
-        from app.database import SessionLocal
         from app.models import StockPrice
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             for p_data in prices:
                 if not p_data.get("id"):
@@ -153,8 +154,8 @@ class FirestoreStockPriceRepository(StockPriceRepository):
         }
 
 
-def get_stock_price_repository() -> StockPriceRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env in ("local", "test"):
-        return SQLiteStockPriceRepository()
+def get_stock_price_repository(session_factory=None) -> StockPriceRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteStockPriceRepository(session_factory=session_factory)
     return FirestoreStockPriceRepository()

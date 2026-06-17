@@ -31,10 +31,13 @@ class ThemeRepository(ABC):
 
 
 class SQLiteThemeRepository(ThemeRepository):
-    def list_all(self) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_all(self) -> List[Dict[str, Any]]:
         from app.models import Theme
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             themes = db.query(Theme).order_by(Theme.precursor_score.desc()).all()
             return [self._to_dict(t) for t in themes]
@@ -42,9 +45,8 @@ class SQLiteThemeRepository(ThemeRepository):
             db.close()
 
     def get_by_id(self, theme_id: str) -> Optional[Dict[str, Any]]:
-        from app.database import SessionLocal
         from app.models import Theme
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             theme = db.query(Theme).filter(Theme.id == theme_id).first()
             return self._to_dict(theme) if theme else None
@@ -52,9 +54,8 @@ class SQLiteThemeRepository(ThemeRepository):
             db.close()
 
     def save(self, theme_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import Theme
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             theme_id = theme_data.get("id")
             if theme_id:
@@ -80,9 +81,8 @@ class SQLiteThemeRepository(ThemeRepository):
             db.close()
 
     def delete(self, theme_id: str) -> bool:
-        from app.database import SessionLocal
         from app.models import Theme
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             theme = db.query(Theme).filter(Theme.id == theme_id).first()
             if theme:
@@ -98,9 +98,8 @@ class SQLiteThemeRepository(ThemeRepository):
             db.close()
 
     def list_external_infos_by_theme(self, theme_id: str, info_type: str = None) -> List[Dict[str, Any]]:
-        from app.database import SessionLocal
         from app.models import ExternalInfo
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             query = db.query(ExternalInfo).filter(ExternalInfo.theme_id == theme_id)
             if info_type:
@@ -234,8 +233,8 @@ class FirestoreThemeRepository(ThemeRepository):
         }
 
 
-def get_theme_repository() -> ThemeRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteThemeRepository()
+def get_theme_repository(session_factory=None) -> ThemeRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteThemeRepository(session_factory=session_factory)
     return FirestoreThemeRepository()

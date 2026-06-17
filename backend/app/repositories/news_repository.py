@@ -19,10 +19,13 @@ class NewsRepository(ABC):
 
 
 class SQLiteNewsRepository(NewsRepository):
-    def list_all(self, theme_id: str = None, info_type: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_all(self, theme_id: str = None, info_type: str = None, limit: int = 50) -> List[Dict[str, Any]]:
         from app.models import ExternalInfo
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             query = db.query(ExternalInfo)
             if theme_id:
@@ -36,9 +39,8 @@ class SQLiteNewsRepository(NewsRepository):
             db.close()
 
     def save(self, info_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import ExternalInfo
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             info_id = info_data.get("info_id")
             existing = db.query(ExternalInfo).filter(ExternalInfo.info_id == info_id).first()
@@ -134,8 +136,8 @@ class FirestoreNewsRepository(NewsRepository):
         }
 
 
-def get_news_repository() -> NewsRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteNewsRepository()
+def get_news_repository(session_factory=None) -> NewsRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteNewsRepository(session_factory=session_factory)
     return FirestoreNewsRepository()
