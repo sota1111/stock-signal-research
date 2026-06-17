@@ -388,6 +388,28 @@ source .env && bash scripts/deploy_local_gcp.sh
 Cloud Run Jobs のデプロイは `scripts/gcp/deploy-jobs.sh` で実行してください。
 スケジューラ設定は `scripts/gcp/create-schedulers.sh` を使用してください。
 
+### GitHub Actions 設定（CI/CD → Cloud Run）
+
+ワークフロー: `.github/workflows/deploy-cloudrun.yml`
+
+- **トリガー**: `main` ブランチへの push（手動実行用に `workflow_dispatch` も対応）
+- **認証方式**: Workload Identity Federation（JSON キーは使用しない）
+- **権限**: `permissions: contents: read` / `id-token: write`
+- **処理**: Docker build（`Dockerfile.service` の `production` ステージ）→ Artifact Registry push → Cloud Run deploy
+- コンテナは **ポート 8080**（`$PORT`、Cloud Run のデフォルト）で listen するため、追加のポート設定は不要
+
+Settings → Secrets and variables → Actions で以下の **必須 Secret（7件）** を設定:
+
+| Secret 名 | 説明 |
+|---|---|
+| `GCP_PROJECT_ID` | GCP プロジェクト ID |
+| `GCP_PROJECT_NUMBER` | GCP プロジェクト番号 |
+| `GCP_REGION` | Cloud Run / Artifact Registry のリージョン（例: `asia-northeast1`） |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation プロバイダのリソース名 |
+| `GCP_SERVICE_ACCOUNT` | デプロイ用サービスアカウントのメールアドレス |
+| `ARTIFACT_REGISTRY_REPOSITORY` | Artifact Registry リポジトリ名 |
+| `CLOUD_RUN_SERVICE` | Cloud Run サービス名（本リポジトリでは `stock-signal-research`） |
+
 ### サンプルデータモード
 
 外部 API キーなしで動作確認できます:
