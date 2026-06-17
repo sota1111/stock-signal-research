@@ -37,14 +37,13 @@ docker compose up --build
 
 ## 認証設定
 
-このアプリは Firebase Authentication を使用して認証を行います。`.env` に以下の変数を設定してください。
+このアプリは **サーバサイド Firebase REST 認証（案1）** を使用します。ブラウザは Firebase と
+直接通信せず、サーバが Identity Toolkit REST (`accounts:signInWithPassword`) でメール/パスワードを
+照合し、既存の HMAC 署名 Cookie を発行します。`.env` に以下の変数を設定してください。
 
 | 変数名 | 説明 | 例 |
 |--------|------|-----|
-| VITE_FIREBASE_API_KEY | Firebase API Key | AIza... |
-| VITE_FIREBASE_AUTH_DOMAIN | Firebase Auth Domain | your-project.firebaseapp.com |
-| VITE_FIREBASE_PROJECT_ID | Firebase Project ID | your-project-id |
-| VITE_FIREBASE_APP_ID | Firebase App ID | 1:123... |
+| FIREBASE_WEB_API_KEY | Firebase Web API Key（サーバ側のみ。ブラウザには露出しない） | AIza... |
 | ALLOWED_USER_EMAILS | 許可するメール（カンマ区切り） | user@example.com |
 | AUTH_SECRET | セッション署名用シークレット | random-string |
 
@@ -54,7 +53,7 @@ docker compose up --build
 2. Firebase Console で Email/Password 認証を有効にし、ユーザーを作成
 3. `docker compose up --build` で起動
 4. http://localhost:5173 にアクセス → ログイン画面にリダイレクトされる
-5. Firebase で作成したメールアドレスとパスワードでログイン
+5. Firebase で作成したメールアドレスとパスワードでログイン（照合はサーバ経由）
 6. ログアウトはナビバー右上の「ログアウト」ボタンから
 
 ---
@@ -327,6 +326,7 @@ bash scripts/gcp/create-schedulers.sh
 
 | シークレット名 | 説明 | 必須 |
 |---|---|---|
+| `FIREBASE_WEB_API_KEY` | Firebase Web API Key（サーバ側REST認証用） | Yes |
 | `AUTH_SECRET` | セッション署名用シークレット | Yes |
 | `ALLOWED_USER_EMAILS` | 許可するメールアドレス（カンマ区切り） | Yes |
 | `SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar API キー | No（なければskip） |
