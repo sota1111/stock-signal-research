@@ -42,6 +42,7 @@ class SQLitePaperRepository(PaperRepository):
                 theme_id = _get_theme_id(db, paper.get("theme", ""))
                 existing = db.query(Paper).filter(Paper.paper_id == paper["paper_id"]).first()
                 if existing:
+                    paper["id"] = existing.id
                     existing.title = paper.get("title", existing.title)
                     existing.url = paper.get("url", existing.url)
                     existing.authors = json.dumps(paper.get("authors", [])) if isinstance(
@@ -57,7 +58,12 @@ class SQLitePaperRepository(PaperRepository):
                     if not existing.theme_id and theme_id:
                         existing.theme_id = theme_id
                 else:
+                    if not paper.get("id"):
+                        import uuid
+                        paper["id"] = str(uuid.uuid4())
+                    
                     new_paper = Paper(
+                        id=paper["id"],
                         paper_id=paper["paper_id"],
                         title=paper.get("title", ""),
                         url=paper.get("url", ""),
