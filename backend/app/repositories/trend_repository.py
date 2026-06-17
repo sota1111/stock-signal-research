@@ -19,10 +19,13 @@ class TrendRepository(ABC):
 
 
 class SQLiteTrendRepository(TrendRepository):
-    def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         from app.models import PaperMonthlyCount
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             query = db.query(PaperMonthlyCount)
             if theme_id:
@@ -46,9 +49,8 @@ class SQLiteTrendRepository(TrendRepository):
             db.close()
 
     def save_monthly_count(self, count_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import PaperMonthlyCount
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             theme_id = count_data.get("theme_id")
             keyword = count_data.get("keyword")
@@ -124,8 +126,8 @@ class FirestoreTrendRepository(TrendRepository):
             return False
 
 
-def get_trend_repository() -> TrendRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteTrendRepository()
+def get_trend_repository(session_factory=None) -> TrendRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteTrendRepository(session_factory=session_factory)
     return FirestoreTrendRepository()

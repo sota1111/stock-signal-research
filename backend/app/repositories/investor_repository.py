@@ -19,10 +19,13 @@ class InvestorRepository(ABC):
 
 
 class SQLiteInvestorRepository(InvestorRepository):
-    def list_all(self) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_all(self) -> List[Dict[str, Any]]:
         from app.models import InstitutionalInvestor
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             investors = db.query(InstitutionalInvestor).all()
             return [
@@ -42,9 +45,8 @@ class SQLiteInvestorRepository(InvestorRepository):
             db.close()
 
     def save(self, investor_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import InstitutionalInvestor
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             investor_id = investor_data.get("id")
             if investor_id:
@@ -112,8 +114,8 @@ class FirestoreInvestorRepository(InvestorRepository):
             return False
 
 
-def get_investor_repository() -> InvestorRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteInvestorRepository()
+def get_investor_repository(session_factory=None) -> InvestorRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteInvestorRepository(session_factory=session_factory)
     return FirestoreInvestorRepository()

@@ -23,10 +23,13 @@ class ScoreRepository(ABC):
 
 
 class SQLiteScoreRepository(ScoreRepository):
-    def get_by_theme(self, theme_id: str) -> Optional[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def get_by_theme(self, theme_id: str) -> Optional[Dict[str, Any]]:
         from app.models import AlignmentScore
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             score = db.query(AlignmentScore).filter(AlignmentScore.theme_id == theme_id).first()
             return self._to_dict(score) if score else None
@@ -34,9 +37,8 @@ class SQLiteScoreRepository(ScoreRepository):
             db.close()
 
     def list_top(self, limit: int = 10) -> List[Dict[str, Any]]:
-        from app.database import SessionLocal
         from app.models import AlignmentScore
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             scores = db.query(AlignmentScore).order_by(AlignmentScore.score.desc()).limit(limit).all()
             return [self._to_dict(s) for s in scores]
@@ -44,9 +46,8 @@ class SQLiteScoreRepository(ScoreRepository):
             db.close()
 
     def save(self, score_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import AlignmentScore
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             theme_id = score_data.get("theme_id")
             existing = db.query(AlignmentScore).filter(AlignmentScore.theme_id == theme_id).first()
@@ -134,8 +135,8 @@ class FirestoreScoreRepository(ScoreRepository):
         }
 
 
-def get_score_repository() -> ScoreRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteScoreRepository()
+def get_score_repository(session_factory=None) -> ScoreRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteScoreRepository(session_factory=session_factory)
     return FirestoreScoreRepository()

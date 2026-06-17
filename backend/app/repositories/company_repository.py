@@ -28,10 +28,13 @@ class CompanyRepository(ABC):
 
 
 class SQLiteCompanyRepository(CompanyRepository):
-    def list_all(self) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_all(self) -> List[Dict[str, Any]]:
         from app.models import Company
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             companies = db.query(Company).order_by(Company.benefit_score.desc()).all()
             return [self._to_dict(c) for c in companies]
@@ -39,9 +42,8 @@ class SQLiteCompanyRepository(CompanyRepository):
             db.close()
 
     def get_by_id(self, company_id: str) -> Optional[Dict[str, Any]]:
-        from app.database import SessionLocal
         from app.models import Company
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             company = db.query(Company).filter(Company.id == company_id).first()
             return self._to_dict(company) if company else None
@@ -49,9 +51,8 @@ class SQLiteCompanyRepository(CompanyRepository):
             db.close()
 
     def save(self, company_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import Company
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             company_id = company_data.get("id")
             if company_id:
@@ -83,9 +84,8 @@ class SQLiteCompanyRepository(CompanyRepository):
             db.close()
 
     def delete(self, company_id: str) -> bool:
-        from app.database import SessionLocal
         from app.models import Company
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             company = db.query(Company).filter(Company.id == company_id).first()
             if company:
@@ -176,8 +176,8 @@ class FirestoreCompanyRepository(CompanyRepository):
         }
 
 
-def get_company_repository() -> CompanyRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env in ("local", "test"):
-        return SQLiteCompanyRepository()
+def get_company_repository(session_factory=None) -> CompanyRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteCompanyRepository(session_factory=session_factory)
     return FirestoreCompanyRepository()

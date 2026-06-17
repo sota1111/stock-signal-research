@@ -19,10 +19,13 @@ class SupplyChainRepository(ABC):
 
 
 class SQLiteSupplyChainRepository(SupplyChainRepository):
-    def list_all(self) -> List[Dict[str, Any]]:
+    def __init__(self, session_factory=None):
         from app.database import SessionLocal
+        self._session_factory = session_factory or SessionLocal
+
+    def list_all(self) -> List[Dict[str, Any]]:
         from app.models import SupplyChain
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             scs = db.query(SupplyChain).order_by(SupplyChain.order.asc()).all()
             return [
@@ -40,9 +43,8 @@ class SQLiteSupplyChainRepository(SupplyChainRepository):
             db.close()
 
     def save(self, sc_data: Dict[str, Any]) -> bool:
-        from app.database import SessionLocal
         from app.models import SupplyChain
-        db = SessionLocal()
+        db = self._session_factory()
         try:
             sc_id = sc_data.get("id")
             if sc_id:
@@ -104,8 +106,8 @@ class FirestoreSupplyChainRepository(SupplyChainRepository):
             return False
 
 
-def get_supply_chain_repository() -> SupplyChainRepository:
-    app_env = os.getenv("APP_ENV", "local")
-    if app_env == "local":
-        return SQLiteSupplyChainRepository()
+def get_supply_chain_repository(session_factory=None) -> SupplyChainRepository:
+    from . import use_sqlite
+    if use_sqlite():
+        return SQLiteSupplyChainRepository(session_factory=session_factory)
     return FirestoreSupplyChainRepository()
