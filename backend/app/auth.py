@@ -36,11 +36,11 @@ def _verify_password_via_rest(email: str, password: str) -> str:
     Returns the authenticated email on success. Raises HTTPException on failure.
     The password is never logged or echoed back in any error message.
     """
-    api_key = os.getenv("FIREBASE_WEB_API_KEY")
+    api_key = os.getenv("FIREBASE_WEB_API_KEY") or os.getenv("FIREBASE_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="FIREBASE_WEB_API_KEY not configured",
+            detail="FIREBASE_WEB_API_KEY / FIREBASE_API_KEY not configured",
         )
 
     try:

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,8 +12,32 @@ from . import seed
 from . import models  # noqa: F401  # Register SQLAlchemy models before create_all().
 
 
+logger = logging.getLogger(__name__)
+
+
+def _check_auth_config() -> None:
+    """Log each missing auth setting distinctly at startup so that
+    misconfiguration is visible in Cloud Run logs at boot time."""
+    firebase_api_key = os.getenv("FIREBASE_WEB_API_KEY") or os.getenv("FIREBASE_API_KEY")
+    auth_secret = os.getenv("AUTH_SECRET")
+    allowed_emails = os.getenv("ALLOWED_USER_EMAILS")
+    missing = False
+    if not firebase_api_key:
+        logger.warning("FIREBASE_WEB_API_KEY / FIREBASE_API_KEY not configured")
+        missing = True
+    if not auth_secret:
+        logger.warning("AUTH_SECRET not configured")
+        missing = True
+    if not allowed_emails:
+        logger.warning("ALLOWED_USER_EMAILS not configured")
+        missing = True
+    if not missing:
+        logger.info("auth config OK")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _check_auth_config()
     app_env = os.getenv("APP_ENV", "local")
     if app_env in ("local", "test"):
         Base.metadata.create_all(bind=engine)
