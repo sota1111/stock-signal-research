@@ -43,8 +43,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout=300 \
   --concurrency=80 \
   --service-account="$SA_EMAIL" \
-  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},AUTH_USERNAME=${AUTH_USERNAME:-admin},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
-  --set-secrets="AUTH_PASSWORD=stock-signal-auth-password:latest,AUTH_SECRET_KEY=stock-signal-auth-secret-key:latest" \
+  --set-env-vars="APP_ENV=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},USE_SAMPLE_DATA=false,LOG_LEVEL=INFO,PORT=8080" \
+  --set-secrets="FIREBASE_WEB_API_KEY=FIREBASE_API_KEY:latest,AUTH_SECRET=stock-signal-auth-secret:latest,ALLOWED_USER_EMAILS=stock-signal-allowed-emails:latest" \
   --allow-unauthenticated
 
 echo ""
