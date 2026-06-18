@@ -249,7 +249,6 @@ MVPはサンプルデータのみで動作します。将来的に以下の外�
               └─ daily-analysis   (JST 07:00 毎日)
                     ├─ aggregate-trends
                     └─ recalculate-scores
-```
 Firestore (default database)  ←→  Cloud Run Service / Jobs
 Secret Manager                 ←   Cloud Run（認証情報取得）
 Cloud Logging                  ←   全サービスのログ出力
@@ -262,7 +261,7 @@ Cloud Logging                  ←   全サービスのログ出力
 - **正式サービス**: `stock-signal-research`（フロント+API を同一サービスで配信、`Dockerfile.service` の production ステージを使用）
 - **正式URL**: `https://stock-signal-research-iqrm6wvhfq-an.a.run.app`（`/login` 確認対象はこの1つ）
 - **旧サービス**: `stock-signal-service` は旧名であり、現在は**削除候補**です。今後のデプロイ・ドキュメントでは使用しません。
-- GitHub Actions の `CLOUD_RUN_SERVICE` secret と、手動デプロイ用の `scripts/gcp/deploy-service.sh` の双方が `stock-signal-research` を指すよう統一されています。
+- GitHub Actions ワークフロー（`deploy-cloudrun.yml`）と手動デプロイ用の `scripts/gcp/deploy-service.sh` の双方が、サービス名 `stock-signal-research` を直接指すよう統一されています（ワークフローはリテラルでピン留めしており、`CLOUD_RUN_SERVICE` secret は使用しません）。
 
 ### 前提条件
 
@@ -306,7 +305,7 @@ gcloud config set run/region asia-northeast1
 export GCP_PROJECT_ID=your-project-id
 export GCP_REGION=asia-northeast1
 export GCP_SERVICE_ACCOUNT=stock-signal-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
-```
+
 # 1. 必要APIを有効化
 bash scripts/gcp/enable-apis.sh
 
@@ -407,17 +406,17 @@ Cloud Run Jobs のデプロイは `scripts/gcp/deploy-jobs.sh` で実行して�
 - **処理**: Docker build（`Dockerfile.service` の `production` ステージ）→ Artifact Registry push → Cloud Run deploy
 - コンテナは **ポート 8080**（`$PORT`、Cloud Run のデフォルト）で listen するため、追加のポート設定は不要
 
-Settings → Secrets and variables → Actions で以下の **必須 Secret（7件）** を設定:
+Settings → Secrets and variables → Actions で以下の **必須 Secret（5件）** を設定:
 
 | Secret 名 | 説明 |
 |---|---|
 | `GCP_PROJECT_ID` | GCP プロジェクト ID |
-| `GCP_PROJECT_NUMBER` | GCP プロジェクト番号 |
 | `GCP_REGION` | Cloud Run / Artifact Registry のリージョン（例: `asia-northeast1`） |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation プロバイダのリソース名 |
 | `GCP_SERVICE_ACCOUNT` | デプロイ用サービスアカウントのメールアドレス |
 | `ARTIFACT_REGISTRY_REPOSITORY` | Artifact Registry リポジトリ名 |
-| `CLOUD_RUN_SERVICE` | Cloud Run サービス名（本リポジトリでは `stock-signal-research`） |
+
+> Cloud Run サービス名はワークフロー内にリテラル `stock-signal-research` でピン留めされているため、`CLOUD_RUN_SERVICE` secret は不要です。
 
 ### サンプルデータモード
 
