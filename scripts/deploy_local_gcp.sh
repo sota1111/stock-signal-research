@@ -12,7 +12,7 @@ if [ -f .env ]; then set -a; source .env; set +a; fi
 
 PROJECT_ID="${GCP_PROJECT_ID:?GCP_PROJECT_ID is required}"
 REGION="${GCP_REGION:-asia-northeast1}"
-SERVICE_NAME="${CLOUD_RUN_SERVICE_NAME:-stock-signal-service}"
+SERVICE_NAME="${CLOUD_RUN_SERVICE_NAME:-stock-signal-research}"
 ARTIFACT_REPO="${ARTIFACT_REGISTRY_REPOSITORY:-stock-signal-registry}"
 IMAGE_VAR="${IMAGE_NAME:-stock-signal-research-app}"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_VAR}"
@@ -61,8 +61,8 @@ rm -f "${CLOUDBUILD_TMP}"
 # echo -n "value" | gcloud secrets create stock-signal-news-api-key --data-file=- --project=$PROJECT_ID
 # echo -n "value" | gcloud secrets create stock-signal-llm-api-key --data-file=- --project=$PROJECT_ID
 # echo -n "value" | gcloud secrets create stock-signal-app-admin-token --data-file=- --project=$PROJECT_ID
-# gcloud run services add-iam-policy-binding stock-signal-service \
-#   --member="serviceAccount:$(gcloud run services describe stock-signal-service --region=$REGION --project=$PROJECT_ID --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || echo PROJECT_NUMBER-compute@developer.gserviceaccount.com)" \
+# gcloud run services add-iam-policy-binding stock-signal-research \
+#   --member="serviceAccount:$(gcloud run services describe stock-signal-research --region=$REGION --project=$PROJECT_ID --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || echo PROJECT_NUMBER-compute@developer.gserviceaccount.com)" \
 #   --role="roles/secretmanager.secretAccessor" --region=$REGION --project=$PROJECT_ID
 
 gcloud run deploy "${SERVICE_NAME}" \

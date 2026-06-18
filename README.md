@@ -255,6 +255,15 @@ Secret Manager                 ←   Cloud Run（認証情報取得）
 Cloud Logging                  ←   全サービスのログ出力
 ```
 
+### サービスの整理と正式名称
+
+本プロジェクトでは、Cloud Run サービスの名称を以下の通りに統一・整理しています。
+
+- **正式サービス**: `stock-signal-research`（フロント+API を同一サービスで配信、`Dockerfile.service` の production ステージを使用）
+- **正式URL**: `https://stock-signal-research-iqrm6wvhfq-an.a.run.app`（`/login` 確認対象はこの1つ）
+- **旧サービス**: `stock-signal-service` は旧名であり、現在は**削除候補**です。今後のデプロイ・ドキュメントでは使用しません。
+- GitHub Actions の `CLOUD_RUN_SERVICE` secret と、手動デプロイ用の `scripts/gcp/deploy-service.sh` の双方が `stock-signal-research` を指すよう統一されています。
+
 ### 前提条件
 
 - GCP プロジェクト作成済み（課金有効化済み）

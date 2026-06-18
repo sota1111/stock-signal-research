@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ID="${GCP_PROJECT_ID:?GCP_PROJECT_ID is required}"
 REGION="${GCP_REGION:-asia-northeast1}"
-SERVICE_NAME="stock-signal-service"
+SERVICE_NAME="stock-signal-research"
 IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/stock-signal-registry/stock-signal-research-app"
 SA_EMAIL="stock-signal-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
