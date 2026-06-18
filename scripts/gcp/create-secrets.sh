@@ -22,8 +22,8 @@ create_secret_if_not_exists() {
 }
 
 # Create placeholder secrets (replace with actual values before deploying)
-create_secret_if_not_exists "stock-signal-auth-password" "changeme"
-create_secret_if_not_exists "stock-signal-auth-secret-key" "$(openssl rand -hex 32)"
+create_secret_if_not_exists "stock-signal-auth-secret" "$(openssl rand -hex 32)"
+create_secret_if_not_exists "stock-signal-allowed-emails" "your-email@example.com"
 create_secret_if_not_exists "SEMANTIC_SCHOLAR_API_KEY" "placeholder"
 create_secret_if_not_exists "NEWS_API_KEY" "placeholder"
 create_secret_if_not_exists "LLM_API_KEY" "placeholder"
@@ -31,6 +31,7 @@ create_secret_if_not_exists "APP_ADMIN_TOKEN" "$(openssl rand -hex 32)"
 
 echo ""
 echo "Secrets created. Update the values with actual credentials:"
-echo "  stock-signal-auth-password  : AUTH_PASSWORD for login"
-echo "  stock-signal-auth-secret-key: AUTH_SECRET_KEY for JWT"
+echo "  stock-signal-auth-secret    : AUTH_SECRET (Session Cookie Secret)"
+echo "  stock-signal-allowed-emails  : ALLOWED_USER_EMAILS (Comma separated emails)"
+echo "  FIREBASE_API_KEY            : FIREBASE_WEB_API_KEY (Identity Toolkit API Key)"
 echo "  gcloud secrets versions add SECRET_NAME --data-file=- --project=$PROJECT_ID"
