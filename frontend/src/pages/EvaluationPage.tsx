@@ -74,7 +74,7 @@ export default function EvaluationPage() {
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">銘柄別パフォーマンス明細</h2>
         <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm responsive-table">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-3 text-left">Ticker</th>
@@ -90,9 +90,9 @@ export default function EvaluationPage() {
             <tbody className="divide-y divide-gray-200">
               {data.companies.map(company => (
                 <tr key={company.company_id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-gray-600">{company.ticker}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{company.name}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 font-mono text-gray-600" data-label="Ticker">{company.ticker}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900" data-label="銘柄名">{company.name}</td>
+                  <td className="px-4 py-3 text-right" data-label="シグナルスコア">
                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">
                       {company.signal_score.toFixed(1)}
                     </span>
@@ -101,10 +101,10 @@ export default function EvaluationPage() {
                     const result = company.results.find(r => r.window_days === w.window_days)
                     return (
                       <React.Fragment key={w.window_days}>
-                        <td className="px-4 py-3 text-right border-l">
+                        <td className="px-4 py-3 text-right border-l" data-label={`${w.window_days}日リターン`}>
                           {result ? <FormatPercent value={result.forward_return_pct} showPlus /> : '-'}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center" data-label={`${w.window_days}日判定`}>
                           {result ? <HitBadge hit={result.hit} /> : '-'}
                         </td>
                       </React.Fragment>
