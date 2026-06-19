@@ -43,9 +43,12 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         seed.run_seed()
     else:
-        # production: SQLiteは初期化しない。Firestore接続確認＋初期リサーチseed投入(冪等)。
+        # production: SQLiteは初期化しない。Firestore接続確認＋初期データ投入(冪等)。
         _check_firestore_connection()
         seed.seed_research_seeds_firestore()
+        # ダッシュボードのコアデータ(themes/companies/papers/supply_chains/月次件数/scores)も
+        # 本番Firestoreへ冪等投入する。投入しないとダッシュボードが空になる。
+        seed.seed_dashboard_data_firestore()
     yield
 
 app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)

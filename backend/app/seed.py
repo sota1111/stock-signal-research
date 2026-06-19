@@ -264,6 +264,158 @@ def seed_research_seeds_firestore():
         logger.warning(f"Could not seed research seeds to Firestore: {e}")
 
 
+def _slug(text: str) -> str:
+    """Deterministic id slug from a human name (e.g. 'GPU memory bottleneck' -> 'gpu-memory-bottleneck')."""
+    import re
+    return re.sub(r"[^a-z0-9]+", "-", str(text).lower()).strip("-")
+
+
+# Dashboard core data definitions. Mirrors the data used by run_seed() (SQLite) so that
+# production Firestore renders the same dashboard. Kept as module-level constants so both
+# the SQLite seed intent and the Firestore seeder stay aligned.
+_DASHBOARD_THEMES = [
+    {"name": "SSD / NVMe", "category": "Storage", "precursor_score": 72.0, "is_trending": True},
+    {"name": "GPU memory bottleneck", "category": "AI Infrastructure", "precursor_score": 85.0, "is_trending": True},
+    {"name": "HBM", "category": "Memory", "precursor_score": 78.0, "is_trending": True},
+    {"name": "KV cache offloading", "category": "AI Infrastructure", "precursor_score": 65.0, "is_trending": False},
+    {"name": "I/O bottleneck", "category": "AI Infrastructure", "precursor_score": 58.0, "is_trending": False},
+    {"name": "data center power", "category": "Infrastructure", "precursor_score": 70.0, "is_trending": True},
+    {"name": "robotics foundation model", "category": "Robotics", "precursor_score": 62.0, "is_trending": False},
+]
+
+_DASHBOARD_COMPANIES = [
+    {"name": "NVIDIA", "ticker": "NVDA", "benefit_score": 95.0, "benefit_type": "direct"},
+    {"name": "AMD", "ticker": "AMD", "benefit_score": 80.0, "benefit_type": "direct"},
+    {"name": "TSMC", "ticker": "TSM", "benefit_score": 88.0, "benefit_type": "direct"},
+    {"name": "Micron", "ticker": "MU", "benefit_score": 82.0, "benefit_type": "direct"},
+    {"name": "Samsung", "ticker": "005930.KS", "benefit_score": 78.0, "benefit_type": "direct"},
+    {"name": "SK hynix", "ticker": "000660.KS", "benefit_score": 80.0, "benefit_type": "direct"},
+    {"name": "Kioxia", "ticker": None, "benefit_score": 70.0, "benefit_type": "direct"},
+    {"name": "SanDisk", "ticker": None, "benefit_score": 65.0, "benefit_type": "direct"},
+    {"name": "Tokyo Electron", "ticker": "8035.T", "benefit_score": 72.0, "benefit_type": "indirect"},
+    {"name": "Fujikura", "ticker": "5803.T", "benefit_score": 68.0, "benefit_type": "indirect"},
+]
+
+_DASHBOARD_SUPPLY_CHAIN = [
+    {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
+    {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2},
+    {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
+    {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4},
+    {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5},
+    {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
+]
+
+_DASHBOARD_PAPERS = [
+    {"title": "Efficient GPU Memory Management for Large Language Models",
+        "pub": "2024-03", "theme": "GPU memory bottleneck", "pid": "paper_001"},
+    {"title": "HBM3E: Next Generation High Bandwidth Memory Architecture",
+        "pub": "2024-05", "theme": "HBM", "pid": "paper_002"},
+    {"title": "NVMe over Fabrics Performance Optimization",
+        "pub": "2024-02", "theme": "SSD / NVMe", "pid": "paper_003"},
+    {"title": "KV Cache Compression for Transformer Inference",
+        "pub": "2024-06", "theme": "KV cache offloading", "pid": "paper_004"},
+    {"title": "Data Center Power Efficiency in the Age of AI",
+        "pub": "2024-04", "theme": "data center power", "pid": "paper_005"},
+]
+
+_DASHBOARD_MONTHLY_COUNTS = [
+    {"theme": "GPU memory bottleneck", "keyword": "GPU memory",
+        "counts": [10, 12, 14, 18, 22, 28, 35, 42, 50, 58, 65, 75]},
+    {"theme": "HBM", "keyword": "HBM", "counts": [5, 6, 8, 10, 14, 18, 24, 30, 38, 45, 52, 60]},
+    {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": [20, 22, 25, 28, 30, 32, 30, 33, 36, 40, 45, 52]},
+]
+
+
+def seed_dashboard_data_firestore():
+    """本番(Firestore)向けにダッシュボードのコアデータを冪等投入する。
+
+    ダッシュボード (`/api/dashboard/`) は Firestore の themes / companies / papers /
+    supply_chains / paper_monthly_counts / scores コレクションを参照するが、これらを投入する
+    `run_seed()` は SQLite (local/test) 専用。本番では別途 Firestore へ投入しないと
+    ダッシュボードが空になる。冪等(themesが既存ならスキップ)。失敗しても起動を妨げない。"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from .repositories.theme_repository import get_theme_repository
+        from .repositories.company_repository import get_company_repository
+        from .repositories.paper_repository import get_paper_repository
+        from .repositories.supply_chain_repository import get_supply_chain_repository
+        from .repositories.trend_repository import get_trend_repository
+        from .repositories.score_repository import get_score_repository
+
+        theme_repo = get_theme_repository()
+        # 冪等: 既に投入済みならスキップ
+        if theme_repo.list_all():
+            return
+
+        # 1. Themes (stable slug ids so cross-references resolve)
+        theme_ids = {}
+        for t in _DASHBOARD_THEMES:
+            tid = f"theme-{_slug(t['name'])}"
+            theme_ids[t["name"]] = tid
+            theme_repo.save({"id": tid, **t})
+
+        # 2. Companies (tickers drive the per-company 10y stock-eval cards)
+        company_repo = get_company_repository()
+        for c in _DASHBOARD_COMPANIES:
+            company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
+
+        # 3. Papers
+        paper_repo = get_paper_repository()
+        for p in _DASHBOARD_PAPERS:
+            paper_repo.save({
+                "paper_id": p["pid"],
+                "title": p["title"],
+                "published_at": p["pub"],
+                "theme_id": theme_ids[p["theme"]],
+            })
+
+        # 4. Supply chain
+        sc_repo = get_supply_chain_repository()
+        for sc in _DASHBOARD_SUPPLY_CHAIN:
+            sc_repo.save({
+                "from_theme_id": theme_ids[sc["from"]],
+                "to_theme_id": theme_ids[sc["to"]],
+                "relationship": sc["rel"],
+                "order": sc["order"],
+            })
+
+        # 5. Paper monthly counts (mom_change_pct computed as in run_seed)
+        trend_repo = get_trend_repository()
+        for pm in _DASHBOARD_MONTHLY_COUNTS:
+            prev_count = 0
+            for i, count in enumerate(pm["counts"]):
+                month = f"2024-{i + 1:02d}"
+                mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
+                trend_repo.save_monthly_count({
+                    "theme_id": theme_ids[pm["theme"]],
+                    "keyword": pm["keyword"],
+                    "year_month": month,
+                    "count": count,
+                    "prev_month_count": prev_count,
+                    "mom_change_pct": mom_change,
+                })
+                prev_count = count
+
+        # 6. Scores (alignment_highlights uses score>=30)
+        score_repo = get_score_repository()
+        for t in _DASHBOARD_THEMES:
+            score_repo.save({
+                "theme_id": theme_ids[t["name"]],
+                "score": t["precursor_score"],
+                "confidence": 0.6,
+            })
+
+        logger.info(
+            "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers",
+            len(_DASHBOARD_THEMES), len(_DASHBOARD_COMPANIES), len(_DASHBOARD_PAPERS),
+        )
+    except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
+        logger.warning(f"Could not seed dashboard data to Firestore: {e}")
+
+
 def seed_stock_prices(db, companies):
     import random
     import datetime
