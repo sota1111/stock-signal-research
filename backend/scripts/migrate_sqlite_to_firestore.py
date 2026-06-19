@@ -179,6 +179,47 @@ def migrate_scores(sqlite_db, fs_client):
     logger.info(f"scores: {count} documents written to Firestore")
 
 
+def migrate_research_seeds(sqlite_db, fs_client):
+    import json
+    from app.models import ResearchSeed
+
+    def _loads(value):
+        if value is None or value == "":
+            return []
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return []
+
+    seeds = sqlite_db.query(ResearchSeed).all()
+    collection = fs_client.collection("research_seeds")
+    count = 0
+    for s in seeds:
+        doc_id = s.seed_id or s.id
+        data = {
+            "id": s.id,
+            "seed_id": s.seed_id,
+            "source_type": s.source_type,
+            "source_reference": s.source_reference,
+            "symbol": s.symbol,
+            "company_name": s.company_name,
+            "theme": s.theme,
+            "related_keywords": _loads(s.related_keywords),
+            "summary": s.summary,
+            "papers": _loads(s.papers),
+            "stock_events": _loads(s.stock_events),
+            "hypothesis": s.hypothesis,
+            "reason_to_track": s.reason_to_track,
+            "confidence": s.confidence,
+            "seed_created_at": s.seed_created_at,
+            "seed_updated_at": s.seed_updated_at,
+            "updatedAt": datetime.now(timezone.utc),
+        }
+        collection.document(doc_id).set(data, merge=True)
+        count += 1
+    logger.info(f"research_seeds: {count} documents written to Firestore")
+
+
 def main():
     project_id = os.getenv("GCP_PROJECT_ID")
     if not project_id:
@@ -210,6 +251,7 @@ def main():
         migrate_supply_chains(sqlite_db, fs_client)
         migrate_investors(sqlite_db, fs_client)
         migrate_scores(sqlite_db, fs_client)
+        migrate_research_seeds(sqlite_db, fs_client)
         logger.info("移行完了")
     except Exception as e:
         logger.error(f"移行エラー: {e}")
