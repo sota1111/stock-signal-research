@@ -1,3 +1,5 @@
+from datetime import datetime as _datetime, timezone as _timezone
+
 from .database import SessionLocal
 from . import models
 
@@ -83,19 +85,8 @@ def run_seed():
             )
             db.add(db_sc)
 
-        # 4. Papers
-        papers_data = [
-            {"title": "Efficient GPU Memory Management for Large Language Models",
-                "pub": "2024-03", "theme": "GPU memory bottleneck", "pid": "paper_001"},
-            {"title": "HBM3E: Next Generation High Bandwidth Memory Architecture",
-                "pub": "2024-05", "theme": "HBM", "pid": "paper_002"},
-            {"title": "NVMe over Fabrics Performance Optimization",
-                "pub": "2024-02", "theme": "SSD / NVMe", "pid": "paper_003"},
-            {"title": "KV Cache Compression for Transformer Inference",
-                "pub": "2024-06", "theme": "KV cache offloading", "pid": "paper_004"},
-            {"title": "Data Center Power Efficiency in the Age of AI",
-                "pub": "2024-04", "theme": "data center power", "pid": "paper_005"},
-        ]
+        # 4. Papers (10 years: one per theme per year, 2016–2025)
+        papers_data = _decade_papers(list(themes.keys()))
         for p in papers_data:
             db_paper = models.Paper(
                 paper_id=p["pid"],
@@ -105,17 +96,17 @@ def run_seed():
             )
             db.add(db_paper)
 
-        # 5. PaperMonthlyCount
+        # 5. PaperMonthlyCount (10 years / 120 months per theme)
         pm_data = [
             {"theme": "GPU memory bottleneck", "keyword": "GPU memory",
-                "counts": [10, 12, 14, 18, 22, 28, 35, 42, 50, 58, 65, 75]},
-            {"theme": "HBM", "keyword": "HBM", "counts": [5, 6, 8, 10, 14, 18, 24, 30, 38, 45, 52, 60]},
-            {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": [20, 22, 25, 28, 30, 32, 30, 33, 36, 40, 45, 52]},
+                "counts": _decade_monthly_counts(8, 180)},
+            {"theme": "HBM", "keyword": "HBM", "counts": _decade_monthly_counts(4, 150)},
+            {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": _decade_monthly_counts(15, 120)},
         ]
         for pm in pm_data:
             prev_count = 0
             for i, count in enumerate(pm["counts"]):
-                month = f"2024-{i+1:02d}"
+                month = _month_str(_DECADE_FROM_YEAR, i)
                 mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
                 db_pm = models.PaperMonthlyCount(
                     theme_id=themes[pm["theme"]].id,
@@ -270,6 +261,47 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(text).lower()).strip("-")
 
 
+# --- 10-year (decade) data generation -------------------------------------------------
+# The dashboard's research charts (B1 paper_counts_by_year, B2 monthly trend, C1 papers vs
+# stock) aggregate the last 10 years by each paper's published_at year. Seed data must
+# therefore span the full decade, otherwise the charts only show a single year. The helpers
+# below build that decade of data deterministically so both the SQLite (run_seed) and the
+# Firestore seeders stay aligned.
+# Anchor the decade to the current year so the data always fills the dashboard's rolling
+# "last 10 years" window (signal_report defaults to from_year = now.year - 9 .. now.year).
+_DECADE_TO_YEAR = _datetime.now(_timezone.utc).year
+_DECADE_FROM_YEAR = _DECADE_TO_YEAR - 9
+_MONTHLY_MONTHS = (_DECADE_TO_YEAR - _DECADE_FROM_YEAR + 1) * 12  # 120 months
+
+
+def _month_str(base_year: int, idx: int) -> str:
+    """Flat month index from base_year to 'YYYY-MM' (idx 0 -> base_year-01)."""
+    return f"{base_year + idx // 12}-{idx % 12 + 1:02d}"
+
+
+def _decade_monthly_counts(start: int, end: int, months: int = _MONTHLY_MONTHS) -> list:
+    """Deterministic monthly counts rising linearly from `start` to `end` over `months`."""
+    if months <= 1:
+        return [end]
+    return [round(start + (end - start) * i / (months - 1)) for i in range(months)]
+
+
+def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int = _DECADE_TO_YEAR):
+    """One paper per theme per year across [from_year, to_year] for 10-year coverage."""
+    papers = []
+    for name in theme_names:
+        slug = _slug(name)
+        for year in range(from_year, to_year + 1):
+            month = (year % 12) + 1  # deterministic spread across calendar months
+            papers.append({
+                "pid": f"paper-{slug}-{year}",
+                "title": f"{name}: research advances and benchmarks ({year})",
+                "pub": f"{year}-{month:02d}",
+                "theme": name,
+            })
+    return papers
+
+
 # Dashboard core data definitions. Mirrors the data used by run_seed() (SQLite) so that
 # production Firestore renders the same dashboard. Kept as module-level constants so both
 # the SQLite seed intent and the Firestore seeder stay aligned.
@@ -305,24 +337,16 @@ _DASHBOARD_SUPPLY_CHAIN = [
     {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
 ]
 
-_DASHBOARD_PAPERS = [
-    {"title": "Efficient GPU Memory Management for Large Language Models",
-        "pub": "2024-03", "theme": "GPU memory bottleneck", "pid": "paper_001"},
-    {"title": "HBM3E: Next Generation High Bandwidth Memory Architecture",
-        "pub": "2024-05", "theme": "HBM", "pid": "paper_002"},
-    {"title": "NVMe over Fabrics Performance Optimization",
-        "pub": "2024-02", "theme": "SSD / NVMe", "pid": "paper_003"},
-    {"title": "KV Cache Compression for Transformer Inference",
-        "pub": "2024-06", "theme": "KV cache offloading", "pid": "paper_004"},
-    {"title": "Data Center Power Efficiency in the Age of AI",
-        "pub": "2024-04", "theme": "data center power", "pid": "paper_005"},
-]
+# 10 years of papers (one per theme per year, 2016–2025) so paper_counts_by_year and the
+# papers-vs-stock chart span the full decade instead of a single year.
+_DASHBOARD_PAPERS = _decade_papers([t["name"] for t in _DASHBOARD_THEMES])
 
+# 10 years (120 months) of monthly counts per theme, rising over the decade.
 _DASHBOARD_MONTHLY_COUNTS = [
     {"theme": "GPU memory bottleneck", "keyword": "GPU memory",
-        "counts": [10, 12, 14, 18, 22, 28, 35, 42, 50, 58, 65, 75]},
-    {"theme": "HBM", "keyword": "HBM", "counts": [5, 6, 8, 10, 14, 18, 24, 30, 38, 45, 52, 60]},
-    {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": [20, 22, 25, 28, 30, 32, 30, 33, 36, 40, 45, 52]},
+        "counts": _decade_monthly_counts(8, 180)},
+    {"theme": "HBM", "keyword": "HBM", "counts": _decade_monthly_counts(4, 150)},
+    {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": _decade_monthly_counts(15, 120)},
 ]
 
 
@@ -345,24 +369,44 @@ def seed_dashboard_data_firestore():
         from .repositories.trend_repository import get_trend_repository
         from .repositories.score_repository import get_score_repository
 
+        # Deterministic theme ids (stable slug ids so cross-references resolve). Computed
+        # unconditionally so the papers/monthly top-up below works even when themes already exist.
+        theme_ids = {t["name"]: f"theme-{_slug(t['name'])}" for t in _DASHBOARD_THEMES}
+
         theme_repo = get_theme_repository()
-        # 冪等: 既に投入済みならスキップ
-        if theme_repo.list_all():
-            return
+        # First-seed (themes/companies/supply-chain/scores): only on an empty dashboard.
+        if not theme_repo.list_all():
+            # 1. Themes
+            for t in _DASHBOARD_THEMES:
+                theme_repo.save({"id": theme_ids[t["name"]], **t})
 
-        # 1. Themes (stable slug ids so cross-references resolve)
-        theme_ids = {}
-        for t in _DASHBOARD_THEMES:
-            tid = f"theme-{_slug(t['name'])}"
-            theme_ids[t["name"]] = tid
-            theme_repo.save({"id": tid, **t})
+            # 2. Companies (tickers drive the per-company 10y stock-eval cards)
+            company_repo = get_company_repository()
+            for c in _DASHBOARD_COMPANIES:
+                company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
 
-        # 2. Companies (tickers drive the per-company 10y stock-eval cards)
-        company_repo = get_company_repository()
-        for c in _DASHBOARD_COMPANIES:
-            company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
+            # 4. Supply chain
+            sc_repo = get_supply_chain_repository()
+            for sc in _DASHBOARD_SUPPLY_CHAIN:
+                sc_repo.save({
+                    "from_theme_id": theme_ids[sc["from"]],
+                    "to_theme_id": theme_ids[sc["to"]],
+                    "relationship": sc["rel"],
+                    "order": sc["order"],
+                })
 
-        # 3. Papers
+            # 6. Scores (alignment_highlights uses score>=30)
+            score_repo = get_score_repository()
+            for t in _DASHBOARD_THEMES:
+                score_repo.save({
+                    "theme_id": theme_ids[t["name"]],
+                    "score": t["precursor_score"],
+                    "confidence": 0.6,
+                })
+
+        # 3 & 5. Papers + monthly counts: idempotent top-up that ALWAYS runs (repos upsert by
+        # paper_id / theme_id+keyword+year_month). This lets an already-seeded prod Firestore
+        # gain the full 10-year dataset on the next deploy without overwriting other data.
         paper_repo = get_paper_repository()
         for p in _DASHBOARD_PAPERS:
             paper_repo.save({
@@ -372,22 +416,11 @@ def seed_dashboard_data_firestore():
                 "theme_id": theme_ids[p["theme"]],
             })
 
-        # 4. Supply chain
-        sc_repo = get_supply_chain_repository()
-        for sc in _DASHBOARD_SUPPLY_CHAIN:
-            sc_repo.save({
-                "from_theme_id": theme_ids[sc["from"]],
-                "to_theme_id": theme_ids[sc["to"]],
-                "relationship": sc["rel"],
-                "order": sc["order"],
-            })
-
-        # 5. Paper monthly counts (mom_change_pct computed as in run_seed)
         trend_repo = get_trend_repository()
         for pm in _DASHBOARD_MONTHLY_COUNTS:
             prev_count = 0
             for i, count in enumerate(pm["counts"]):
-                month = f"2024-{i + 1:02d}"
+                month = _month_str(_DECADE_FROM_YEAR, i)
                 mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
                 trend_repo.save_monthly_count({
                     "theme_id": theme_ids[pm["theme"]],
@@ -398,15 +431,6 @@ def seed_dashboard_data_firestore():
                     "mom_change_pct": mom_change,
                 })
                 prev_count = count
-
-        # 6. Scores (alignment_highlights uses score>=30)
-        score_repo = get_score_repository()
-        for t in _DASHBOARD_THEMES:
-            score_repo.save({
-                "theme_id": theme_ids[t["name"]],
-                "score": t["precursor_score"],
-                "confidence": 0.6,
-            })
 
         logger.info(
             "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers",
