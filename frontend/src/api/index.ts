@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -52,3 +52,5 @@ export const fetchThemeAlignment = (themeId: string) =>
 
 export const fetchSignalAlignment = (baseline?: string) =>
   api.get<SignalAlignmentResponse>('/evaluation/signal-alignment', { params: baseline ? { baseline } : {} }).then(r => r.data)
+
+export const fetchResearchSeeds = () => api.get<ResearchSeed[]>('/research-seeds/').then(r => r.data)
