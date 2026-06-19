@@ -8,8 +8,22 @@ from ..repositories.supply_chain_repository import get_supply_chain_repository
 from ..repositories.trend_repository import get_trend_repository
 from ..repositories.paper_repository import get_paper_repository
 from ..services.signal_report import generate_signal_report
+from ..services.market_data import fetch_stock_data
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+@router.get("/stock", response_model=schemas.StockDataResponse)
+def get_stock(
+    ticker: str = Query(..., description="銘柄コード/ティッカー（日本株は数字コードのみでも可、例 7203）"),
+    years: int = Query(10, ge=1, le=20, description="取得する過去年数"),
+):
+    """指定銘柄の過去株価・財務指標を yfinance 経由で取得して返す。
+
+    外部APIキーは不要。日本株は数字コードへ自動的に `.T` を付与する（例 7203 → 7203.T）。
+    取得に失敗した場合も例外は返さず、`error` フィールドに理由を設定した同一形状で返す。
+    """
+    return fetch_stock_data(ticker, years)
 
 
 @router.get("/signal-report", response_model=schemas.SignalReportResponse)
