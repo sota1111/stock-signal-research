@@ -98,6 +98,102 @@ def test_fetch_from_arxiv_with_mocked_http(monkeypatch):
     assert papers[0]["paper_id"] == "2401.12345v1"
 
 
+def _make_arxiv_xml(ids):
+    """Build an arXiv Atom feed with one <entry> per id (for pagination tests)."""
+    entries = "".join(
+        f"""  <entry>
+    <id>http://arxiv.org/abs/{i}</id>
+    <title>Paper {i}</title>
+    <summary>Abstract for {i}.</summary>
+    <published>2020-01-01T00:00:00Z</published>
+    <author><name>Author {i}</name></author>
+    <arxiv:primary_category term="cs.LG"/>
+  </entry>
+"""
+        for i in ids
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<feed xmlns="http://www.w3.org/2005/Atom"\n'
+        '      xmlns:arxiv="http://arxiv.org/schemas/atom">\n'
+        + entries
+        + "</feed>\n"
+    ).encode("utf-8")
+
+
+def test_fetch_from_arxiv_paginates_until_short_page(monkeypatch):
+    # Single (theme, year) window with a per-year target above the page size: a full first
+    # page (ARXIV_PAGE_SIZE distinct ids) then a short page (2 ids) must make exactly 2
+    # requests and accumulate page_size + 2 deduped papers.
+    monkeypatch.setattr(collect_papers, "_get_theme_queries", lambda: ["paging theme"])
+    monkeypatch.setattr(
+        collect_papers, "_arxiv_year_windows", lambda *a, **k: [(2024, "20240101", "20241231")]
+    )
+    monkeypatch.setattr(collect_papers, "ARXIV_PER_THEME_PER_YEAR", 500)
+    monkeypatch.setattr(collect_papers.time, "sleep", lambda _s: None)
+    page_size = collect_papers.ARXIV_PAGE_SIZE
+    calls = {"n": 0}
+
+    def fake_urlopen(url, timeout=None):
+        import urllib.parse as up
+
+        calls["n"] += 1
+        qs = up.parse_qs(up.urlparse(url).query)
+        start = int(qs["start"][0])
+        if start == 0:
+            ids = [f"p{i:04d}" for i in range(page_size)]
+        else:
+            ids = ["short-1", "short-2"]
+        return _FakeResponse(_make_arxiv_xml(ids))
+
+    monkeypatch.setattr(collect_papers.urllib.request, "urlopen", fake_urlopen)
+
+    papers = collect_papers._fetch_from_arxiv()
+
+    assert calls["n"] == 2  # first full page -> continue; second short page -> stop
+    assert len(papers) == page_size + 2
+    # All accumulated papers are unique (deduped by paper_id).
+    assert len({p["paper_id"] for p in papers}) == page_size + 2
+    assert {p["source"] for p in papers} == {"arxiv"}
+
+
+def test_fetch_from_arxiv_dedupes_across_year_windows(monkeypatch):
+    # Across many year windows the same 2-entry response must be deduped to 2 papers,
+    # never looping forever (each window short-circuits after one short page).
+    monkeypatch.setattr(collect_papers, "_get_theme_queries", lambda: ["dup theme"])
+    monkeypatch.setattr(collect_papers.time, "sleep", lambda _s: None)
+
+    def fake_urlopen(url, timeout=None):
+        return _FakeResponse(ARXIV_NS_XML)  # always the same 2 entries
+
+    monkeypatch.setattr(collect_papers.urllib.request, "urlopen", fake_urlopen)
+
+    papers = collect_papers._fetch_from_arxiv()
+
+    assert len(papers) == 2
+    assert {p["paper_id"] for p in papers} == {"2401.12345v1", "2402.54321v2"}
+
+
+def test_build_arxiv_url_contains_window_and_pagination():
+    url = collect_papers._build_arxiv_url("hbm memory", 100, "20200101", "20201231", 100)
+    # submittedDate window is applied (encoded or raw).
+    assert "submittedDate:[" in url or "submittedDate%3A%5B" in url
+    # Pagination start offset is present.
+    assert "start=100" in url
+
+
+def test_arxiv_year_windows_spans_requested_years():
+    from datetime import datetime, timezone
+
+    now = datetime(2025, 6, 15, tzinfo=timezone.utc)
+    windows = collect_papers._arxiv_year_windows(10, now=now)
+    assert len(windows) == 10
+    years = [w[0] for w in windows]
+    assert years[0] == 2025 and years[-1] == 2016  # newest-first
+    assert (2025, "20250101", "20251231") in windows
+    assert (2016, "20160101", "20161231") in windows
+
+
 def test_semantic_scholar_returns_empty_without_api_key(monkeypatch):
     monkeypatch.delenv("SEMANTIC_SCHOLAR_API_KEY", raising=False)
     assert collect_papers._fetch_from_semantic_scholar() == []
