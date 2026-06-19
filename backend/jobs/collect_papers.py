@@ -1,4 +1,5 @@
 import os
+import math
 import logging
 import uuid
 import time
@@ -8,7 +9,7 @@ import urllib.parse
 import urllib.error
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,17 @@ ARXIV_API_URL = "http://export.arxiv.org/api/query"
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 BATCH_SIZE = 50
 MAX_RESULTS = 100
+
+# --- arXiv bulk-collection tuning (SOT-853) ---
+# テーマごとに過去 ARXIV_YEARS 年分を「年単位のウィンドウ」で収集する。
+# arXiv は submittedDate 降順のため単一の10年窓だと最新年に偏る。年ごとに区切って
+# 取得することで、ダッシュボードの「年別論文件数(B1)/月次トレンド(B2)」が10年に分散し、
+# かつテーマ×年で大量（合計数千件）に蓄積できる。各値は環境変数で上書き可能。
+ARXIV_PER_THEME_PER_YEAR = int(os.getenv("ARXIV_PER_THEME_PER_YEAR", "100"))
+ARXIV_PAGE_SIZE = int(os.getenv("ARXIV_PAGE_SIZE", "100"))
+ARXIV_YEARS = int(os.getenv("ARXIV_YEARS", "10"))
+# arXiv API のレート制限に配慮したリクエスト間スリープ秒数。
+ARXIV_REQUEST_SLEEP_SEC = 3
 
 
 def _get_theme_queries() -> List[str]:
@@ -167,37 +179,106 @@ def run():
             logger.warning(f"Could not save job completion to Firestore: {e}")
 
 
+def _arxiv_year_windows(
+    years: int, now: Optional[datetime] = None
+) -> List[Tuple[int, str, str]]:
+    """直近 `years` 年分を年単位の submittedDate ウィンドウに分割して返す。
+
+    返り値は新しい年から順の `(year, from_yyyymmdd, to_yyyymmdd)` リスト。
+    例: years=10, now=2025 -> 2025..2016 の各年 (降順)。
+    """
+    now = now or datetime.now(timezone.utc)
+    end_year = now.year
+    start_year = end_year - years + 1
+    return [
+        (y, f"{y}0101", f"{y}1231")
+        for y in range(end_year, start_year - 1, -1)
+    ]
+
+
+def _build_arxiv_url(
+    query: str,
+    start: int,
+    from_yyyymmdd: str,
+    to_yyyymmdd: str,
+    page_size: int,
+) -> str:
+    """テーマクエリ＋submittedDateウィンドウ＋ページング用の arXiv API URL を組み立てる。"""
+    # キーワード部は必ず括弧でグルーピングする。括弧が無いと arXiv が複数語クエリと
+    # `AND submittedDate` の結合を誤解釈し、日付フィルタが無視される（実測で確認）。
+    search_query = (
+        f"(all:{query}) AND "
+        f"submittedDate:[{from_yyyymmdd}0000 TO {to_yyyymmdd}2359]"
+    )
+    params = urllib.parse.urlencode({
+        "search_query": search_query,
+        "start": start,
+        "max_results": page_size,
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
+    })
+    return f"{ARXIV_API_URL}?{params}"
+
+
 def _fetch_from_arxiv() -> List[Dict[str, Any]]:
-    """arXiv APIから論文を取得（APIキー不要）"""
+    """arXiv APIから論文を取得（APIキー不要）。
+
+    各テーマについて直近 ARXIV_YEARS 年分を**年単位のウィンドウ**で取得する。
+    arXiv は submittedDate 降順のため、年で区切らないと最新年に偏る。年ごとに
+    `start` でページングし、各 (テーマ, 年) ごとに最大 ARXIV_PER_THEME_PER_YEAR 件
+    まで取得する。ページが ARXIV_PAGE_SIZE 未満なら以降の結果無しとして打ち切る。
+    paper_id でグローバルに重複排除する（テーマ横断/年跨ぎで同一論文は1件のみ）。
+    """
     search_queries = _get_theme_queries()
-    papers = []
+    windows = _arxiv_year_windows(ARXIV_YEARS)
+    # 各 (テーマ, 年) のページ上限（必ず有限回で終了させる安全弁）。
+    max_pages = max(1, math.ceil(ARXIV_PER_THEME_PER_YEAR / ARXIV_PAGE_SIZE))
+
+    papers: List[Dict[str, Any]] = []
+    seen_ids: set = set()
 
     for query in search_queries:
-        try:
-            params = urllib.parse.urlencode({
-                "search_query": f"all:{query}",
-                "start": 0,
-                "max_results": MAX_RESULTS // len(search_queries),
-                "sortBy": "submittedDate",
-                "sortOrder": "descending",
-            })
-            url = f"{ARXIV_API_URL}?{params}"
-            logger.info(f"Fetching arXiv papers for query: {query}")
+        for year, from_yyyymmdd, to_yyyymmdd in windows:
+            fetched_for_year = 0
+            for page in range(max_pages):
+                start = page * ARXIV_PAGE_SIZE
+                url = _build_arxiv_url(query, start, from_yyyymmdd, to_yyyymmdd, ARXIV_PAGE_SIZE)
+                try:
+                    logger.info(f"Fetching arXiv papers query='{query}' year={year} start={start}")
+                    with urllib.request.urlopen(url, timeout=30) as response:
+                        xml_data = response.read()
+                    parsed = _parse_arxiv_xml(xml_data)
+                except urllib.error.URLError as e:
+                    logger.warning(f"Failed to fetch arXiv query='{query}' year={year} start={start}: {e}. Stopping window.")
+                    break
+                except Exception as e:
+                    logger.warning(f"Unexpected error fetching arXiv query='{query}' year={year} start={start}: {e}. Stopping window.")
+                    break
 
-            with urllib.request.urlopen(url, timeout=30) as response:
-                xml_data = response.read()
+                if not parsed:
+                    break
 
-            parsed = _parse_arxiv_xml(xml_data)
-            papers.extend(parsed)
-            logger.info(f"Fetched {len(parsed)} papers for query: {query}")
+                for p in parsed:
+                    pid = p.get("paper_id")
+                    if pid and pid in seen_ids:
+                        continue
+                    if pid:
+                        seen_ids.add(pid)
+                    # 取得元テーマを記録（SQLite 側で theme 名照合に利用、無ければ無視される）。
+                    p.setdefault("theme", query)
+                    papers.append(p)
+                    fetched_for_year += 1
 
-            time.sleep(3)  # arXiv API rate limit
+                # これ以上の結果が無い、または年内目標件数に達したら打ち切り。
+                if len(parsed) < ARXIV_PAGE_SIZE or fetched_for_year >= ARXIV_PER_THEME_PER_YEAR:
+                    break
 
-        except urllib.error.URLError as e:
-            logger.warning(f"Failed to fetch from arXiv for query '{query}': {e}. Skipping.")
-        except Exception as e:
-            logger.warning(f"Unexpected error fetching arXiv for query '{query}': {e}. Skipping.")
+                time.sleep(ARXIV_REQUEST_SLEEP_SEC)  # arXiv API rate limit
 
+    logger.info(
+        f"arXiv fetch complete: {len(papers)} unique papers across "
+        f"{len(search_queries)} themes x {len(windows)} years"
+    )
     return papers
 
 
