@@ -1,13 +1,89 @@
-import { useQuery } from '@tanstack/react-query'
-import { fetchDashboard } from '../api'
+import { useQuery, useQueries } from '@tanstack/react-query'
+import { fetchDashboard, fetchStock } from '../api'
+import type { Company, StockData } from '../types'
 
 function ScoreBadge({ score }: { score: number }) {
   const color = score >= 70 ? 'bg-red-500' : score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
   return <span className={`${color} text-white text-xs px-2 py-1 rounded-full font-bold`}>{score.toFixed(0)}</span>
 }
 
+function formatPrice(value: number, currency?: string | null) {
+  const symbol = currency === 'JPY' ? '¥' : currency === 'USD' ? '$' : ''
+  return `${symbol}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}${symbol ? '' : ` ${currency ?? ''}`.trimEnd()}`
+}
+
+function formatMarketCap(value?: number | null) {
+  if (value == null) return '-'
+  if (value >= 1e12) return `${(value / 1e12).toFixed(2)}T`
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`
+  return value.toLocaleString()
+}
+
+function StockEvalCard({ company, stock, isLoading, isError }: { company: Company; stock?: StockData; isLoading: boolean; isError: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4 animate-pulse">
+        <p className="font-semibold text-gray-800">{company.name}</p>
+        <p className="text-xs text-gray-400 mt-2">株価読み込み中...</p>
+      </div>
+    )
+  }
+
+  const failed = isError || !stock || stock.error || stock.prices.length === 0
+  if (failed) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-300">
+        <div className="flex justify-between items-start">
+          <p className="font-semibold text-gray-800">{company.name}</p>
+          {company.ticker && <span className="text-xs text-gray-500">{company.ticker}</span>}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">株価取得失敗{stock?.error ? `（${stock.error}）` : ''}</p>
+      </div>
+    )
+  }
+
+  const first = stock.prices[0].close
+  const last = stock.prices[stock.prices.length - 1].close
+  const changePct = first !== 0 ? ((last - first) / first) * 100 : 0
+  const changeColor = changePct >= 0 ? 'text-red-600' : 'text-blue-600'
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-semibold text-gray-800">{company.name}</p>
+          <p className="text-xs text-gray-500">{stock.ticker}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-bold text-gray-800">{formatPrice(last, stock.currency)}</p>
+          <p className="text-xs text-gray-400">最新終値</p>
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-3 text-sm">
+        <span className="text-gray-500">10年騰落率</span>
+        <span className={`font-bold ${changeColor}`}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%</span>
+      </div>
+      <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+        <span>時価総額 {formatMarketCap(stock.financials.market_cap)}</span>
+        <span>PER {stock.financials.trailing_pe != null ? stock.financials.trailing_pe.toFixed(1) : '-'}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+
+  const tickerCompanies = (data?.notable_companies ?? []).filter((c): c is Company & { ticker: string } => !!c.ticker)
+  const stockQueries = useQueries({
+    queries: tickerCompanies.map(c => ({
+      queryKey: ['stock', c.ticker, 10],
+      queryFn: () => fetchStock(c.ticker, 10),
+      staleTime: 1000 * 60 * 30,
+      retry: 1,
+    })),
+  })
 
   if (isLoading) return <div className="text-center py-12 text-gray-500">読み込み中...</div>
   if (error || !data) return <div className="text-center py-12 text-red-500">データの取得に失敗しました</div>
@@ -141,6 +217,28 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">株価評価（過去10年）</h2>
+        {tickerCompanies.length === 0 ? (
+          <p className="text-sm text-gray-400">ティッカー登録済みの注目企業がありません。</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tickerCompanies.map((company, i) => {
+              const q = stockQueries[i]
+              return (
+                <StockEvalCard
+                  key={company.id}
+                  company={company}
+                  stock={q?.data}
+                  isLoading={q?.isLoading ?? false}
+                  isError={q?.isError ?? false}
+                />
+              )
+            })}
+          </div>
+        )}
       </section>
 
       <section>
