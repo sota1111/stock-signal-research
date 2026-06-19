@@ -214,3 +214,53 @@ export interface StockData {
   fetched_at?: string | null
   error?: string | null
 }
+
+// シグナルレポート（GET /api/dashboard/signal-report, SOT-853）
+export interface PaperYearCount {
+  year: number
+  count: number
+}
+
+export interface SurgingKeyword {
+  keyword: string
+  count_latest_year: number
+  growth_rate: number
+  related_paper_ids: string[]
+}
+
+export interface TopCompany {
+  rank: number
+  company: string
+  score: number
+  related_paper_count: number
+  matched_keywords: string[]
+  market_data_available: boolean
+  evidence: { paper_id: string; title: string }[]
+}
+
+export interface SupplyChainGraphNode {
+  id: string
+  type: string
+  label: string
+}
+
+export interface SupplyChainGraphEdge {
+  source: string
+  target: string
+  relation: string
+  evidence: string[]
+}
+
+export interface SignalReport {
+  query: string
+  period: { from_year: number; to_year: number }
+  paper_counts_by_year: PaperYearCount[]
+  surging_keywords: SurgingKeyword[]
+  top_companies: TopCompany[]
+  supply_chain_graph: {
+    nodes: SupplyChainGraphNode[]
+    edges: SupplyChainGraphEdge[]
+  }
+  paper_total: number
+  generated_at?: string
+}

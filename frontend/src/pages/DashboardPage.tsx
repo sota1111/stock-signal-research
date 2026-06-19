@@ -1,6 +1,18 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock } from '../api'
+import { fetchDashboard, fetchStock, fetchSignalReport, fetchMonthlyData } from '../api'
 import type { Company, StockData } from '../types'
+import ChartCard from '../components/charts/ChartCard'
+import StockPriceLines from '../components/charts/StockPriceLines'
+import NormalizedCompareLines from '../components/charts/NormalizedCompareLines'
+import ReturnRankingBar from '../components/charts/ReturnRankingBar'
+import ValuationScatter from '../components/charts/ValuationScatter'
+import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
+import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
+import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
+import CompanyScoreBar from '../components/charts/CompanyScoreBar'
+import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
+import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
+import type { StockItem } from '../components/charts/chartUtils'
 
 function ScoreBadge({ score }: { score: number }) {
   const color = score >= 70 ? 'bg-red-500' : score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
@@ -85,8 +97,33 @@ export default function DashboardPage() {
     })),
   })
 
+  // 急増テーマTOPを既定queryにシグナルレポートを取得（B/C系チャート用）
+  const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
+  const { data: signalReport } = useQuery({
+    queryKey: ['signal-report', reportQuery],
+    queryFn: () => fetchSignalReport(reportQuery),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data,
+  })
+  const { data: monthly } = useQuery({
+    queryKey: ['papers-monthly'],
+    queryFn: () => fetchMonthlyData(),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data,
+  })
+
   if (isLoading) return <div className="text-center py-12 text-gray-500">読み込み中...</div>
   if (error || !data) return <div className="text-center py-12 text-red-500">データの取得に失敗しました</div>
+
+  // 株価チャート（A1-A4, C1）用の共通 items
+  const stockItems: StockItem[] = tickerCompanies.map((c, i) => ({
+    name: c.name,
+    ticker: c.ticker,
+    stock: stockQueries[i]?.data,
+  }))
+  const primaryStock = stockItems.find(it => it.stock && !it.stock.error && it.stock.prices.length > 0)
 
   return (
     <div className="space-y-8">
@@ -254,6 +291,67 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* === 株価グラフ（過去10年） === */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-700">株価グラフ（過去10年）</h2>
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-2">A1. 株価推移（注目企業ごと）</p>
+          <StockPriceLines items={stockItems} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ChartCard title="A2. 正規化比較（開始日=100）" subtitle="注目企業の相対パフォーマンス">
+            <NormalizedCompareLines items={stockItems} />
+          </ChartCard>
+          <ChartCard title="A3. 10年騰落率ランキング" subtitle="プラス=赤 / マイナス=青">
+            <ReturnRankingBar items={stockItems} />
+          </ChartCard>
+        </div>
+        <ChartCard title="A4. バリュエーション散布図" subtitle="横軸PER × 縦軸時価総額 / バブル=配当利回り">
+          <ValuationScatter items={stockItems} />
+        </ChartCard>
+      </section>
+
+      {/* === 論文・研究トレンド === */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-700">論文・研究トレンド</h2>
+        <p className="text-xs text-gray-400 -mt-2">集計テーマ: {reportQuery}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ChartCard title="B1. 年別論文件数（過去10年）">
+            <PaperCountsByYearBar data={signalReport?.paper_counts_by_year ?? []} />
+          </ChartCard>
+          <ChartCard title="B2. 月次論文件数トレンド" subtitle="全テーマ合算">
+            <MonthlyPapersLine data={monthly ?? []} />
+          </ChartCard>
+          <ChartCard title="B3. 急増キーワード" subtitle="成長率 上位10件">
+            <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />
+          </ChartCard>
+          <ChartCard title="B4. 注目企業 前兆スコア">
+            <CompanyScoreBar data={signalReport?.top_companies ?? []} />
+          </ChartCard>
+        </div>
+      </section>
+
+      {/* === 論文 × 株価 クロス分析 === */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-700">論文 × 株価 クロス分析</h2>
+        <ChartCard
+          title="C1. 論文件数 vs 株価（2軸）"
+          subtitle={`論文件数（棒・左軸）× 年末株価（線・右軸）${primaryStock ? ` / ${primaryStock.name}` : ''}`}
+        >
+          <PapersVsPriceComposed
+            counts={signalReport?.paper_counts_by_year ?? []}
+            stock={primaryStock?.stock}
+            companyName={primaryStock?.name}
+          />
+        </ChartCard>
+        <ChartCard title="C2. サプライチェーン連鎖図" subtitle="ノード/エッジ図">
+          <SupplyChainGraphView
+            nodes={signalReport?.supply_chain_graph?.nodes ?? []}
+            edges={signalReport?.supply_chain_graph?.edges ?? []}
+          />
+        </ChartCard>
       </section>
 
       <p className="text-xs text-gray-400 border-t pt-4">
