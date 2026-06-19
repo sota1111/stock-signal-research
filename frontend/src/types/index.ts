@@ -187,3 +187,30 @@ export interface ResearchSeed {
   created_at?: string
   updated_at?: string
 }
+
+// 株価・財務（GET /api/dashboard/stock, yfinance / SOT-845）
+export interface StockPricePoint {
+  date: string
+  close: number
+}
+
+export interface StockFinancials {
+  market_cap?: number | null
+  trailing_pe?: number | null
+  forward_pe?: number | null
+  dividend_yield?: number | null
+  fifty_two_week_high?: number | null
+  fifty_two_week_low?: number | null
+}
+
+export interface StockData {
+  ticker: string
+  name?: string | null
+  currency?: string | null
+  period: { years: number; from?: string | null; to?: string | null }
+  prices: StockPricePoint[]
+  financials: StockFinancials
+  source: string
+  fetched_at?: string | null
+  error?: string | null
+}
