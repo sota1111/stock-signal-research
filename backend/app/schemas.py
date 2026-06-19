@@ -246,3 +246,23 @@ class SignalAlignmentResponse(BaseModel):
     baseline: str
     summary: SignalAlignmentSummary
     companies: List[CompanyEvaluation]
+
+
+class ResearchSeedResponse(BaseModel):
+    id: str
+    seed_id: str
+    source_type: Optional[str] = None
+    source_reference: Optional[str] = None
+    symbol: Optional[str] = None
+    company_name: Optional[str] = None
+    theme: str
+    related_keywords: List[str] = Field(default_factory=list)
+    summary: Optional[str] = None
+    papers: List[dict] = Field(default_factory=list)
+    stock_events: List[dict] = Field(default_factory=list)
+    hypothesis: Optional[str] = None
+    reason_to_track: Optional[str] = None
+    confidence: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)

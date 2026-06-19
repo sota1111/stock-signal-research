@@ -117,3 +117,26 @@ class StockPrice(Base):
     date = Column(String, nullable=False)   # "YYYY-MM-DD"
     close = Column(Float, nullable=False)
     company_id = Column(String, ForeignKey("companies.id"), nullable=True)
+
+
+class ResearchSeed(Base):
+    """過去履歴から抽出した初期リサーチseedデータ。
+    投資助言ではなく、調査・仮説検証用データとして扱う。"""
+    __tablename__ = "research_seeds"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    seed_id = Column(String, unique=True, index=True, nullable=False)
+    source_type = Column(String)  # "history" | "memo" | "manual" | "web" | "paper" | "stock"
+    source_reference = Column(String)
+    symbol = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+    theme = Column(String, nullable=False)
+    related_keywords = Column(String)  # Stored as JSON string (list[str])
+    summary = Column(String)
+    papers = Column(String)  # Stored as JSON string (list[dict])
+    stock_events = Column(String)  # Stored as JSON string (list[dict])
+    hypothesis = Column(String, nullable=True)
+    reason_to_track = Column(String)
+    confidence = Column(String)  # "low" | "medium" | "high"
+    seed_created_at = Column(String)  # source ISO string
+    seed_updated_at = Column(String)  # source ISO string
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

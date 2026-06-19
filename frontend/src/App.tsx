@@ -6,6 +6,7 @@ import ListPage from './pages/ListPage'
 import DetailPage from './pages/DetailPage'
 import InputPage from './pages/InputPage'
 import EvaluationPage from './pages/EvaluationPage'
+import ResearchSeedsPage from './pages/ResearchSeedsPage'
 import LoginPage from './pages/LoginPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,9 @@ function AppLayout() {
               <NavLink to="/evaluation" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
                 一致度評価
               </NavLink>
+              <NavLink to="/research-seeds" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
+                初期リサーチ
+              </NavLink>
             </div>
             <button
               onClick={logout}
@@ -54,6 +58,7 @@ function AppLayout() {
           <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
           <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
           <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
+          <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
         </Routes>
       </main>
     </div>

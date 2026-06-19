@@ -149,3 +149,41 @@ export interface SignalAlignmentResponse {
   summary: SignalAlignmentSummary
   companies: CompanyEvaluation[]
 }
+
+export interface ResearchSeedPaper {
+  title: string
+  authors?: string[]
+  year?: number
+  url?: string
+  doi?: string
+  arxivId?: string
+  source?: string
+  note?: string
+}
+
+export interface ResearchSeedStockEvent {
+  date?: string
+  eventType: string
+  title: string
+  summary: string
+  url?: string
+}
+
+export interface ResearchSeed {
+  id: string
+  seed_id: string
+  source_type?: string
+  source_reference?: string
+  symbol?: string
+  company_name?: string
+  theme: string
+  related_keywords: string[]
+  summary?: string
+  papers: ResearchSeedPaper[]
+  stock_events: ResearchSeedStockEvent[]
+  hypothesis?: string
+  reason_to_track?: string
+  confidence?: 'low' | 'medium' | 'high'
+  created_at?: string
+  updated_at?: string
+}

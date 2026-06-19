@@ -157,11 +157,57 @@ def run_seed():
 
         db.commit()
 
-        # 8. External Infos & Alignment (Conditional)
+        # 8. Initial Research Seeds (from past history)
+        seed_research_seeds(db)
+
+        # 9. External Infos & Alignment (Conditional)
         seed_external_infos(db)
 
     finally:
         db.close()
+
+
+def seed_research_seeds(db):
+    """過去履歴から抽出した初期リサーチseedデータを投入する。
+    投資助言ではなく、調査・仮説検証用データ。冪等（既存があればスキップ）。"""
+    import json
+    import logging
+    import os
+    from . import models
+
+    logger = logging.getLogger(__name__)
+
+    if db.query(models.ResearchSeed).first() is not None:
+        return
+
+    json_path = os.path.join(os.path.dirname(__file__), "..", "data", "initial-research-seeds.json")
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    except (OSError, ValueError) as e:
+        logger.warning(f"Could not load initial-research-seeds.json: {e}")
+        return
+
+    for r in records:
+        db.add(models.ResearchSeed(
+            seed_id=r["id"],
+            source_type=r.get("sourceType"),
+            source_reference=r.get("sourceReference"),
+            symbol=r.get("symbol"),
+            company_name=r.get("companyName"),
+            theme=r.get("theme"),
+            related_keywords=json.dumps(r.get("relatedKeywords", []), ensure_ascii=False),
+            summary=r.get("summary"),
+            papers=json.dumps(r.get("papers", []), ensure_ascii=False),
+            stock_events=json.dumps(r.get("stockEvents", []), ensure_ascii=False),
+            hypothesis=r.get("hypothesis"),
+            reason_to_track=r.get("reasonToTrack"),
+            confidence=r.get("confidence"),
+            seed_created_at=r.get("createdAt"),
+            seed_updated_at=r.get("updatedAt"),
+        ))
+    db.commit()
+    logger.info(f"Seeded {len(records)} research seeds")
 
 
 def seed_stock_prices(db, companies):
