@@ -26,11 +26,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-blue-900 text-center mb-6">
-          Stock Signal Research
-        </h1>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8 w-full max-w-sm">
+        <div className="flex flex-col items-center mb-6">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-lg font-extrabold text-white mb-3">S</span>
+          <h1 className="text-xl font-bold text-slate-800 text-center">
+            Stock Signal Research
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">ログインして分析を開始</p>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
