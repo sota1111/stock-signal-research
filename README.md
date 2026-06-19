@@ -191,6 +191,65 @@ AI需要 → GPU memory bottleneck → HBM → SSD / NVMe → data center power 
 
 ---
 
+## 投資前兆ダッシュボード用 統一シグナルレポート JSON
+
+ダッシュボードで利用する統一シグナルレポート JSON を、既存 DB（local: SQLite / production: Firestore）の
+論文・企業辞書からオフラインで集計して生成できます。**外部 API キーは不要**です。
+
+レポートには次が含まれます:
+
+- `paper_counts_by_year`: 年別の論文件数（既定で直近 10 年）
+- `surging_keywords`: 直近年で急増したキーワード（`growth_rate`・関連論文 ID 付き）
+- `top_companies`: 注目企業 TOP5（`score`・`evidence`＝根拠論文 ID 付き。根拠のない企業は出力しない）
+- `supply_chain_graph`: サプライチェーン連鎖（`node` / `edge` 形式、evidence 付き）
+
+### A. CLI で JSON ファイルを生成する
+
+```bash
+cd /workspaces/stock-signal-research/backend
+
+# 標準出力に出力（最小）
+APP_ENV=local python scripts/generate_signal_report.py --query "solid state battery"
+
+# 期間と出力先を指定してファイル生成
+APP_ENV=local python scripts/generate_signal_report.py \
+  --query "AI infrastructure" --from-year 2016 --to-year 2025 \
+  --out data/signal_report.json
+```
+
+主な引数:
+
+| 引数 | 説明 | 既定値 |
+|------|------|--------|
+| `--query` | 集計対象テーマ/キーワード（必須） | - |
+| `--from-year` | 集計開始年 | 直近 10 年 |
+| `--to-year` | 集計終了年 | 現在年 |
+| `--top-n` | 注目企業の最大件数 | 5 |
+| `--surge-top-n` | 急増キーワードの最大件数 | 10 |
+| `--out` | 出力先 JSON ファイル | 未指定なら標準出力 |
+
+### B. API エンドポイントから取得する
+
+```bash
+# バックエンド起動後
+curl "http://localhost:8080/api/dashboard/signal-report?query=AI%20infrastructure&from_year=2016&to_year=2025"
+```
+
+`GET /api/dashboard/signal-report` のクエリパラメータ:
+
+| パラメータ | 説明 | 既定値 |
+|------------|------|--------|
+| `query` | 集計対象テーマ/キーワード（必須） | - |
+| `from_year` | 集計開始年 | 直近 10 年 |
+| `to_year` | 集計終了年 | 現在年 |
+| `top_n` | 注目企業の最大件数（1–50） | 5 |
+| `surge_top_n` | 急増キーワードの最大件数（1–100） | 10 |
+
+レスポンススキーマは `backend/app/schemas.py` の `SignalReportResponse`、集計ロジックは
+`backend/app/services/signal_report.py` を参照してください。サンプルデータ（`USE_SAMPLE_DATA=true`）でも動作確認できます。
+
+---
+
 ## 外部データ取得の有効化
 
 MVPはサンプルデータのみで動作します。将来的に以下の外部APIと連携可能な設計です:
