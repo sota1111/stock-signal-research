@@ -99,10 +99,17 @@ def test_seed_dashboard_is_idempotent(monkeypatch):
     theme, company, paper, supply, trend, score = _wire(monkeypatch)
 
     seed.seed_dashboard_data_firestore()
-    first = (len(theme.saved), len(company.saved), len(paper.saved))
-    # 2回目: themesが既存なのでスキップ(冪等)
+    # First-seed entities (themes/companies/supply/scores) are guarded: when themes already
+    # exist they are NOT re-seeded, so their counts stay constant across runs.
+    first_guarded = (len(theme.saved), len(company.saved), len(supply.saved), len(score.saved))
+    # 2回目: themesが既存なので first-seed ブロックはスキップ。
     seed.seed_dashboard_data_firestore()
-    assert (len(theme.saved), len(company.saved), len(paper.saved)) == first
+    assert (len(theme.saved), len(company.saved), len(supply.saved), len(score.saved)) == first_guarded
+    # Papers / monthly counts are idempotent top-ups that always run so an already-seeded prod
+    # Firestore gains the full 10-year dataset on the next deploy. The real repos upsert by
+    # paper_id / theme_id+keyword+year_month (the in-memory fake here just appends), so the
+    # set of distinct ids stays stable even though the fake re-records them.
+    assert {p["paper_id"] for p in paper.saved} == {p["pid"] for p in seed._DASHBOARD_PAPERS}
 
 
 def test_seed_dashboard_never_raises(monkeypatch):

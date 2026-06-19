@@ -1,126 +1,43 @@
-# Worker Report
+# Worker Report — Task Check (SOT-853)
+
+> NOTE: Codex CLI was non-responsive (run_codex.sh exit 75, usage-limit cooldown until
+> ~2026-06-21). Per the Worker Non-Response Fallback Policy, Claude Code performed this
+> task check directly.
 
 ## Summary
-SOT-625 quality gate verification was executed for the Firestore migration branch.
+SOT-853 is actionable. It was Done (PR #35 added 10 dashboard charts) and the human reopened
+it (Todo → In Progress) with: 「10年分のデータを調査して追加してください。」
 
-Verified:
-- flake8 lint for `backend/`
-- import checks for all new repositories, `jobs.daily_analysis`, and the migration script spec
-- project test discovery
-- Firestore migration acceptance criteria AC1-AC8
-
-Minimal lint fixes were applied. The fixes are formatting-only or unused-import cleanup, except `backend/app/main.py` keeps the SQLAlchemy model registration import with `# noqa: F401` because it is required before `Base.metadata.create_all()`.
+Confirmed data gap: the dashboard 10-year charts are backed by seed data, but the seed data
+spans only 2024:
+- `backend/app/seed.py` `_DASHBOARD_PAPERS` = 5 papers, all `2024-xx`.
+- `_DASHBOARD_MONTHLY_COUNTS` = 12 months, seeded as `2024-{i+1:02d}` (single year only).
+- `run_seed()` (SQLite) papers/monthly section likewise only 2024.
+- `signal_report.generate_signal_report` derives `paper_counts_by_year` over the last 10
+  years (default `to_year=now.year`, `from_year=to_year-9`) from each paper's `published_at`
+  year. With only 2024 papers, B1 shows a single non-zero bar; B2 monthly trend and C1
+  papers-vs-stock effectively cover one year.
 
 ## Changed Files
-- `backend/app/database.py` - flake8 blank-line formatting.
-- `backend/app/main.py` - flake8 formatting; retained model registration import with `# noqa: F401`.
-- `backend/app/models.py` - flake8 formatting and unused import cleanup.
-- `backend/app/repositories/company_repository.py` - flake8 formatting and indentation cleanup.
-- `backend/app/repositories/investor_repository.py` - flake8 formatting and unused import cleanup.
-- `backend/app/repositories/news_repository.py` - flake8 formatting and unused import cleanup.
-- `backend/app/repositories/paper_repository.py` - flake8 formatting and long-line wrapping.
-- `backend/app/repositories/score_repository.py` - flake8 formatting.
-- `backend/app/repositories/supply_chain_repository.py` - flake8 formatting and unused import cleanup.
-- `backend/app/repositories/theme_repository.py` - flake8 formatting and unused import cleanup.
-- `backend/app/repositories/trend_repository.py` - flake8 formatting and unused import cleanup.
-- `backend/app/routers/companies.py` - flake8 blank-line formatting.
-- `backend/app/routers/dashboard.py` - flake8 formatting.
-- `backend/app/routers/external_infos.py` - flake8 blank-line formatting.
-- `backend/app/routers/investors.py` - flake8 formatting.
-- `backend/app/routers/papers.py` - flake8 blank-line formatting.
-- `backend/app/routers/supply_chain.py` - flake8 formatting.
-- `backend/app/routers/themes.py` - flake8 formatting.
-- `backend/app/schemas.py` - flake8 blank-line formatting.
-- `backend/app/seed.py` - flake8 formatting and long sample-data line wrapping.
-- `backend/app/services/scoring.py` - flake8 formatting.
-- `backend/firestore_client.py` - flake8 formatting and unused import cleanup.
-- `backend/jobs/daily_analysis.py` - flake8 formatting and unused import cleanup.
-- `backend/jobs/runner.py` - flake8 blank-line formatting.
-- `backend/scripts/migrate_sqlite_to_firestore.py` - flake8 formatting and unused import cleanup.
-- `docs/ai/60_worker_codex_report.md` - this report.
+- none (task check)
 
 ## Commands Run
-
-```bash
-pip install --break-system-packages -q flake8 2>/dev/null || true
-pip install --user -q flake8 2>/dev/null || true
-python3 -m flake8 backend/ --max-line-length=120 --exclude=backend/.venv,backend/__pycache__,backend/data
-```
-
-Result: initially 262 lint findings. After minimal fixes, final result was success with no output.
-
-```bash
-APP_ENV=local DATABASE_URL="sqlite:///./data/app.db" python3 -c "..."
-```
-
-Result:
-
-```text
-OK: All repositories import successfully
-OK: daily_analysis imports successfully
-Functions: ['datetime', 'json', 'logger', 'logging', 'os', 'run', 'timezone', 'uuid']
-OK: migrate script can be loaded
-```
-
-```bash
-find . -name "test_*.py" -o -name "*_test.py" | grep -v __pycache__ | head -10
-```
-
-Result: the specified command found only `backend/.venv` dependency test files. Running the specified pytest branch failed because `pytest` is not installed:
-
-```text
-/usr/bin/python3: No module named pytest
-```
-
-Follow-up project test discovery excluding `backend/.venv`:
-
-```bash
-find backend -path backend/.venv -prune -o \( -name "test_*.py" -o -name "*_test.py" \) -print
-```
-
-Result:
-
-```text
-No project test files found - skipping pytest
-```
-
-Acceptance criteria command result:
-
-```text
-AC1: OK: SQLite guard present
-AC2: OK: FIRESTORE_DATABASE used
-AC3: OK: Dashboard uses repositories
-AC4: OK: Local env check present
-AC5: OK: FIRESTORE_DATABASE in .env.example
-AC6: OK: Migration script exists
-AC7: OK: Firestore mentioned in README
-AC8: OK: Firestore functions exist
-```
-
-Additional check:
-
-```bash
-git diff --check
-```
-
-Result: success with no whitespace errors.
+- `cd backend && python -m pytest -q --ignore=tests/test_market_data.py` → 44 passed
+  (test_market_data.py fails on collection only due to a pre-existing missing `pandas`
+  in the venv — unrelated to this issue).
+- `python -m pytest -q tests/test_dashboard_seed_firestore.py tests/test_signal_report.py` → 14 passed.
 
 ## Acceptance Criteria
-- [x] lint エラー 0 (または許容範囲内)
-- [x] 全 import が成功する
-- [x] APP_ENV=production で SQLite が初期化されない
-- [x] Firestore クライアントに FIRESTORE_DATABASE が渡される
-- [x] ダッシュボード API が Firestore リポジトリを使う
-- [x] ローカル環境が従来通り動作する設計になっている
-- [x] .env.example に FIRESTORE_DATABASE がある
-- [x] 移行スクリプトが存在する
-- [x] daily_analysis に Firestore 実装がある
+- [x] Issue is actionable
+- [x] Data gap confirmed (papers/monthly span only 2024, not 10 years)
+- [x] Baseline tests recorded (44 passed)
 
 ## Risks
-- The provided test discovery command searches inside `backend/.venv`, which caused false-positive test discovery from installed dependencies.
-- `pytest` is not installed in the system Python used by the command.
-- No project-owned backend test files were found outside `backend/.venv`, so no application pytest suite was executed.
-- The migration script check creates an import spec but does not execute the module loader; this follows the provided command, but it is weaker than a full import execution.
+- `test_dashboard_seed_firestore.py` asserts saved counts dynamically from
+  `_DASHBOARD_PAPERS` / `_DASHBOARD_MONTHLY_COUNTS`, so expanding the lists is safe.
+- The Firestore monthly-seed loop hardcodes `2024-{i+1:02d}`; expanding counts beyond 12
+  requires changing it to emit real `YYYY-MM` across multiple years.
+- `signal_report` tests use their own fixtures (independent of seed data) — unaffected.
 
 ## Next Action
 READY_FOR_REVIEW
