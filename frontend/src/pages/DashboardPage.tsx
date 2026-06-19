@@ -209,7 +209,7 @@ export default function DashboardPage() {
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">急増キーワード ランキング</h2>
         <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="w-full min-w-[480px] text-sm">
+          <table className="w-full min-w-[480px] text-sm responsive-table">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">#</th>
@@ -221,10 +221,10 @@ export default function DashboardPage() {
             <tbody>
               {data.top_keywords.map((kw, i) => (
                 <tr key={i} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 text-gray-500">{i + 1}</td>
-                  <td className="px-4 py-2 font-medium">{kw.keyword}</td>
-                  <td className="px-4 py-2 text-gray-600">{kw.theme_name ?? '-'}</td>
-                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap">+{kw.mom_change_pct.toFixed(1)}%</td>
+                  <td className="px-4 py-2 text-gray-500" data-label="#">{i + 1}</td>
+                  <td className="px-4 py-2 font-medium" data-label="キーワード">{kw.keyword}</td>
+                  <td className="px-4 py-2 text-gray-600" data-label="テーマ">{kw.theme_name ?? '-'}</td>
+                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap" data-label="前月比">+{kw.mom_change_pct.toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>

@@ -1,3 +1,57 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Mobile responsive tables (SOT-862).
+ * Below 640px, tables tagged `.responsive-table` collapse into stacked
+ * "label: value" cards so their content fits within the viewport and no
+ * horizontal scrolling is required. Desktop (>=640px) is unaffected.
+ */
+@media (max-width: 639px) {
+  table.responsive-table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+  table.responsive-table thead {
+    display: none;
+  }
+  table.responsive-table tbody {
+    display: block;
+  }
+  table.responsive-table tr {
+    display: block;
+    padding: 0.625rem 0.25rem;
+  }
+  table.responsive-table tr + tr {
+    border-top: 1px solid #e5e7eb;
+  }
+  table.responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.1875rem 0.75rem;
+    text-align: right;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    border: 0 !important;
+  }
+  table.responsive-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: left;
+    white-space: nowrap;
+  }
+  /* Cells without a label (e.g. action buttons) sit full width on the right. */
+  table.responsive-table td[data-label=""]::before {
+    content: none;
+  }
+  /* Hide truly empty spacer cells on mobile. */
+  table.responsive-table td:empty {
+    display: none;
+  }
+}
