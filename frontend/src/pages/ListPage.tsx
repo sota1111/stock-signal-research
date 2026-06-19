@@ -47,8 +47,8 @@ export default function ListPage() {
       </div>
 
       {tab === 'テーマ' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">テーマ名</th>
@@ -101,8 +101,8 @@ export default function ListPage() {
       )}
 
       {tab === '論文' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">タイトル</th>
@@ -126,8 +126,8 @@ export default function ListPage() {
       )}
 
       {tab === '企業' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">企業名</th>
@@ -157,8 +157,8 @@ export default function ListPage() {
       )}
 
       {tab === '投資家' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">投資家名</th>
