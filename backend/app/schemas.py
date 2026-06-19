@@ -330,3 +330,38 @@ class SignalReportResponse(BaseModel):
     supply_chain_graph: SupplyChainGraph = Field(default_factory=SupplyChainGraph)
     paper_total: int = 0
     generated_at: Optional[str] = None
+
+
+# --- 株価・財務取得（yfinance / SOT-842） ---
+class StockPricePoint(BaseModel):
+    date: str
+    close: float
+
+
+class StockFinancials(BaseModel):
+    market_cap: Optional[int] = None
+    trailing_pe: Optional[float] = None
+    forward_pe: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    fifty_two_week_high: Optional[float] = None
+    fifty_two_week_low: Optional[float] = None
+
+
+class StockDataPeriod(BaseModel):
+    years: int
+    from_: Optional[str] = Field(default=None, alias="from")
+    to: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class StockDataResponse(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    currency: Optional[str] = None
+    period: StockDataPeriod
+    prices: List[StockPricePoint] = Field(default_factory=list)
+    financials: StockFinancials = Field(default_factory=StockFinancials)
+    source: str = "yfinance"
+    fetched_at: Optional[str] = None
+    error: Optional[str] = None
