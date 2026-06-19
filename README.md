@@ -250,6 +250,83 @@ curl "http://localhost:8080/api/dashboard/signal-report?query=AI%20infrastructur
 
 ---
 
+## 株価・財務情報の取得（yfinance / APIキー不要）
+
+注目企業の株価・財務情報を [yfinance](https://pypi.org/project/yfinance/)（Yahoo Finance 非公式ラッパ）
+経由で取得できます。**外部 API キーは不要**です（J-Quants / Alpha Vantage / Finnhub のキーは使いません）。
+日本株は数字の証券コードのみ指定すると自動で `.T` を付与します（例: `7203` → `7203.T`）。米国株はそのまま
+ティッカーを指定します（例: `AAPL`）。
+
+取得結果は次の統一 JSON 形状で返ります:
+
+```json
+{
+  "ticker": "AAPL",
+  "name": "Apple Inc.",
+  "currency": "USD",
+  "period": { "years": 10, "from": "2016-06-20", "to": "2026-06-19" },
+  "prices": [ { "date": "2016-06-20", "close": 24.5 } ],
+  "financials": {
+    "market_cap": 3000000000000, "trailing_pe": 30.5, "forward_pe": 28.1,
+    "dividend_yield": 0.005, "fifty_two_week_high": 199.0, "fifty_two_week_low": 124.0
+  },
+  "source": "yfinance",
+  "fetched_at": "2026-06-19T07:00:00+00:00",
+  "error": null
+}
+```
+
+> 取得に失敗した場合も例外は発生せず、`prices` が空・`financials` が null・`error` に理由が入った
+> 同一形状で返ります。
+
+### A. CLI で取得する
+
+```bash
+cd /workspaces/stock-signal-research/backend
+
+# 米国株（標準出力に統一JSONを出力）
+APP_ENV=local python scripts/fetch_stock_data.py --ticker AAPL --years 10
+
+# 日本株（数字コードのみでも可。自動で .T 付与）／ファイル出力
+APP_ENV=local python scripts/fetch_stock_data.py --ticker 7203 --out data/toyota.json
+
+# 取得した株価を StockPrice テーブルへ保存（market_data_available の接続に利用）
+APP_ENV=local python scripts/fetch_stock_data.py --ticker AAPL --save
+```
+
+主な引数:
+
+| 引数 | 説明 | 既定値 |
+|------|------|--------|
+| `--ticker` | 銘柄コード/ティッカー（必須。日本株は数字コードのみでも可） | - |
+| `--years` | 取得する過去年数 | 10 |
+| `--out` | 出力先 JSON ファイル | 未指定なら標準出力 |
+| `--save` | 取得株価を StockPrice テーブルへ保存 | 無効 |
+
+### B. API エンドポイントから取得する
+
+```bash
+curl "http://localhost:8080/api/dashboard/stock?ticker=AAPL&years=10"
+curl "http://localhost:8080/api/dashboard/stock?ticker=7203"
+```
+
+`GET /api/dashboard/stock` のクエリパラメータ:
+
+| パラメータ | 説明 | 既定値 |
+|------------|------|--------|
+| `ticker` | 銘柄コード/ティッカー（必須） | - |
+| `years` | 取得する過去年数（1–20） | 10 |
+
+レスポンススキーマは `backend/app/schemas.py` の `StockDataResponse`、取得ロジックは
+`backend/app/services/market_data.py` を参照してください。`--save` で `StockPrice` に保存した銘柄は、
+統一シグナルレポートの `top_companies[].market_data_available` が `true` になります（`Company.ticker`
+が設定されている場合）。
+
+> **MCP について**: 本機能は yfinance を直接利用するため MCP サーバや API キーの設定は不要です。
+> Claude Code からは上記 CLI を実行するだけで株価・財務情報を取得できます。
+
+---
+
 ## 外部データ取得の有効化
 
 MVPはサンプルデータのみで動作します。将来的に以下の外部APIと連携可能な設計です:
