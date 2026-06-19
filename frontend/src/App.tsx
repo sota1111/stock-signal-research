@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
@@ -15,38 +16,96 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'
+
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = () => setMenuOpen(false)
 
   return (
     <div className="min-h-screen bg-gray-50">
       {isAuthenticated && (
         <nav className="bg-blue-900 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-6">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
               <span className="font-bold text-lg">Stock Signal Research</span>
-              <NavLink to="/" end className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
-                ダッシュボード
-              </NavLink>
-              <NavLink to="/list" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
-                一覧
-              </NavLink>
-              <NavLink to="/input" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
-                登録
-              </NavLink>
-              <NavLink to="/evaluation" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
-                一致度評価
-              </NavLink>
-              <NavLink to="/research-seeds" className={({ isActive }) => isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'}>
-                初期リサーチ
-              </NavLink>
+              {/* Desktop: inline links */}
+              <div className="hidden md:flex items-center gap-6">
+                <NavLink to="/" end className={navLinkClass}>
+                  ダッシュボード
+                </NavLink>
+                <NavLink to="/list" className={navLinkClass}>
+                  一覧
+                </NavLink>
+                <NavLink to="/input" className={navLinkClass}>
+                  登録
+                </NavLink>
+                <NavLink to="/evaluation" className={navLinkClass}>
+                  一致度評価
+                </NavLink>
+                <NavLink to="/research-seeds" className={navLinkClass}>
+                  初期リサーチ
+                </NavLink>
+              </div>
+              {/* Desktop: logout */}
+              <button
+                onClick={logout}
+                className="hidden md:inline-block text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/30"
+              >
+                ログアウト
+              </button>
+              {/* Mobile: hamburger toggle */}
+              <button
+                type="button"
+                aria-label="メニュー"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen(o => !o)}
+                className="md:hidden p-2 -mr-2 rounded hover:bg-white/10"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {menuOpen ? (
+                    <>
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </>
+                  ) : (
+                    <>
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </>
+                  )}
+                </svg>
+              </button>
             </div>
-            <button
-              onClick={logout}
-              className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/30"
-            >
-              ログアウト
-            </button>
+            {/* Mobile: collapsible menu */}
+            {menuOpen && (
+              <div className="md:hidden flex flex-col gap-3 pt-4 pb-1">
+                <NavLink to="/" end onClick={closeMenu} className={navLinkClass}>
+                  ダッシュボード
+                </NavLink>
+                <NavLink to="/list" onClick={closeMenu} className={navLinkClass}>
+                  一覧
+                </NavLink>
+                <NavLink to="/input" onClick={closeMenu} className={navLinkClass}>
+                  登録
+                </NavLink>
+                <NavLink to="/evaluation" onClick={closeMenu} className={navLinkClass}>
+                  一致度評価
+                </NavLink>
+                <NavLink to="/research-seeds" onClick={closeMenu} className={navLinkClass}>
+                  初期リサーチ
+                </NavLink>
+                <button
+                  onClick={() => { closeMenu(); logout() }}
+                  className="text-left text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/30 self-start"
+                >
+                  ログアウト
+                </button>
+              </div>
+            )}
           </div>
         </nav>
       )}

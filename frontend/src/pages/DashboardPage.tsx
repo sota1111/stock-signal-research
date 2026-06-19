@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-800">ダッシュボード - 技術トレンド前兆検知</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ダッシュボード - 技術トレンド前兆検知</h1>
 
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">急増テーマ TOP5</h2>
@@ -171,14 +171,14 @@ export default function DashboardPage() {
 
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">急増キーワード ランキング</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">#</th>
                 <th className="px-4 py-2 text-left">キーワード</th>
                 <th className="px-4 py-2 text-left">テーマ</th>
-                <th className="px-4 py-2 text-right">前月比</th>
+                <th className="px-4 py-2 text-right whitespace-nowrap">前月比</th>
               </tr>
             </thead>
             <tbody>
@@ -187,7 +187,7 @@ export default function DashboardPage() {
                   <td className="px-4 py-2 text-gray-500">{i + 1}</td>
                   <td className="px-4 py-2 font-medium">{kw.keyword}</td>
                   <td className="px-4 py-2 text-gray-600">{kw.theme_name ?? '-'}</td>
-                  <td className="px-4 py-2 text-right text-green-600 font-semibold">+{kw.mom_change_pct.toFixed(1)}%</td>
+                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap">+{kw.mom_change_pct.toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>
