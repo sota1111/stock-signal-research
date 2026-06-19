@@ -210,6 +210,60 @@ def seed_research_seeds(db):
     logger.info(f"Seeded {len(records)} research seeds")
 
 
+def _research_seed_json_to_row(r):
+    """Map a camelCase JSON record to the snake_case shape the repository reads.
+    List fields are kept native (the Firestore repository handles them)."""
+    return {
+        "seed_id": r["id"],
+        "source_type": r.get("sourceType"),
+        "source_reference": r.get("sourceReference"),
+        "symbol": r.get("symbol"),
+        "company_name": r.get("companyName"),
+        "theme": r.get("theme"),
+        "related_keywords": r.get("relatedKeywords", []),
+        "summary": r.get("summary"),
+        "papers": r.get("papers", []),
+        "stock_events": r.get("stockEvents", []),
+        "hypothesis": r.get("hypothesis"),
+        "reason_to_track": r.get("reasonToTrack"),
+        "confidence": r.get("confidence"),
+        "seed_created_at": r.get("createdAt"),
+        "seed_updated_at": r.get("updatedAt"),
+    }
+
+
+def seed_research_seeds_firestore():
+    """本番(Firestore)向けに初期リサーチseedデータを冪等投入する。
+    `seed_research_seeds()` は SQLite (local/test) 専用のため、本番では別途
+    Firestore の `research_seeds` コレクションへ投入しないと一覧が空になる。
+    調査・仮説検証用データであり投資助言ではない。失敗しても起動を妨げない。"""
+    import json
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from .repositories.research_seed_repository import get_research_seed_repository
+
+        repo = get_research_seed_repository()
+        # 冪等: 既に投入済みならスキップ
+        if repo.list_all():
+            return
+
+        json_path = os.path.join(os.path.dirname(__file__), "..", "data", "initial-research-seeds.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+
+        seeded = 0
+        for r in records:
+            if repo.save(_research_seed_json_to_row(r)):
+                seeded += 1
+        logger.info(f"Seeded {seeded} research seeds to Firestore")
+    except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
+        logger.warning(f"Could not seed research seeds to Firestore: {e}")
+
+
 def seed_stock_prices(db, companies):
     import random
     import datetime
