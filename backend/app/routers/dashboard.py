@@ -1,12 +1,43 @@
-from fastapi import APIRouter
+from typing import Optional
+from fastapi import APIRouter, Query
 from .. import schemas
 from ..repositories.theme_repository import get_theme_repository
 from ..repositories.company_repository import get_company_repository
 from ..repositories.score_repository import get_score_repository
 from ..repositories.supply_chain_repository import get_supply_chain_repository
 from ..repositories.trend_repository import get_trend_repository
+from ..repositories.paper_repository import get_paper_repository
+from ..services.signal_report import generate_signal_report
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+@router.get("/signal-report", response_model=schemas.SignalReportResponse)
+def get_signal_report(
+    query: str = Query(..., description="集計対象テーマ/キーワード"),
+    from_year: Optional[int] = Query(None, description="集計開始年（未指定で直近10年）"),
+    to_year: Optional[int] = Query(None, description="集計終了年（未指定で現在年）"),
+    top_n: int = Query(5, ge=1, le=50, description="注目企業の最大件数"),
+    surge_top_n: int = Query(10, ge=1, le=100, description="急増キーワードの最大件数"),
+):
+    """投資前兆ダッシュボード用の統一シグナルレポートJSONを返す。
+
+    既存DBの論文・企業辞書から、年別論文件数・急増キーワード・注目企業TOP5（根拠付き）・
+    サプライチェーン連鎖（ノード/エッジ）を集計する。外部APIキーは不要。
+    """
+    paper_repo = get_paper_repository()
+    company_repo = get_company_repository()
+    papers = paper_repo.list_all()
+    companies = company_repo.list_all()
+    return generate_signal_report(
+        query=query,
+        papers=papers,
+        companies=companies,
+        from_year=from_year,
+        to_year=to_year,
+        top_n=top_n,
+        surge_top_n=surge_top_n,
+    )
 
 
 @router.get("/", response_model=schemas.DashboardResponse)

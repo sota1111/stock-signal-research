@@ -266,3 +266,67 @@ class ResearchSeedResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Signal Report (投資前兆ダッシュボード用 統一JSON / SOT-837) ---
+
+
+class SignalReportPeriod(BaseModel):
+    from_year: int
+    to_year: int
+
+
+class PaperYearCount(BaseModel):
+    year: int
+    count: int
+
+
+class SurgingKeyword(BaseModel):
+    keyword: str
+    count_latest_year: int
+    growth_rate: float
+    related_paper_ids: List[str] = Field(default_factory=list)
+
+
+class CompanyEvidence(BaseModel):
+    paper_id: str
+    title: str = ""
+
+
+class TopCompany(BaseModel):
+    rank: int
+    company: str
+    score: float
+    related_paper_count: int
+    matched_keywords: List[str] = Field(default_factory=list)
+    market_data_available: bool = False
+    evidence: List[CompanyEvidence] = Field(default_factory=list)
+
+
+class SupplyChainNode(BaseModel):
+    id: str
+    type: str
+    label: str
+
+
+class SupplyChainEdge(BaseModel):
+    source: str
+    target: str
+    relation: str
+    evidence: List[str] = Field(default_factory=list)
+
+
+class SupplyChainGraph(BaseModel):
+    nodes: List[SupplyChainNode] = Field(default_factory=list)
+    edges: List[SupplyChainEdge] = Field(default_factory=list)
+
+
+class SignalReportResponse(BaseModel):
+    query: str
+    period: SignalReportPeriod
+    paper_counts_by_year: List[PaperYearCount] = Field(default_factory=list)
+    surging_keywords: List[SurgingKeyword] = Field(default_factory=list)
+    top_companies: List[TopCompany] = Field(default_factory=list)
+    supply_chain_graph: SupplyChainGraph = Field(default_factory=SupplyChainGraph)
+    paper_total: int = 0
+    generated_at: Optional[str] = None
