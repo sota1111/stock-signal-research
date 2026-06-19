@@ -17,7 +17,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  isActive ? 'text-yellow-300 font-semibold' : 'hover:text-blue-200'
+  isActive
+    ? 'text-white font-semibold border-b-2 border-sky-400 pb-0.5'
+    : 'text-slate-300 hover:text-white transition-colors'
 
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
@@ -25,12 +27,15 @@ function AppLayout() {
   const closeMenu = () => setMenuOpen(false)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {isAuthenticated && (
-        <nav className="bg-blue-900 text-white shadow-lg">
+        <nav className="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md sticky top-0 z-20">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4">
-              <span className="font-bold text-lg">Stock Signal Research</span>
+              <span className="flex items-center gap-2 font-bold text-lg tracking-tight">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-indigo-500 text-sm font-extrabold text-white">S</span>
+                Stock Signal Research
+              </span>
               {/* Desktop: inline links */}
               <div className="hidden md:flex items-center gap-6">
                 <NavLink to="/" end className={navLinkClass}>
@@ -109,7 +114,7 @@ function AppLayout() {
           </div>
         </nav>
       )}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="w-full max-w-7xl mx-auto px-4 py-6 flex-1">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
@@ -120,6 +125,11 @@ function AppLayout() {
           <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
         </Routes>
       </main>
+      {isAuthenticated && (
+        <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+          Stock Signal Research — 技術トレンド前兆検知
+        </footer>
+      )}
     </div>
   )
 }
