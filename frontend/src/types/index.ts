@@ -320,3 +320,19 @@ export interface ThemeCitations {
   themes: ThemeCitationSummary[]
   generated_at?: string
 }
+
+// テーマ×年 引用数マトリクス（GET /api/dashboard/theme-citation-matrix, SOT-944）
+export interface ThemeCitationMatrixRow {
+  theme_id: string | null
+  theme_name: string
+  total: number
+  cells: number[]
+}
+
+export interface ThemeCitationMatrix {
+  years: number[]
+  rows: ThemeCitationMatrixRow[]
+  column_totals: number[]
+  grand_total: number
+  generated_at?: string
+}

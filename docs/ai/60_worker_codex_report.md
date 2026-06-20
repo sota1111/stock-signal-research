@@ -1,43 +1,29 @@
-# Worker Report — Task Check (SOT-853)
+# Worker Report — Task Check (SOT-944)
 
-> NOTE: Codex CLI was non-responsive (run_codex.sh exit 75, usage-limit cooldown until
-> ~2026-06-21). Per the Worker Non-Response Fallback Policy, Claude Code performed this
-> task check directly.
+> NOTE (Fallback audit): Codex CLI was non-responsive (`scripts/ai/run_codex.sh` exit 75,
+> usage-limit cooldown until epoch 1782000900). Per the Worker Non-Response Fallback Policy,
+> Claude Code performed this task check directly. Retry would not help (cooldown ~5.6h out).
 
 ## Summary
-SOT-853 is actionable. It was Done (PR #35 added 10 dashboard charts) and the human reopened
-it (Todo → In Progress) with: 「10年分のデータを調査して追加してください。」
-
-Confirmed data gap: the dashboard 10-year charts are backed by seed data, but the seed data
-spans only 2024:
-- `backend/app/seed.py` `_DASHBOARD_PAPERS` = 5 papers, all `2024-xx`.
-- `_DASHBOARD_MONTHLY_COUNTS` = 12 months, seeded as `2024-{i+1:02d}` (single year only).
-- `run_seed()` (SQLite) papers/monthly section likewise only 2024.
-- `signal_report.generate_signal_report` derives `paper_counts_by_year` over the last 10
-  years (default `to_year=now.year`, `from_year=to_year-9`) from each paper's `published_at`
-  year. With only 2024 papers, B1 shows a single non-zero bar; B2 monthly trend and C1
-  papers-vs-stock effectively cover one year.
+- **Req 1 — 30 themes: SATISFIED.** `backend/app/seed.py` seeds `_DASHBOARD_THEMES` (30 themes; comment says "Firestore と同じ30テーマ"). `backend/data/collected-papers.json` contains exactly 30 distinct themes.
+- **Req 2 — 10y papers + citations per theme: SATISFIED.** `collected-papers.json` has 710 real arXiv papers, year range 2001–2026, ~25 papers/theme, `citation_count` populated on 580/710 (SOT-909). Each theme has multi-year real papers with citations.
+- **Req 3 — dashboard matrix (行列形式) of per-theme citation totals: MISSING.** Today the dashboard shows per-theme citation totals only as a **card grid / flat list** (`frontend/src/components/ThemeCitationsList.tsx` rendered in `DashboardPage.tsx`; backend `aggregate_theme_citations` in `backend/app/services/signal_report.py` + `/dashboard/theme-citations`). There is NO theme × year matrix/grid of citation sums. This is the new work for SOT-944.
 
 ## Changed Files
-- none (task check)
+- none (read-only check)
 
 ## Commands Run
-- `cd backend && python -m pytest -q --ignore=tests/test_market_data.py` → 44 passed
-  (test_market_data.py fails on collection only due to a pre-existing missing `pandas`
-  in the venv — unrelated to this issue).
-- `python -m pytest -q tests/test_dashboard_seed_firestore.py tests/test_signal_report.py` → 14 passed.
+- `python3` shape inspection of `initial-research-seeds.json` (11 seeds) and `collected-papers.json` (710 papers, 30 themes, 2001–2026, 580 cited)
+- `grep` over `backend/app/seed.py`, `backend/app/routers/dashboard.py`, `frontend/src` for matrix/theme-citations
+- read `ThemeCitationsList.tsx`, `aggregate_theme_citations`
 
 ## Acceptance Criteria
-- [x] Issue is actionable
-- [x] Data gap confirmed (papers/monthly span only 2024, not 10 years)
-- [x] Baseline tests recorded (44 passed)
+- [x] 30 themes present
+- [x] each theme has ~10y papers with citation_count
+- [ ] dashboard shows per-theme citation totals in matrix form  ← MISSING (only card list today)
 
 ## Risks
-- `test_dashboard_seed_firestore.py` asserts saved counts dynamically from
-  `_DASHBOARD_PAPERS` / `_DASHBOARD_MONTHLY_COUNTS`, so expanding the lists is safe.
-- The Firestore monthly-seed loop hardcodes `2024-{i+1:02d}`; expanding counts beyond 12
-  requires changing it to emit real `YYYY-MM` across multiple years.
-- `signal_report` tests use their own fixtures (independent of seed data) — unaffected.
+- "行列形式" (matrix) is underspecified. Most plausible reading given "過去10年分の論文と引用数": rows = themes (30), columns = years (last ~10y), cells = sum of `citation_count` for that theme×year. This reuses existing data and directly shows per-theme citation totals across years. Implement as a heatmap-style table with a per-theme total column and per-year column totals.
 
 ## Next Action
-READY_FOR_REVIEW
+NEEDS_DEBUG → reclassified by Claude as IMPLEMENT (add theme×year citation matrix to dashboard).

@@ -7,7 +7,11 @@ from ..repositories.score_repository import get_score_repository
 from ..repositories.supply_chain_repository import get_supply_chain_repository
 from ..repositories.trend_repository import get_trend_repository
 from ..repositories.paper_repository import get_paper_repository
-from ..services.signal_report import generate_signal_report, aggregate_theme_citations
+from ..services.signal_report import (
+    generate_signal_report,
+    aggregate_theme_citations,
+    aggregate_theme_citation_matrix,
+)
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
 
@@ -88,6 +92,22 @@ def get_theme_citations(
     papers = paper_repo.list_all()
     themes = theme_repo.list_all()
     return aggregate_theme_citations(papers=papers, themes=themes, top_n=top_n)
+
+
+@router.get("/theme-citation-matrix", response_model=schemas.ThemeCitationMatrixResponse)
+def get_theme_citation_matrix(
+    years: int = Query(10, ge=1, le=30, description="列に表示する直近の年数"),
+):
+    """テーマ×年の引用数合計マトリクスを返す（行=テーマ / 列=直近years年 / セル=引用数合計）。
+
+    各テーマ名に一致する論文を年別にバケットし、citation_count を合計する。テーマ別合計
+    （行合計）・年別合計（列合計）・総合計を併せて返す。外部APIキー不要。
+    """
+    paper_repo = get_paper_repository()
+    theme_repo = get_theme_repository()
+    papers = paper_repo.list_all()
+    themes = theme_repo.list_all()
+    return aggregate_theme_citation_matrix(papers=papers, themes=themes, years=years)
 
 
 @router.get("/", response_model=schemas.DashboardResponse)

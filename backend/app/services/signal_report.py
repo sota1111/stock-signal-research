@@ -185,6 +185,66 @@ def aggregate_theme_citations(
     }
 
 
+def aggregate_theme_citation_matrix(
+    papers: List[Dict[str, Any]],
+    themes: List[Dict[str, Any]],
+    years: int = 10,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """テーマ×年の引用数合計マトリクスを集計する純粋関数。
+
+    行=テーマ、列=直近 ``years`` 年（現在の年で終わる連続年）、セル=その
+    テーマ・その年の論文 ``citation_count`` 合計。ダッシュボードの「テーマごとの
+    引用数合計を行列形式で表示」要件（SOT-944）の元データ。外部APIキー不要。
+
+    Args:
+        papers: 論文 dict のリスト（title, abstract, citation_count, published_at を想定）。
+        themes: テーマ dict のリスト（id, name, description を想定）。
+        years: 列に表示する直近の年数（既定10）。
+    """
+    now = now or datetime.now(timezone.utc)
+    span = max(1, int(years))
+    current_year = now.year
+    year_columns = list(range(current_year - span + 1, current_year + 1))
+    year_index = {y: i for i, y in enumerate(year_columns)}
+
+    rows: List[Dict[str, Any]] = []
+    column_totals = [0] * len(year_columns)
+
+    for theme in themes or []:
+        name = str(theme.get("name") or "")
+        tokens = _theme_tokens(name, str(theme.get("description") or ""))
+        matched = [p for p in papers if _paper_matches_theme(p, tokens)]
+
+        cells = [0] * len(year_columns)
+        for p in matched:
+            year = _parse_year(p.get("published_at"))
+            if year is None or year not in year_index:
+                continue
+            cells[year_index[year]] += int(p.get("citation_count") or 0)
+
+        total = sum(cells)
+        for i, v in enumerate(cells):
+            column_totals[i] += v
+
+        rows.append({
+            "theme_id": theme.get("id"),
+            "theme_name": name,
+            "total": total,
+            "cells": cells,
+        })
+
+    rows.sort(key=lambda r: r["total"], reverse=True)
+
+    return {
+        "years": year_columns,
+        "rows": rows,
+        "column_totals": column_totals,
+        "grand_total": sum(column_totals),
+        "generated_at": now.isoformat(),
+    }
+
+
 def generate_signal_report(
     query: str,
     papers: List[Dict[str, Any]],
