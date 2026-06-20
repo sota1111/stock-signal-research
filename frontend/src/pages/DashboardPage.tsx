@@ -243,13 +243,13 @@ export default function DashboardPage() {
           title="論文件数 × 株価 × クロス分析（テーマ別）"
           subtitle={`テーマ: ${reportQuery}${signalReport ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}年` : ''}`}
         >
-          <div className="mb-3 flex items-center gap-2">
-            <label htmlFor="theme-select" className="text-sm text-gray-600">テーマ</label>
+          <div className="mb-3 flex items-center gap-2 min-w-0">
+            <label htmlFor="theme-select" className="shrink-0 text-sm text-gray-600">テーマ</label>
             <select
               id="theme-select"
               value={reportQuery}
               onChange={e => setSelectedTheme(e.target.value)}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
             >
               {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
                 <option key={name} value={name}>{name}</option>
