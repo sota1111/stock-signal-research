@@ -15,8 +15,17 @@ logger = logging.getLogger(__name__)
 
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
+OPENALEX_API_URL = "https://api.openalex.org/works"
 BATCH_SIZE = 50
 MAX_RESULTS = 100
+
+# --- OpenAlex citation-source tuning (SOT-899) ---
+# OpenAlex は API キー不要で引用数(cited_by_count)を提供する。テーマごとに引用数の多い
+# 順（cited_by_count:desc）で上位 OPENALEX_PER_THEME 件を取得し、引用数・リンク・概要を
+# 蓄積する。これがダッシュボードの「テーマ別 引用数上位100論文の総引用数」指標の元データ。
+# per_page は OpenAlex の上限 200 を超えないようにクランプする。
+OPENALEX_PER_THEME = int(os.getenv("OPENALEX_PER_THEME", "100"))
+OPENALEX_REQUEST_SLEEP_SEC = 1
 
 # --- arXiv bulk-collection tuning (SOT-853) ---
 # テーマごとに過去 ARXIV_YEARS 年分を「年単位のウィンドウ」で収集する。
@@ -132,6 +141,10 @@ def run():
             if ss_papers:
                 logger.info(f"Adding {len(ss_papers)} papers from Semantic Scholar")
                 papers = papers + ss_papers
+            oa_papers = _fetch_from_openalex()
+            if oa_papers:
+                logger.info(f"Adding {len(oa_papers)} papers from OpenAlex")
+                papers = papers + oa_papers
 
         fetched_count = len(papers)
 
@@ -158,7 +171,7 @@ def run():
         "fetchedCount": fetched_count,
         "insertedCount": inserted_count,
         "skippedCount": skipped_count,
-        "source": "arxiv,semantic_scholar",
+        "source": "arxiv,semantic_scholar,openalex",
     }
     if error_message:
         log_data["errorMessage"] = error_message
@@ -174,7 +187,7 @@ def run():
                 fetchedCount=fetched_count,
                 insertedCount=inserted_count,
                 skippedCount=skipped_count,
-                source="arxiv,semantic_scholar",
+                source="arxiv,semantic_scholar,openalex",
                 errorMessage=error_message,
             )
         except Exception as e:
@@ -334,6 +347,117 @@ def _fetch_from_semantic_scholar() -> List[Dict[str, Any]]:
         except Exception as e:
             logger.warning(f"Semantic Scholar error for '{query}': {e}. Skipping.")
 
+    return papers
+
+
+def _reconstruct_abstract(inverted_index: Optional[Dict[str, List[int]]]) -> str:
+    """OpenAlex の abstract_inverted_index（語→出現位置リスト）から本文を復元する。
+
+    OpenAlex は著作権配慮のため abstract を「単語→位置」の転置インデックスで返す。
+    位置順に語を並べ直して通常の文字列に戻す。None/空なら空文字を返す。
+    """
+    if not inverted_index or not isinstance(inverted_index, dict):
+        return ""
+    positions: List[Tuple[int, str]] = []
+    for word, idxs in inverted_index.items():
+        if not isinstance(idxs, list):
+            continue
+        for i in idxs:
+            try:
+                positions.append((int(i), word))
+            except (TypeError, ValueError):
+                continue
+    positions.sort(key=lambda x: x[0])
+    return " ".join(w for _, w in positions)
+
+
+def _parse_openalex_works(data: Dict[str, Any], theme: str) -> List[Dict[str, Any]]:
+    """OpenAlex の works レスポンス(JSON)を共通の paper dict 形状にパースする。"""
+    papers = []
+    for work in data.get("results", []):
+        try:
+            oa_id = work.get("id") or ""
+            short_id = oa_id.rstrip("/").split("/")[-1] if oa_id else ""
+            if not short_id:
+                continue
+            doi = work.get("doi")
+            url = doi or oa_id
+            authors = [
+                a.get("author", {}).get("display_name", "")
+                for a in work.get("authorships", [])
+                if isinstance(a, dict) and a.get("author")
+            ]
+            pub_date = work.get("publication_date") or str(work.get("publication_year") or "")
+            abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
+            papers.append({
+                "paper_id": f"openalex-{short_id}",
+                "title": work.get("display_name") or "",
+                "url": url,
+                "authors": [a for a in authors if a],
+                "published_at": pub_date[:10] if pub_date else "",
+                "abstract": abstract[:1000],
+                "extracted_keywords": [],
+                "source": "openalex",
+                "citation_count": work.get("cited_by_count") or 0,
+                "theme": theme,
+            })
+        except Exception as e:
+            logger.debug(f"Failed to parse OpenAlex work: {e}")
+    return papers
+
+
+def _fetch_from_openalex() -> List[Dict[str, Any]]:
+    """OpenAlex APIから引用数上位の論文を取得（APIキー不要）。
+
+    各テーマについて cited_by_count 降順で上位 OPENALEX_PER_THEME 件を取得し、
+    引用数(citation_count)・リンク(url)・概要(abstract)付きで返す。
+    paper_id でグローバルに重複排除する。OPENALEX_MAILTO があれば polite pool に付与。
+    """
+    search_queries = _get_theme_queries()
+    per_page = max(1, min(OPENALEX_PER_THEME, 200))  # OpenAlex per_page 上限は 200
+    mailto = os.getenv("OPENALEX_MAILTO")
+
+    papers: List[Dict[str, Any]] = []
+    seen_ids: set = set()
+
+    for query in search_queries:
+        params = {
+            "search": query,
+            "sort": "cited_by_count:desc",
+            "per_page": per_page,
+            "select": (
+                "id,doi,display_name,publication_date,publication_year,"
+                "cited_by_count,abstract_inverted_index,authorships"
+            ),
+        }
+        if mailto:
+            params["mailto"] = mailto
+        url = f"{OPENALEX_API_URL}?{urllib.parse.urlencode(params)}"
+        try:
+            logger.info(f"Fetching OpenAlex papers for query: {query}")
+            with urllib.request.urlopen(url, timeout=30) as response:
+                data = json.loads(response.read())
+        except urllib.error.HTTPError as e:
+            logger.warning(f"OpenAlex HTTP error for '{query}': {e}. Skipping.")
+            continue
+        except Exception as e:
+            logger.warning(f"OpenAlex error for '{query}': {e}. Skipping.")
+            continue
+
+        for p in _parse_openalex_works(data, query):
+            pid = p.get("paper_id")
+            if pid and pid in seen_ids:
+                continue
+            if pid:
+                seen_ids.add(pid)
+            papers.append(p)
+
+        time.sleep(OPENALEX_REQUEST_SLEEP_SEC)  # OpenAlex politeness / rate limit
+
+    logger.info(
+        f"OpenAlex fetch complete: {len(papers)} unique papers across "
+        f"{len(search_queries)} themes"
+    )
     return papers
 
 

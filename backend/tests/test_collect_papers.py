@@ -230,6 +230,101 @@ def test_semantic_scholar_with_mocked_http(monkeypatch):
     assert papers[0]["published_at"] == "2024-03-01"
 
 
+OPENALEX_PAYLOAD = {
+    "results": [
+        {
+            "id": "https://openalex.org/W2741809807",
+            "doi": "https://doi.org/10.1234/abc",
+            "display_name": "Attention Is All You Need",
+            "publication_date": "2017-06-12",
+            "publication_year": 2017,
+            "cited_by_count": 95000,
+            "abstract_inverted_index": {
+                "Transformer": [0],
+                "models": [1],
+                "dominate": [2],
+            },
+            "authorships": [
+                {"author": {"display_name": "Ashish Vaswani"}},
+                {"author": {"display_name": "Noam Shazeer"}},
+            ],
+        },
+        {
+            "id": "https://openalex.org/W123",
+            "doi": None,
+            "display_name": "Deep Residual Learning",
+            "publication_year": 2016,
+            "cited_by_count": 180000,
+            "abstract_inverted_index": None,
+            "authorships": [{"author": {"display_name": "Kaiming He"}}],
+        },
+    ]
+}
+
+
+def test_reconstruct_abstract_orders_words_by_position():
+    inverted = {"world": [1], "hello": [0], "again": [2]}
+    assert collect_papers._reconstruct_abstract(inverted) == "hello world again"
+
+
+def test_reconstruct_abstract_handles_empty():
+    assert collect_papers._reconstruct_abstract(None) == ""
+    assert collect_papers._reconstruct_abstract({}) == ""
+
+
+def test_parse_openalex_works_extracts_citation_link_abstract():
+    papers = collect_papers._parse_openalex_works(OPENALEX_PAYLOAD, "transformers")
+
+    assert len(papers) == 2
+    first = papers[0]
+    assert first["paper_id"] == "openalex-W2741809807"
+    assert first["title"] == "Attention Is All You Need"
+    assert first["url"] == "https://doi.org/10.1234/abc"  # DOI preferred for link
+    assert first["citation_count"] == 95000
+    assert first["abstract"] == "Transformer models dominate"
+    assert first["source"] == "openalex"
+    assert first["theme"] == "transformers"
+    assert first["authors"] == ["Ashish Vaswani", "Noam Shazeer"]
+
+    second = papers[1]
+    # No DOI -> falls back to the OpenAlex landing-page id as the link.
+    assert second["url"] == "https://openalex.org/W123"
+    assert second["citation_count"] == 180000
+    assert second["abstract"] == ""
+
+
+def test_fetch_from_openalex_with_mocked_http(monkeypatch):
+    monkeypatch.setattr(collect_papers, "_get_theme_queries", lambda: ["transformers"])
+    monkeypatch.setattr(collect_papers.time, "sleep", lambda _s: None)
+
+    def fake_urlopen(url, timeout=None):
+        assert "sort=cited_by_count" in url  # sorted by citation desc
+        assert "per_page=100" in url
+        return _FakeResponse(json.dumps(OPENALEX_PAYLOAD).encode("utf-8"))
+
+    monkeypatch.setattr(collect_papers.urllib.request, "urlopen", fake_urlopen)
+
+    papers = collect_papers._fetch_from_openalex()
+
+    assert len(papers) == 2
+    assert {p["source"] for p in papers} == {"openalex"}
+    assert papers[0]["citation_count"] == 95000
+
+
+def test_fetch_from_openalex_dedupes_across_themes(monkeypatch):
+    monkeypatch.setattr(collect_papers, "_get_theme_queries", lambda: ["t1", "t2"])
+    monkeypatch.setattr(collect_papers.time, "sleep", lambda _s: None)
+
+    def fake_urlopen(url, timeout=None):
+        return _FakeResponse(json.dumps(OPENALEX_PAYLOAD).encode("utf-8"))
+
+    monkeypatch.setattr(collect_papers.urllib.request, "urlopen", fake_urlopen)
+
+    papers = collect_papers._fetch_from_openalex()
+    # Same 2 works returned for both themes -> deduped to 2 by paper_id.
+    assert len(papers) == 2
+
+
 def test_save_is_idempotent_dedup_by_paper_id():
     # APP_ENV=test (set in conftest) -> repo uses SQLite against the temp DB whose
     # tables are created by the session-scoped setup_database fixture. The repo
