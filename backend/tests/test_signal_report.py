@@ -2,7 +2,11 @@
 
 from datetime import datetime, timezone
 
-from app.services.signal_report import generate_signal_report, aggregate_theme_citations
+from app.services.signal_report import (
+    generate_signal_report,
+    aggregate_theme_citations,
+    aggregate_theme_citation_matrix,
+)
 
 
 FIXED_NOW = datetime(2025, 6, 1, tzinfo=timezone.utc)
@@ -193,6 +197,52 @@ def test_aggregate_theme_citations_respects_top_n():
     gpu = next(t for t in result["themes"] if t["theme_name"] == "GPU computing")
     assert gpu["paper_count"] == 1  # only the single most-cited paper kept
     assert gpu["total_citations"] == 500
+
+
+def _matrix_papers():
+    return [
+        # GPU theme: citations in 2018 and 2024
+        {"paper_id": "m1", "title": "GPU memory", "abstract": "CUDA", "published_at": "2018-03-01", "citation_count": 100},
+        {"paper_id": "m2", "title": "GPU kernels", "abstract": "CUDA", "published_at": "2024-07-01", "citation_count": 40},
+        {"paper_id": "m3", "title": "GPU inference", "abstract": "CUDA", "published_at": "2024-01-10", "citation_count": 60},
+        # battery theme: citation in 2024
+        {"paper_id": "m4", "title": "Solid state battery", "abstract": "battery cells", "published_at": "2024-05-01", "citation_count": 500},
+        # out of window (older than 10 years from FIXED_NOW=2025): 2010 -> excluded
+        {"paper_id": "m5", "title": "GPU old", "abstract": "CUDA", "published_at": "2010-01-01", "citation_count": 9999},
+    ]
+
+
+def test_aggregate_theme_citation_matrix_buckets_by_year_and_window():
+    result = aggregate_theme_citation_matrix(
+        papers=_matrix_papers(), themes=_citation_themes(), years=10, now=FIXED_NOW
+    )
+    # Columns are the last 10 years ending at 2025.
+    assert result["years"] == list(range(2016, 2026))
+    idx = {y: i for i, y in enumerate(result["years"])}
+
+    rows = {r["theme_name"]: r for r in result["rows"]}
+    gpu = rows["GPU computing"]
+    # 2018 -> 100, 2024 -> 40 + 60 = 100, 2010 paper excluded (out of window).
+    assert gpu["cells"][idx[2018]] == 100
+    assert gpu["cells"][idx[2024]] == 100
+    assert gpu["cells"][idx[2010 if 2010 in idx else 2016]] == 0  # nothing in earliest column
+    assert gpu["total"] == 200
+
+    bat = rows["battery"]
+    assert bat["cells"][idx[2024]] == 500
+    assert bat["total"] == 500
+
+
+def test_aggregate_theme_citation_matrix_totals_consistency_and_sort():
+    result = aggregate_theme_citation_matrix(
+        papers=_matrix_papers(), themes=_citation_themes(), years=10, now=FIXED_NOW
+    )
+    # grand_total == sum(column_totals) == sum(row totals)
+    assert result["grand_total"] == sum(result["column_totals"])
+    assert result["grand_total"] == sum(r["total"] for r in result["rows"])
+    assert result["grand_total"] == 700  # 200 (GPU) + 500 (battery)
+    # rows sorted by total desc -> battery (500) before GPU (200)
+    assert result["rows"][0]["theme_name"] == "battery"
 
 
 def test_theme_citations_endpoint(client):

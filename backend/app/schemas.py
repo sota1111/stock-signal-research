@@ -359,6 +359,21 @@ class ThemeCitationsResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
+class ThemeCitationMatrixRow(BaseModel):
+    theme_id: Optional[str] = None
+    theme_name: str
+    total: int = 0
+    cells: List[int] = Field(default_factory=list)
+
+
+class ThemeCitationMatrixResponse(BaseModel):
+    years: List[int] = Field(default_factory=list)
+    rows: List[ThemeCitationMatrixRow] = Field(default_factory=list)
+    column_totals: List[int] = Field(default_factory=list)
+    grand_total: int = 0
+    generated_at: Optional[str] = None
+
+
 # --- 株価・財務取得（yfinance / SOT-842） ---
 class StockPricePoint(BaseModel):
     date: str

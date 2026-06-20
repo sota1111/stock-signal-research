@@ -2,11 +2,12 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitations } from '../api'
+import { fetchSignalReport, fetchThemeCitations, fetchThemeCitationMatrix } from '../api'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
+import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 
@@ -35,6 +36,15 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // テーマ×年 引用数マトリクス（行=テーマ / 列=直近10年 / セル=引用数合計, SOT-944）
+  const { data: citationMatrix } = useQuery({
+    queryKey: ['theme-citation-matrix'],
+    queryFn: () => fetchThemeCitationMatrix(10),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data,
+  })
+
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
 
@@ -45,6 +55,7 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['stock'] })
     queryClient.invalidateQueries({ queryKey: ['backtest'] })
     queryClient.invalidateQueries({ queryKey: ['theme-citations'] })
+    queryClient.invalidateQueries({ queryKey: ['theme-citation-matrix'] })
   }
 
   const trendingCount = data.trending_themes.length
@@ -180,6 +191,18 @@ export default function DashboardPage() {
           subtitle={`テーマ: ${reportQuery} — 論文件数と上位${TOP_N}社時価総額合計を基準年=100で正規化して比較`}
         >
           <PapersMarketCapCrossChart counts={paperCounts} marketCap={marketCapYearly} />
+        </ChartCard>
+
+        {/* マトリクス テーマ別 引用数（テーマ × 年） */}
+        <ChartCard
+          title="テーマ別 引用数マトリクス（テーマ × 年）"
+          subtitle="各テーマの過去10年の年別引用数合計（行=テーマ / 列=年 / セル=引用数合計）"
+        >
+          {citationMatrix ? (
+            <ThemeCitationMatrix data={citationMatrix} />
+          ) : (
+            <p className="text-sm text-gray-400">引用数データを読み込み中です。</p>
+          )}
         </ChartCard>
       </section>
 
