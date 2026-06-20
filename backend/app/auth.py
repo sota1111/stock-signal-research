@@ -1,11 +1,15 @@
 import os
+import time
 import hmac
 import hashlib
+import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Cookie, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -17,6 +21,14 @@ _IDENTITY_TOOLKIT_URL = (
     "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 )
 _REST_TIMEOUT_SECONDS = 10.0
+
+# Intermittent login ("できる時とできない時がある") was caused by transient
+# Identity Toolkit failures (connect/timeout errors and Firebase 5xx) being
+# surfaced immediately as a failed login — and 5xx being misclassified as 401
+# invalid credentials. Retry transient failures a few times with backoff before
+# giving up, and always treat them as 503 (service issue), never 401.
+_MAX_REST_ATTEMPTS = 3
+_RETRY_BACKOFF_SECONDS = 0.5
 
 
 class SessionRequest(BaseModel):
@@ -43,22 +55,56 @@ def _verify_password_via_rest(email: str, password: str) -> str:
             detail="FIREBASE_WEB_API_KEY / FIREBASE_API_KEY not configured",
         )
 
-    try:
-        resp = httpx.post(
-            _IDENTITY_TOOLKIT_URL,
-            params={"key": api_key},
-            json={"email": email, "password": password, "returnSecureToken": True},
-            timeout=_REST_TIMEOUT_SECONDS,
-        )
-    except httpx.HTTPError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="認証サーバに接続できませんでした",
-        )
+    # Retry only TRANSIENT failures (network errors / Firebase 5xx). Credential
+    # errors (400/401) and rate limiting (429) are deterministic — return them
+    # immediately without retrying.
+    for attempt in range(1, _MAX_REST_ATTEMPTS + 1):
+        try:
+            resp = httpx.post(
+                _IDENTITY_TOOLKIT_URL,
+                params={"key": api_key},
+                json={"email": email, "password": password, "returnSecureToken": True},
+                timeout=_REST_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError:
+            # Connection/timeout error: transient. Retry, then give up as 503.
+            if attempt < _MAX_REST_ATTEMPTS:
+                logger.warning(
+                    "Identity Toolkit request failed (attempt %d/%d), retrying",
+                    attempt,
+                    _MAX_REST_ATTEMPTS,
+                )
+                time.sleep(_RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="認証サーバに接続できませんでした",
+            )
 
-    if resp.status_code == 200:
-        data = resp.json()
-        return data.get("email", email)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("email", email)
+
+        # Firebase 5xx is a transient server-side fault, NOT a credential error.
+        # Retry, then surface as 503 — never as 401, otherwise a correct password
+        # is intermittently reported as "wrong".
+        if resp.status_code >= 500:
+            if attempt < _MAX_REST_ATTEMPTS:
+                logger.warning(
+                    "Identity Toolkit returned %d (attempt %d/%d), retrying",
+                    resp.status_code,
+                    attempt,
+                    _MAX_REST_ATTEMPTS,
+                )
+                time.sleep(_RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="認証サーバが一時的に利用できません。しばらく待ってから再試行してください",
+            )
+
+        # Deterministic (4xx) responses: map to safe errors and stop retrying.
+        break
 
     # Map Identity Toolkit error codes to safe responses (no credential leak).
     error_message = ""

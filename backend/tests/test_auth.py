@@ -109,3 +109,86 @@ def test_session_rest_unreachable_returns_503(client, auth_env, monkeypatch):
         json={"email": "user@example.com", "password": "correct-password"},
     )
     assert res.status_code == 503
+
+
+def test_session_transient_error_then_success_retries(client, auth_env, monkeypatch):
+    """A transient connection error on the first attempt must be retried, so a
+    correct password still logs in (fixes intermittent "login sometimes fails")."""
+    monkeypatch.setattr(auth.time, "sleep", lambda *_: None)
+    calls = {"n": 0}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadTimeout("transient")
+        return _FakeResponse(200, {"email": "user@example.com"})
+
+    monkeypatch.setattr(auth.httpx, "post", fake_post)
+
+    res = client.post(
+        "/api/auth/session",
+        json={"email": "user@example.com", "password": "correct-password"},
+    )
+    assert res.status_code == 200
+    assert calls["n"] == 2
+    assert "auth_token" in res.cookies
+
+
+def test_session_transient_5xx_then_success_retries(client, auth_env, monkeypatch):
+    """A transient Firebase 5xx must be retried rather than failing the login."""
+    monkeypatch.setattr(auth.time, "sleep", lambda *_: None)
+    calls = {"n": 0}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _FakeResponse(503, {"error": {"message": "UNAVAILABLE"}})
+        return _FakeResponse(200, {"email": "user@example.com"})
+
+    monkeypatch.setattr(auth.httpx, "post", fake_post)
+
+    res = client.post(
+        "/api/auth/session",
+        json={"email": "user@example.com", "password": "correct-password"},
+    )
+    assert res.status_code == 200
+    assert calls["n"] == 2
+
+
+def test_session_persistent_5xx_returns_503_not_401(client, auth_env, monkeypatch):
+    """A persistent Firebase 5xx must surface as 503, never 401 — otherwise a
+    correct password is intermittently reported as wrong."""
+    monkeypatch.setattr(auth.time, "sleep", lambda *_: None)
+    calls = {"n": 0}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        calls["n"] += 1
+        return _FakeResponse(500, {"error": {"message": "INTERNAL"}})
+
+    monkeypatch.setattr(auth.httpx, "post", fake_post)
+
+    res = client.post(
+        "/api/auth/session",
+        json={"email": "user@example.com", "password": "correct-password"},
+    )
+    assert res.status_code == 503
+    assert calls["n"] == auth._MAX_REST_ATTEMPTS
+
+
+def test_session_invalid_credentials_not_retried(client, auth_env, monkeypatch):
+    """400/401 credential errors are deterministic and must NOT be retried."""
+    monkeypatch.setattr(auth.time, "sleep", lambda *_: None)
+    calls = {"n": 0}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        calls["n"] += 1
+        return _FakeResponse(400, {"error": {"message": "INVALID_LOGIN_CREDENTIALS"}})
+
+    monkeypatch.setattr(auth.httpx, "post", fake_post)
+
+    res = client.post(
+        "/api/auth/session",
+        json={"email": "user@example.com", "password": "wrong"},
+    )
+    assert res.status_code == 401
+    assert calls["n"] == 1
