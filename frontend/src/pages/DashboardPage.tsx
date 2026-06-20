@@ -1,24 +1,16 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock, fetchSignalReport, fetchMonthlyData, fetchBacktest } from '../api'
+import { fetchDashboard, fetchStock, fetchSignalReport, fetchBacktest } from '../api'
 import type { Company, StockData } from '../types'
+import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import StockPriceLines from '../components/charts/StockPriceLines'
 import NormalizedCompareLines from '../components/charts/NormalizedCompareLines'
 import ReturnRankingBar from '../components/charts/ReturnRankingBar'
 import ValuationScatter from '../components/charts/ValuationScatter'
-import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
-import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
-import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
-import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
 import SignalBacktestTable from '../components/charts/SignalBacktestTable'
 import type { StockItem } from '../components/charts/chartUtils'
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 70 ? 'bg-red-500' : score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
-  return <span className={`${color} text-white text-xs px-2 py-1 rounded-full font-bold`}>{score.toFixed(0)}</span>
-}
 
 function formatPrice(value: number, currency?: string | null) {
   const symbol = currency === 'JPY' ? '¥' : currency === 'USD' ? '$' : ''
@@ -98,18 +90,11 @@ export default function DashboardPage() {
     })),
   })
 
-  // 急増テーマTOPを既定queryにシグナルレポートを取得（B/C系チャート用）
+  // 論文×株価クロス分析（C1/C2）用にシグナルレポートを取得
   const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
   const { data: signalReport } = useQuery({
     queryKey: ['signal-report', reportQuery],
     queryFn: () => fetchSignalReport(reportQuery),
-    staleTime: 1000 * 60 * 30,
-    retry: 1,
-    enabled: !!data,
-  })
-  const { data: monthly } = useQuery({
-    queryKey: ['papers-monthly'],
-    queryFn: () => fetchMonthlyData(),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
@@ -149,110 +134,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ダッシュボード - 技術トレンド前兆検知</h1>
-
-      <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">急増テーマ TOP5</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.trending_themes.map(theme => (
-            <div key={theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-gray-800">{theme.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{theme.category}</p>
-                </div>
-                <ScoreBadge score={theme.precursor_score} />
-              </div>
-              {theme.is_trending && (
-                <span className="mt-2 inline-block text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">継続トレンド</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
-        <section>
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">外部情報との一致度 — 前兆候補</h2>
-          <div className="space-y-3">
-            {/* High alignment themes */}
-            {data.alignment_highlights.high_alignment?.length > 0 && (
-              <div>
-                <p className="text-xs text-blue-600 font-medium mb-2">論文トレンド + 外部情報一致</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.alignment_highlights.high_alignment.map(item => (
-                    <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800">{item.theme.name}</p>
-                          <p className="text-xs text-gray-500 mt-1">{item.theme.category}</p>
-                        </div>
-                        <div className="text-right space-y-1">
-                          <span className="block bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                            一致度 {item.score.toFixed(0)}
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            信頼度 {item.confidence >= 0.8 ? '高' : item.confidence >= 0.5 ? '中' : '低'}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-blue-700 mt-2">前兆候補</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Paper-only themes */}
-            {data.alignment_highlights.paper_only?.length > 0 && (
-              <div>
-                <p className="text-xs text-orange-600 font-medium mb-2">論文トレンドのみ高い（外部情報との一致度は未確認）</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.alignment_highlights.paper_only.map(item => (
-                    <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-400">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800">{item.theme.name}</p>
-                          <p className="text-xs text-gray-500 mt-1">{item.theme.category}</p>
-                        </div>
-                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-bold">
-                          前兆スコア {item.precursor_score.toFixed(0)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-orange-600 mt-2">関連候補</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">急増キーワード ランキング</h2>
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="w-full min-w-[480px] text-sm responsive-table">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">キーワード</th>
-                <th className="px-4 py-2 text-left">テーマ</th>
-                <th className="px-4 py-2 text-right whitespace-nowrap">前月比</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.top_keywords.map((kw, i) => (
-                <tr key={i} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 text-gray-500" data-label="#">{i + 1}</td>
-                  <td className="px-4 py-2 font-medium" data-label="キーワード">{kw.keyword}</td>
-                  <td className="px-4 py-2 text-gray-600" data-label="テーマ">{kw.theme_name ?? '-'}</td>
-                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap" data-label="前月比">+{kw.mom_change_pct.toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ダッシュボード — 企業・株価</h1>
 
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">注目企業 TOP5</h2>
@@ -347,26 +229,6 @@ export default function DashboardPage() {
         <ChartCard title="A4. バリュエーション散布図" subtitle="横軸PER × 縦軸時価総額 / バブル=配当利回り">
           <ValuationScatter items={stockItems} />
         </ChartCard>
-      </section>
-
-      {/* === 論文・研究トレンド === */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-700">論文・研究トレンド</h2>
-        <p className="text-xs text-gray-400 -mt-2">集計テーマ: {reportQuery}</p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="B1. 年別論文件数（過去10年）">
-            <PaperCountsByYearBar data={signalReport?.paper_counts_by_year ?? []} />
-          </ChartCard>
-          <ChartCard title="B2. 月次論文件数トレンド" subtitle="全テーマ合算">
-            <MonthlyPapersLine data={monthly ?? []} />
-          </ChartCard>
-          <ChartCard title="B3. 急増キーワード" subtitle="成長率 上位10件">
-            <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />
-          </ChartCard>
-          <ChartCard title="B4. 注目企業 前兆スコア">
-            <CompanyScoreBar data={signalReport?.top_companies ?? []} />
-          </ChartCard>
-        </div>
       </section>
 
       {/* === 論文 × 株価 クロス分析 === */}

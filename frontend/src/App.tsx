@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
 import DashboardPage from './pages/DashboardPage'
+import SignalDetectionPage from './pages/SignalDetectionPage'
 import ListPage from './pages/ListPage'
 import DetailPage from './pages/DetailPage'
 import InputPage from './pages/InputPage'
@@ -46,6 +47,9 @@ function AppLayout() {
               <NavLink to="/" end className={navLinkClass}>
                 ダッシュボード
               </NavLink>
+              <NavLink to="/signals" className={navLinkClass}>
+                前兆検知
+              </NavLink>
               <NavLink to="/list" className={navLinkClass}>
                 一覧
               </NavLink>
@@ -66,6 +70,7 @@ function AppLayout() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+          <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
           <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
           <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
           <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
