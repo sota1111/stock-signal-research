@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchDashboard, fetchStock, fetchSignalReport, fetchBacktest } from '../api'
 import type { Company, StockData } from '../types'
 import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
-import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
+import UnifiedThemeCrossChart from '../components/charts/UnifiedThemeCrossChart'
 import StockPriceLines from '../components/charts/StockPriceLines'
 import NormalizedCompareLines from '../components/charts/NormalizedCompareLines'
 import ReturnRankingBar from '../components/charts/ReturnRankingBar'
@@ -82,6 +83,7 @@ function StockEvalCard({ company, stock, isLoading, isError }: { company: Compan
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
+  const [selectedTheme, setSelectedTheme] = useState<string>('')
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
 
   const tickerCompanies = (data?.notable_companies ?? []).filter((c): c is Company & { ticker: string } => !!c.ticker)
@@ -94,8 +96,8 @@ export default function DashboardPage() {
     })),
   })
 
-  // 論文×株価クロス分析（C1/C2）用にシグナルレポートを取得
-  const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
+  // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
+  const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
   const { data: signalReport } = useQuery({
     queryKey: ['signal-report', reportQuery],
     queryFn: () => fetchSignalReport(reportQuery),
@@ -227,9 +229,29 @@ export default function DashboardPage() {
           <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">再取得</button>
         </div>
 
-        <ChartCard title="過去10年の論文件数推移" subtitle={signalReport ? `${signalReport.period.from_year}–${signalReport.period.to_year}年` : undefined}>
+        <ChartCard
+          title="論文件数 × 株価 × クロス分析（テーマ別）"
+          subtitle={`テーマ: ${reportQuery}${signalReport ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}年` : ''}`}
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <label htmlFor="theme-select" className="text-sm text-gray-600">テーマ</label>
+            <select
+              id="theme-select"
+              value={reportQuery}
+              onChange={e => setSelectedTheme(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
           {paperCounts.length > 0 ? (
-            <PaperCountsByYearBar data={paperCounts} />
+            <UnifiedThemeCrossChart
+              counts={paperCounts}
+              stock={primaryStock?.stock}
+              companyName={primaryStock?.name}
+            />
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <p>論文データがありません。</p>
