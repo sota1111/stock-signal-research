@@ -216,6 +216,37 @@ export interface StockData {
   error?: string | null
 }
 
+// 株価シグナル バックテスト（GET /api/dashboard/backtest, SOT-881）
+export interface BacktestWindowResult {
+  window_days: number
+  evaluated: number
+  hit_rate: number
+  avg_return_pct: number
+}
+
+export interface BacktestSignalResult {
+  key: string
+  label: string
+  direction: 'bullish' | 'bearish'
+  occurrences: number
+  windows: BacktestWindowResult[]
+}
+
+export interface BacktestResponse {
+  ticker?: string | null
+  windows: number[]
+  params: {
+    sma_short: number
+    sma_long: number
+    rsi_period: number
+    rsi_lower: number
+    rsi_upper: number
+  }
+  total_points: number
+  signals: BacktestSignalResult[]
+  error?: string | null
+}
+
 // シグナルレポート（GET /api/dashboard/signal-report, SOT-853）
 export interface PaperYearCount {
   year: number

@@ -9,6 +9,7 @@ from ..repositories.trend_repository import get_trend_repository
 from ..repositories.paper_repository import get_paper_repository
 from ..services.signal_report import generate_signal_report
 from ..services.market_data import fetch_stock_data
+from ..services.backtest import backtest_signals
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -24,6 +25,24 @@ def get_stock(
     取得に失敗した場合も例外は返さず、`error` フィールドに理由を設定した同一形状で返す。
     """
     return fetch_stock_data(ticker, years)
+
+
+@router.get("/backtest", response_model=schemas.BacktestResponse)
+def get_backtest(
+    ticker: str = Query(..., description="銘柄コード/ティッカー（日本株は数字コードのみでも可、例 7203）"),
+    years: int = Query(10, ge=1, le=20, description="バックテスト対象の過去年数"),
+):
+    """指定銘柄の過去株価データに対し、各テクニカルシグナルをバックテストした結果を返す。
+
+    ゴールデン/デッドクロス・RSI反転シグナルそれぞれについて、発生回数と、発生時点から
+    5/20/60営業日後のフォワードリターンに基づく的中率・平均リターンを集計する。
+    外部APIキーは不要。株価取得に失敗した場合は `error` を設定して返す。
+    """
+    stock = fetch_stock_data(ticker, years)
+    result = backtest_signals(stock.get("prices", []), ticker=stock.get("ticker"))
+    if stock.get("error"):
+        result["error"] = stock["error"]
+    return result
 
 
 @router.get("/signal-report", response_model=schemas.SignalReportResponse)

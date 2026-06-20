@@ -366,3 +366,36 @@ class StockDataResponse(BaseModel):
     source: str = "yfinance"
     fetched_at: Optional[str] = None
     error: Optional[str] = None
+
+
+# --- 株価シグナル バックテスト（SOT-881） ---
+class BacktestWindowResult(BaseModel):
+    window_days: int
+    evaluated: int
+    hit_rate: float
+    avg_return_pct: float
+
+
+class BacktestSignalResult(BaseModel):
+    key: str
+    label: str
+    direction: str
+    occurrences: int
+    windows: List[BacktestWindowResult] = Field(default_factory=list)
+
+
+class BacktestParams(BaseModel):
+    sma_short: int
+    sma_long: int
+    rsi_period: int
+    rsi_lower: float
+    rsi_upper: float
+
+
+class BacktestResponse(BaseModel):
+    ticker: Optional[str] = None
+    windows: List[int] = Field(default_factory=list)
+    params: BacktestParams
+    total_points: int = 0
+    signals: List[BacktestSignalResult] = Field(default_factory=list)
+    error: Optional[str] = None

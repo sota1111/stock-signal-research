@@ -1,5 +1,5 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock, fetchSignalReport, fetchMonthlyData } from '../api'
+import { fetchDashboard, fetchStock, fetchSignalReport, fetchMonthlyData, fetchBacktest } from '../api'
 import type { Company, StockData } from '../types'
 import ChartCard from '../components/charts/ChartCard'
 import StockPriceLines from '../components/charts/StockPriceLines'
@@ -12,6 +12,7 @@ import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
+import SignalBacktestTable from '../components/charts/SignalBacktestTable'
 import type { StockItem } from '../components/charts/chartUtils'
 
 function ScoreBadge({ score }: { score: number }) {
@@ -112,6 +113,16 @@ export default function DashboardPage() {
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
+  })
+
+  // バックテスト: 注目企業の先頭ティッカーを対象に各シグナルの的中率/リターンを集計
+  const backtestTicker = tickerCompanies[0]?.ticker
+  const { data: backtest } = useQuery({
+    queryKey: ['backtest', backtestTicker],
+    queryFn: () => fetchBacktest(backtestTicker as string, 10),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!backtestTicker,
   })
 
   if (isLoading) return (
@@ -286,6 +297,20 @@ export default function DashboardPage() {
               )
             })}
           </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">シグナル バックテスト（過去10年）</h2>
+        {!backtestTicker ? (
+          <p className="text-sm text-gray-400">ティッカー登録済みの注目企業がありません。</p>
+        ) : (
+          <>
+            <p className="text-xs text-gray-400 mb-2">
+              対象: {backtest?.ticker ?? backtestTicker} — 各テクニカルシグナル発生後の的中率と平均リターン
+            </p>
+            <SignalBacktestTable data={backtest} />
+          </>
         )}
       </section>
 
