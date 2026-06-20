@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
+import { I18nProvider } from './i18n/I18nProvider'
+import { useI18n } from './i18n/useI18n'
+import LanguageToggle from './components/LanguageToggle'
 import DashboardPage from './pages/DashboardPage'
 import StockPage from './pages/StockPage'
 import PapersPage from './pages/PapersPage'
@@ -27,6 +30,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
+  const { t } = useI18n()
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -39,44 +43,47 @@ function AppLayout() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-indigo-500 text-sm font-extrabold text-white">S</span>
                 Stock Signal Research
               </span>
-              <button
-                onClick={logout}
-                className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/30 whitespace-nowrap flex-shrink-0"
-              >
-                ログアウト
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <LanguageToggle />
+                <button
+                  onClick={logout}
+                  className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/30 whitespace-nowrap"
+                >
+                  {t('common.logout')}
+                </button>
+              </div>
             </div>
             {/* Menu row: single line, scrolls horizontally on overflow */}
             <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap pt-3">
               <NavLink to="/" end className={navLinkClass}>
-                ダッシュボード
+                {t('nav.dashboard')}
               </NavLink>
               <NavLink to="/stock" className={navLinkClass}>
-                株価
+                {t('nav.stock')}
               </NavLink>
               <NavLink to="/papers" className={navLinkClass}>
-                論文
+                {t('nav.papers')}
               </NavLink>
               <NavLink to="/patents" className={navLinkClass}>
-                特許
+                {t('nav.patents')}
               </NavLink>
               <NavLink to="/investors" className={navLinkClass}>
-                投資家
+                {t('nav.investors')}
               </NavLink>
               <NavLink to="/signals" className={navLinkClass}>
-                前兆検知
+                {t('nav.signals')}
               </NavLink>
               <NavLink to="/list" className={navLinkClass}>
-                一覧
+                {t('nav.list')}
               </NavLink>
               <NavLink to="/input" className={navLinkClass}>
-                登録
+                {t('nav.input')}
               </NavLink>
               <NavLink to="/evaluation" className={navLinkClass}>
-                一致度評価
+                {t('nav.evaluation')}
               </NavLink>
               <NavLink to="/research-seeds" className={navLinkClass}>
-                初期リサーチ
+                {t('nav.researchSeeds')}
               </NavLink>
             </div>
           </div>
@@ -100,7 +107,7 @@ function AppLayout() {
       </main>
       {isAuthenticated && (
         <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-          Stock Signal Research — 技術トレンド前兆検知
+          {t('footer.tagline')}
         </footer>
       )}
     </div>
@@ -110,9 +117,11 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppLayout />
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <AppLayout />
+        </AuthProvider>
+      </I18nProvider>
     </BrowserRouter>
   )
 }

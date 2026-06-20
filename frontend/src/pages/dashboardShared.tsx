@@ -1,21 +1,24 @@
 import type { Company, StockData } from '../types'
 import { formatPrice, formatMarketCap } from './dashboardData'
+import { useI18n } from '../i18n/useI18n'
 
 export function DashboardLoading() {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center py-20 text-slate-500">
       <span className="h-8 w-8 mb-3 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-      <p className="text-sm">読み込み中...</p>
+      <p className="text-sm">{t('dashboard.loading')}</p>
     </div>
   )
 }
 
 export function DashboardError() {
+  const { t } = useI18n()
   return (
     <div className="mx-auto max-w-md text-center py-16">
       <div className="text-3xl mb-2" aria-hidden>⚠️</div>
-      <p className="font-semibold text-slate-700">データの取得に失敗しました</p>
-      <p className="text-sm text-slate-400 mt-1">時間をおいて再度お試しください。</p>
+      <p className="font-semibold text-slate-700">{t('dashboard.error')}</p>
+      <p className="text-sm text-slate-400 mt-1">{t('status.warning.message')}</p>
     </div>
   )
 }
