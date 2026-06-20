@@ -55,6 +55,7 @@ class SQLitePaperRepository(PaperRepository):
                         else paper.get("extracted_keywords", existing.extracted_keywords)
                     )
                     existing.source = paper.get("source", existing.source)
+                    existing.citation_count = paper.get("citation_count", existing.citation_count)
                     if not existing.theme_id and theme_id:
                         existing.theme_id = theme_id
                 else:
@@ -74,6 +75,7 @@ class SQLitePaperRepository(PaperRepository):
                         extracted_keywords=json.dumps(paper.get("extracted_keywords", [])) if isinstance(
                             paper.get("extracted_keywords"), list) else paper.get("extracted_keywords", "[]"),
                         source=paper.get("source", "arxiv"),
+                        citation_count=paper.get("citation_count", 0),
                         theme_id=theme_id,
                     )
                     db.add(new_paper)
@@ -97,7 +99,10 @@ class SQLitePaperRepository(PaperRepository):
                 query = db.query(Paper)
                 if theme_id:
                     query = query.filter(Paper.theme_id == theme_id)
-                papers = query.all()
+                # 引用数の多い順に並べる（同数は新しいものから）。
+                papers = query.order_by(
+                    Paper.citation_count.desc(), Paper.published_at.desc()
+                ).all()
                 return [
                     {
                         "id": p.id,
@@ -110,6 +115,7 @@ class SQLitePaperRepository(PaperRepository):
                         "extracted_keywords": p.extracted_keywords,
                         "source": p.source,
                         "theme_id": p.theme_id,
+                        "citation_count": p.citation_count or 0,
                         "created_at": p.created_at,
                     }
                     for p in papers
@@ -169,8 +175,11 @@ class FirestorePaperRepository(PaperRepository):
                     "extracted_keywords": d.get("extracted_keywords"),
                     "source": d.get("source"),
                     "theme_id": d.get("theme_id"),
+                    "citation_count": d.get("citation_count", 0),
                     "created_at": d.get("createdAt"),
                 })
+            # 引用数の多い順に並べる（Firestoreの複合インデックス不要なようPython側でソート）。
+            results.sort(key=lambda r: r.get("citation_count") or 0, reverse=True)
             return results
         except Exception as e:
             logger.error(f"Firestore list_all failed: {e}")

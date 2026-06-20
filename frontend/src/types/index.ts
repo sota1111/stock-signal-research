@@ -16,6 +16,7 @@ export interface Paper {
   abstract?: string
   theme_id?: string
   source: string
+  citation_count: number
 }
 
 export interface PaperMonthlyCount {

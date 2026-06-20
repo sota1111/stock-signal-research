@@ -10,31 +10,8 @@ def run_seed():
         if db.query(models.Theme).first() is not None:
             return
 
-        # 1. Themes
-        themes_data = [
-            {"name": "SSD / NVMe", "category": "Storage", "precursor_score": 72.0, "is_trending": True},
-            {
-                "name": "GPU memory bottleneck",
-                "category": "AI Infrastructure",
-                "precursor_score": 85.0,
-                "is_trending": True,
-            },
-            {"name": "HBM", "category": "Memory", "precursor_score": 78.0, "is_trending": True},
-            {
-                "name": "KV cache offloading",
-                "category": "AI Infrastructure",
-                "precursor_score": 65.0,
-                "is_trending": False,
-            },
-            {"name": "I/O bottleneck", "category": "AI Infrastructure", "precursor_score": 58.0, "is_trending": False},
-            {"name": "data center power", "category": "Infrastructure", "precursor_score": 70.0, "is_trending": True},
-            {
-                "name": "robotics foundation model",
-                "category": "Robotics",
-                "precursor_score": 62.0,
-                "is_trending": False,
-            },
-        ]
+        # 1. Themes — SQLite/local も Firestore と同じ30テーマ(_DASHBOARD_THEMES)を使う。
+        themes_data = _DASHBOARD_THEMES
         themes = {}
         for t in themes_data:
             db_theme = models.Theme(**t)
@@ -92,7 +69,8 @@ def run_seed():
                 paper_id=p["pid"],
                 title=p["title"],
                 published_at=p["pub"],
-                theme_id=themes[p["theme"]].id
+                theme_id=themes[p["theme"]].id,
+                citation_count=p.get("citation", 0),
             )
             db.add(db_paper)
 
@@ -286,25 +264,40 @@ def _decade_monthly_counts(start: int, end: int, months: int = _MONTHLY_MONTHS) 
     return [round(start + (end - start) * i / (months - 1)) for i in range(months)]
 
 
+# 1テーマ・1年あたりに生成する論文件数（要件: 各テーマ 年10件以上 × 10年分）。
+_PAPERS_PER_THEME_PER_YEAR = 10
+
+
 def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int = _DECADE_TO_YEAR):
-    """One paper per theme per year across [from_year, to_year] for 10-year coverage."""
+    """各テーマ × 各年 (10年) に _PAPERS_PER_THEME_PER_YEAR 件の論文を生成する。
+
+    各論文には決定的な `citation`（引用数）を付与する。古い年ほど、また年内では番号が
+    小さいものほど引用数が多くなるようにし、引用数降順ソートが意味を持つようにする。
+    """
     papers = []
     for name in theme_names:
         slug = _slug(name)
         for year in range(from_year, to_year + 1):
-            month = (year % 12) + 1  # deterministic spread across calendar months
-            papers.append({
-                "pid": f"paper-{slug}-{year}",
-                "title": f"{name}: research advances and benchmarks ({year})",
-                "pub": f"{year}-{month:02d}",
-                "theme": name,
-            })
+            age = to_year - year  # 0=最新年, 大きいほど古い
+            for n in range(_PAPERS_PER_THEME_PER_YEAR):
+                month = (n % 12) + 1  # 年内で月をばらす
+                # 古い論文ほど被引用が蓄積し、年内では先頭ほど引用が多い決定的な値。
+                citation = (age + 1) * 50 + (_PAPERS_PER_THEME_PER_YEAR - n) * 5
+                papers.append({
+                    "pid": f"paper-{slug}-{year}-{n:02d}",
+                    "title": f"{name}: research advances and benchmarks ({year}) #{n + 1}",
+                    "pub": f"{year}-{month:02d}",
+                    "theme": name,
+                    "citation": citation,
+                })
     return papers
 
 
 # Dashboard core data definitions. Mirrors the data used by run_seed() (SQLite) so that
 # production Firestore renders the same dashboard. Kept as module-level constants so both
 # the SQLite seed intent and the Firestore seeder stay aligned.
+# 注目テーマ(30件表示)用のテーマ定義。先頭7件はサプライチェーン/月次トレンドが名前参照
+# しているため温存し、AIインフラ・半導体・ロボティクス・電力等のテーマを追加して30件にする。
 _DASHBOARD_THEMES = [
     {"name": "SSD / NVMe", "category": "Storage", "precursor_score": 72.0, "is_trending": True},
     {"name": "GPU memory bottleneck", "category": "AI Infrastructure", "precursor_score": 85.0, "is_trending": True},
@@ -313,6 +306,29 @@ _DASHBOARD_THEMES = [
     {"name": "I/O bottleneck", "category": "AI Infrastructure", "precursor_score": 58.0, "is_trending": False},
     {"name": "data center power", "category": "Infrastructure", "precursor_score": 70.0, "is_trending": True},
     {"name": "robotics foundation model", "category": "Robotics", "precursor_score": 62.0, "is_trending": False},
+    {"name": "CXL memory pooling", "category": "Memory", "precursor_score": 68.0, "is_trending": True},
+    {"name": "optical interconnect", "category": "Infrastructure", "precursor_score": 60.0, "is_trending": False},
+    {"name": "liquid cooling", "category": "Infrastructure", "precursor_score": 64.0, "is_trending": True},
+    {"name": "chiplet packaging", "category": "Semiconductor", "precursor_score": 71.0, "is_trending": True},
+    {"name": "advanced packaging CoWoS", "category": "Semiconductor", "precursor_score": 75.0, "is_trending": True},
+    {"name": "EUV lithography", "category": "Semiconductor", "precursor_score": 69.0, "is_trending": False},
+    {"name": "silicon photonics", "category": "Semiconductor", "precursor_score": 57.0, "is_trending": False},
+    {"name": "LLM inference optimization", "category": "AI Infrastructure", "precursor_score": 80.0, "is_trending": True},
+    {"name": "quantization", "category": "AI Infrastructure", "precursor_score": 66.0, "is_trending": False},
+    {"name": "mixture of experts", "category": "AI Infrastructure", "precursor_score": 63.0, "is_trending": False},
+    {"name": "retrieval augmented generation", "category": "AI Infrastructure", "precursor_score": 61.0, "is_trending": False},
+    {"name": "vector database", "category": "AI Infrastructure", "precursor_score": 59.0, "is_trending": False},
+    {"name": "AI accelerator ASIC", "category": "Semiconductor", "precursor_score": 73.0, "is_trending": True},
+    {"name": "neuromorphic computing", "category": "Semiconductor", "precursor_score": 48.0, "is_trending": False},
+    {"name": "edge AI inference", "category": "AI Infrastructure", "precursor_score": 55.0, "is_trending": False},
+    {"name": "power semiconductor GaN SiC", "category": "Semiconductor", "precursor_score": 67.0, "is_trending": True},
+    {"name": "solid-state battery", "category": "Energy", "precursor_score": 52.0, "is_trending": False},
+    {"name": "grid storage", "category": "Energy", "precursor_score": 50.0, "is_trending": False},
+    {"name": "humanoid robotics", "category": "Robotics", "precursor_score": 64.0, "is_trending": True},
+    {"name": "autonomous driving perception", "category": "Robotics", "precursor_score": 58.0, "is_trending": False},
+    {"name": "SmartNIC DPU", "category": "Infrastructure", "precursor_score": 62.0, "is_trending": False},
+    {"name": "NVMe-oF disaggregation", "category": "Storage", "precursor_score": 56.0, "is_trending": False},
+    {"name": "flash controller", "category": "Storage", "precursor_score": 54.0, "is_trending": False},
 ]
 
 _DASHBOARD_COMPANIES = [
@@ -414,6 +430,7 @@ def seed_dashboard_data_firestore():
                 "title": p["title"],
                 "published_at": p["pub"],
                 "theme_id": theme_ids[p["theme"]],
+                "citation_count": p.get("citation", 0),
             })
 
         trend_repo = get_trend_repository()

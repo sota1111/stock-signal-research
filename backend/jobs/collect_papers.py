@@ -76,6 +76,7 @@ SAMPLE_PAPERS = [
         "extracted_keywords": ["LLM", "AI Infrastructure", "optimization"],
         "source": "sample",
         "theme": "AI Infrastructure",
+        "citation_count": 320,
     },
     {
         "paper_id": "sample-2401.00002",
@@ -87,6 +88,7 @@ SAMPLE_PAPERS = [
         "extracted_keywords": ["HBM", "Memory", "AI accelerators"],
         "source": "sample",
         "theme": "Memory",
+        "citation_count": 145,
     },
 ]
 
@@ -291,7 +293,7 @@ def _fetch_from_semantic_scholar() -> List[Dict[str, Any]]:
 
     search_queries = _get_theme_queries()
     papers = []
-    fields = "paperId,title,authors,year,abstract,externalIds,publicationDate"
+    fields = "paperId,title,authors,year,abstract,externalIds,publicationDate,citationCount"
 
     for query in search_queries:
         try:
@@ -322,6 +324,7 @@ def _fetch_from_semantic_scholar() -> List[Dict[str, Any]]:
                     "abstract": (item.get("abstract") or "")[:1000],
                     "extracted_keywords": [],
                     "source": "semantic_scholar",
+                    "citation_count": item.get("citationCount") or 0,
                 })
             logger.info(f"Fetched {len(data.get('data', []))} papers from Semantic Scholar for: {query}")
             time.sleep(1)
@@ -375,6 +378,7 @@ def _parse_arxiv_xml(xml_data: bytes) -> List[Dict[str, Any]]:
                 "abstract": abstract[:1000],
                 "extracted_keywords": keywords,
                 "source": "arxiv",
+                "citation_count": 0,  # arXiv API は引用数を提供しない
             })
         except Exception as e:
             logger.debug(f"Failed to parse arXiv entry: {e}")

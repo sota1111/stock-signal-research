@@ -37,6 +37,7 @@ class PaperBase(BaseModel):
     extracted_keywords: Optional[str] = None
     theme_id: Optional[str] = None
     source: str = "manual"
+    citation_count: int = 0
 
 
 class PaperCreate(PaperBase):

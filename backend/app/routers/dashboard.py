@@ -62,8 +62,12 @@ def get_dashboard():
     sc_repo = get_supply_chain_repository()
     trend_repo = get_trend_repository()
 
-    # trending_themes: top 5 themes by precursor_score
-    trending_themes = theme_repo.list_all()[:5]
+    # trending_themes: 注目テーマを前兆スコアの高い順に最大30件表示する
+    trending_themes = sorted(
+        theme_repo.list_all(),
+        key=lambda t: t.get("precursor_score", 0) or 0,
+        reverse=True,
+    )[:30]
 
     # top_keywords: top 10 PaperMonthlyCount by mom_change_pct (add theme_name field)
     pm_counts = trend_repo.list_monthly_counts(limit=10)
