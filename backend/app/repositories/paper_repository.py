@@ -19,6 +19,12 @@ class PaperRepository(ABC):
         """List all papers, optionally filtered by theme_id."""
         ...
 
+    @abstractmethod
+    def delete(self, paper_id: str) -> bool:
+        """Delete a paper by paper_id. Returns True if the delete call succeeded
+        (a missing paper is treated as success so reconcile stays idempotent)."""
+        ...
+
 
 class SQLitePaperRepository(PaperRepository):
     def __init__(self, session_factory=None):
@@ -126,6 +132,26 @@ class SQLitePaperRepository(PaperRepository):
             logger.error(f"SQLite list_all failed: {e}")
             return []
 
+    def delete(self, paper_id: str) -> bool:
+        try:
+            from app.models import Paper
+            db = self._session_factory()
+            try:
+                existing = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+                if existing:
+                    db.delete(existing)
+                    db.commit()
+                return True
+            except Exception as e:
+                db.rollback()
+                logger.error(f"SQLite delete failed for paper {paper_id}: {e}")
+                return False
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"SQLite repository error: {e}")
+            return False
+
 
 class FirestorePaperRepository(PaperRepository):
     def save(self, paper: Dict[str, Any]) -> bool:
@@ -184,6 +210,15 @@ class FirestorePaperRepository(PaperRepository):
         except Exception as e:
             logger.error(f"Firestore list_all failed: {e}")
             return []
+
+    def delete(self, paper_id: str) -> bool:
+        try:
+            from firestore_client import delete_document
+            doc_id = paper_id.replace("/", "_")
+            return delete_document("papers", doc_id)
+        except Exception as e:
+            logger.error(f"Firestore delete failed for paper {paper_id}: {e}")
+            return False
 
 
 def get_paper_repository(session_factory=None) -> PaperRepository:
