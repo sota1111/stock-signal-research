@@ -10,4 +10,3 @@ google-cloud-firestore==2.19.0
 google-cloud-secret-manager==2.20.0
 aiofiles
 firebase-admin>=6.0.0
-yfinance==0.2.40
