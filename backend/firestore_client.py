@@ -41,6 +41,17 @@ def upsert_document(collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
         return False
 
 
+def delete_document(collection: str, doc_id: str) -> bool:
+    """ドキュメントを削除（存在しなくても成功扱い）。冪等な再投入で余剰データを掃除するために使う。"""
+    try:
+        db = get_db()
+        db.collection(collection).document(doc_id).delete()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete {collection}/{doc_id}: {e}")
+        return False
+
+
 def save_job_run(job_run_id: str, job_name: str, status: str, **kwargs):
     """ジョブ実行履歴をFirestoreに保存"""
     try:

@@ -269,6 +269,11 @@ def _decade_monthly_counts(start: int, end: int, months: int = _MONTHLY_MONTHS) 
 _MIN_PAPERS_PER_YEAR = 3
 _MAX_PAPERS_PER_YEAR = 20
 
+# 旧シードは「1テーマ×1年あたり一律10件(index 00〜09)」を投入していた。年次可変化後、
+# 件数が10件未満になる過去年では旧データの余剰doc(index N〜09)が本番Firestoreに残り、
+# 年次バーが約10件に底上げされて「年ごとの動き」が消える。冪等な突き合わせで余剰を削除する。
+_LEGACY_PAPERS_PER_YEAR = 10
+
 
 def _theme_seed(name: str) -> int:
     """テーマ名から決定的な整数シードを得る（乱数を使わず再現性を保つ）。"""
@@ -290,6 +295,23 @@ def _papers_in_year(name: str, year: int, from_year: int, to_year: int) -> int:
     wiggle = ((s + year) % 3) - 1            # -1,0,+1: 決定的な微小変動
     count = round(base + growth * progress) + wiggle
     return max(_MIN_PAPERS_PER_YEAR, min(_MAX_PAPERS_PER_YEAR, count))
+
+
+def _stale_paper_ids(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int = _DECADE_TO_YEAR):
+    """年次可変化で不要になった旧シードdocの paper_id 一覧を返す（冪等な掃除用）。
+
+    旧シードは各テーマ×年に一律 `_LEGACY_PAPERS_PER_YEAR` 件(index 00〜)を投入していた。
+    新件数 N が旧件数より少ない年では index [N, _LEGACY_PAPERS_PER_YEAR) のdocが余剰となるため、
+    その paper_id を列挙する。N が旧件数以上の年は余剰なし（空）。
+    """
+    stale = []
+    for name in theme_names:
+        slug = _slug(name)
+        for year in range(from_year, to_year + 1):
+            count = _papers_in_year(name, year, from_year, to_year)
+            for n in range(count, _LEGACY_PAPERS_PER_YEAR):
+                stale.append(f"paper-{slug}-{year}-{n:02d}")
+    return stale
 
 
 def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int = _DECADE_TO_YEAR):
@@ -460,6 +482,15 @@ def seed_dashboard_data_firestore():
                 "citation_count": p.get("citation", 0),
             })
 
+        # Reconcile: upsert だけでは旧シードの余剰doc(年次可変化で不要になった index)が
+        # 残り、過去年のバーが約10件に底上げされて年ごとの動きが消える。余剰docを削除して
+        # 各テーマ×年の件数を `_papers_in_year()` の目標値に正規化する（冪等：無ければno-op）。
+        stale_ids = _stale_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
+        deleted = 0
+        for pid in stale_ids:
+            if paper_repo.delete(pid):
+                deleted += 1
+
         trend_repo = get_trend_repository()
         for pm in _DASHBOARD_MONTHLY_COUNTS:
             prev_count = 0
@@ -477,8 +508,9 @@ def seed_dashboard_data_firestore():
                 prev_count = count
 
         logger.info(
-            "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers",
-            len(_DASHBOARD_THEMES), len(_DASHBOARD_COMPANIES), len(_DASHBOARD_PAPERS),
+            "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers "
+            "(%d stale legacy papers reconciled/removed)",
+            len(_DASHBOARD_THEMES), len(_DASHBOARD_COMPANIES), len(_DASHBOARD_PAPERS), deleted,
         )
     except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
         logger.warning(f"Could not seed dashboard data to Firestore: {e}")
