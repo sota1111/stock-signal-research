@@ -2,9 +2,10 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchDashboard, fetchStock, fetchSignalReport, fetchBacktest } from '../api'
+import { fetchDashboard, fetchStock, fetchSignalReport, fetchBacktest, fetchThemeCitations } from '../api'
 import type { Company, StockData } from '../types'
 import ScoreBadge from '../components/ScoreBadge'
+import ThemeCitationsList from '../components/ThemeCitationsList'
 import ChartCard from '../components/charts/ChartCard'
 import UnifiedThemeCrossChart from '../components/charts/UnifiedThemeCrossChart'
 import StockPriceLines from '../components/charts/StockPriceLines'
@@ -106,6 +107,15 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // テーマ別 引用数（上位100論文の総引用数）。主指標を「論文件数」から「引用数」へ。
+  const { data: themeCitations } = useQuery({
+    queryKey: ['theme-citations'],
+    queryFn: () => fetchThemeCitations(100),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data,
+  })
+
   // バックテスト: 注目企業の先頭ティッカーを対象に各シグナルの的中率/リターンを集計
   const backtestTicker = tickerCompanies[0]?.ticker
   const { data: backtest } = useQuery({
@@ -150,7 +160,7 @@ export default function DashboardPage() {
   const companyCount = data.notable_companies.length
   const topKeyword = data.top_keywords[0]
   const paperCounts = signalReport?.paper_counts_by_year ?? []
-  const paperTotal = signalReport?.paper_total ?? (paperCounts.length ? paperCounts.reduce((s, p) => s + p.count, 0) : null)
+  const totalCitations = themeCitations?.total_citations ?? null
   const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString('ja-JP') : '—'
 
   const tickerTotal = tickerCompanies.length
@@ -185,7 +195,7 @@ export default function DashboardPage() {
     { label: '注目テーマ', value: trendingCount > 0 ? `${trendingCount}` : '—', hint: '件' },
     { label: '注目企業', value: companyCount > 0 ? `${companyCount}` : '—', hint: '社' },
     { label: '急増キーワード', value: topKeyword?.keyword ?? '—', hint: topKeyword ? `${topKeyword.mom_change_pct >= 0 ? '+' : ''}${topKeyword.mom_change_pct.toFixed(0)}% MoM` : undefined },
-    { label: '10年論文件数', value: paperTotal != null ? paperTotal.toLocaleString() : '—', hint: '件' },
+    { label: '総引用数（上位100論文）', value: totalCitations != null ? totalCitations.toLocaleString() : '—', hint: 'テーマ別上位100の合計' },
     ...(tickerTotal > 0 ? [{ label: '株価取得成功率', value: successRate != null ? `${successRate}%` : '…', hint: `${stockSuccess}/${tickerTotal}` }] : []),
   ]
 
@@ -259,6 +269,14 @@ export default function DashboardPage() {
             </div>
           )}
         </ChartCard>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-700">テーマ別 引用数（上位100論文の総引用数）</h2>
+          <p className="text-sm text-gray-500">各テーマで引用数の多い順に上位100論文を集計。リンク・概要・引用数を表示します。</p>
+        </div>
+        <ThemeCitationsList themes={themeCitations?.themes ?? []} />
       </section>
 
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ダッシュボード — 企業・株価</h1>
