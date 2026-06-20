@@ -118,20 +118,52 @@ def test_seed_dashboard_is_idempotent(monkeypatch):
 
 
 def test_seed_dashboard_reconciles_stale_legacy_papers(monkeypatch):
-    """SOT-900: 旧シードの一律10件/年から年次可変化したため、新件数 < 10 の過去年に残る
-    余剰doc(index N〜09)を削除して年ごとの動きを正規化する。"""
+    """旧合成シードdocの冪等な掃除を検証する。
+
+    - SOT-909 (実データ使用時 `_USING_REAL_PAPERS`): 本番に残る旧合成doc
+      (paper-<slug>-<year>-NN) を全削除し、ダッシュボードを実データのみにする。
+    - SOT-900 (合成データ時): 一律10件/年から年次可変化したため、新件数 < 10 の過去年に
+      残る余剰doc(index N〜09)だけを削除して年ごとの動きを正規化する。
+    """
     theme, company, paper, supply, trend, score = _wire(monkeypatch)
 
     seed.seed_dashboard_data_firestore()
 
-    expected_stale = seed._stale_paper_ids([t["name"] for t in seed._DASHBOARD_THEMES])
-    # reconcile が想定どおりの余剰idを削除している
+    names = [t["name"] for t in seed._DASHBOARD_THEMES]
+    if seed._USING_REAL_PAPERS:
+        expected_stale = seed._legacy_synthetic_paper_ids(names)
+    else:
+        expected_stale = seed._stale_paper_ids(names)
+    # reconcile が想定どおりの旧合成idを削除している
     assert paper.deleted == expected_stale
     # 削除対象は新たに投入される論文idとは重複しない（生きたデータを消さない）
     live_ids = {p["pid"] for p in seed._DASHBOARD_PAPERS}
     assert set(paper.deleted).isdisjoint(live_ids)
-    # 件数が10件未満になる過去年が存在するため、少なくとも1件は掃除される
+    # 少なくとも1件は掃除される
     assert len(paper.deleted) > 0
+
+
+def test_collected_papers_loader_shape_and_filter():
+    """SOT-909: 実データローダ `_load_collected_papers` の形状とテーマフィルタを検証する。
+
+    JSONが存在する環境では、各レコードが seeder の期待する内部形状
+    (pid/title/pub/theme/citation/url)を持ち、指定テーマ集合だけに絞られる。
+    """
+    names = [t["name"] for t in seed._DASHBOARD_THEMES]
+    loaded = seed._load_collected_papers(names)
+    if not loaded:
+        # collected-papers.json が無い環境(オフライン)は合成データへフォールバックする契約。
+        assert seed._USING_REAL_PAPERS is False
+        return
+
+    valid = set(names)
+    for p in loaded:
+        assert set(["pid", "title", "pub", "theme", "citation", "url"]).issubset(p.keys())
+        assert p["theme"] in valid
+        assert isinstance(p["citation"], int)
+    # 実データ使用時は _DASHBOARD_PAPERS が実データ(arxiv-id)で構成される
+    assert seed._USING_REAL_PAPERS is True
+    assert all(p["pid"].startswith("arxiv-") for p in seed._DASHBOARD_PAPERS)
 
 
 def test_stale_paper_ids_match_legacy_indices():

@@ -62,15 +62,21 @@ def run_seed():
             )
             db.add(db_sc)
 
-        # 4. Papers (10 years: one per theme per year, 2016–2025)
-        papers_data = _decade_papers(list(themes.keys()))
+        # 4. Papers — 実データ(collected-papers.json)があればそれを、無ければ合成データを使う(SOT-909)。
+        papers_data = _DASHBOARD_PAPERS
         for p in papers_data:
+            theme = themes.get(p["theme"])
+            if theme is None:
+                continue
             db_paper = models.Paper(
                 paper_id=p["pid"],
                 title=p["title"],
+                url=p.get("url"),
+                abstract=p.get("abstract"),
                 published_at=p["pub"],
-                theme_id=themes[p["theme"]].id,
+                theme_id=theme.id,
                 citation_count=p.get("citation", 0),
+                source=p.get("source", "arxiv" if p.get("url") else "manual"),
             )
             db.add(db_paper)
 
@@ -342,6 +348,67 @@ def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int
     return papers
 
 
+def _load_collected_papers(theme_names=None):
+    """SOT-909: 実データ(arXiv / Semantic Scholar 由来)の論文を collected-papers.json から読み込む。
+
+    返り値は合成データ(`_decade_papers`)と同じ内部形状のリスト:
+        [{"pid", "title", "pub", "theme", "citation", "url", "source"}]
+    ファイルが無い/壊れている場合は空リストを返す(=合成データへフォールバックし、
+    オフライン環境やテストでもダッシュボードのチャートが壊れない)。
+    `theme_names` を渡すと、その集合に属する論文だけを返す(seeder の theme 解決と整合)。
+    """
+    import json
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+    json_path = os.path.join(os.path.dirname(__file__), "..", "data", "collected-papers.json")
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    except (OSError, ValueError):
+        return []
+
+    valid = set(theme_names) if theme_names else None
+    out = []
+    for r in records:
+        theme = r.get("theme")
+        if not r.get("paper_id") or not r.get("title") or not theme:
+            continue
+        if valid is not None and theme not in valid:
+            continue
+        out.append({
+            "pid": r["paper_id"],
+            "title": r["title"],
+            "abstract": r.get("abstract") or "",
+            "pub": r.get("published_at") or "",
+            "theme": theme,
+            "citation": int(r.get("citation_count") or 0),
+            "url": r.get("url"),
+            "source": "arxiv",
+        })
+    if out:
+        logger.info("Loaded %d real collected papers from collected-papers.json", len(out))
+    return out
+
+
+def _legacy_synthetic_paper_ids(theme_names, from_year: int = _DECADE_FROM_YEAR - 2,
+                                to_year: int = _DECADE_TO_YEAR):
+    """旧合成シードの paper_id を列挙する(実データ移行時の冪等な掃除用)。
+
+    旧シードは各テーマ×年に `paper-<slug>-<year>-NN` (NN=00.._LEGACY_PAPERS_PER_YEAR-1) を投入
+    していた。実データへ移行したら本番Firestoreに残る合成docを全削除する。過去デプロイの
+    年アンカーのドリフトに備え、範囲を少し広めに取る。
+    """
+    ids = []
+    for name in theme_names:
+        slug = _slug(name)
+        for year in range(from_year, to_year + 1):
+            for n in range(_LEGACY_PAPERS_PER_YEAR):
+                ids.append(f"paper-{slug}-{year}-{n:02d}")
+    return ids
+
+
 # Dashboard core data definitions. Mirrors the data used by run_seed() (SQLite) so that
 # production Firestore renders the same dashboard. Kept as module-level constants so both
 # the SQLite seed intent and the Firestore seeder stay aligned.
@@ -402,9 +469,13 @@ _DASHBOARD_SUPPLY_CHAIN = [
     {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
 ]
 
-# 10 years of papers (one per theme per year, 2016–2025) so paper_counts_by_year and the
-# papers-vs-stock chart span the full decade instead of a single year.
-_DASHBOARD_PAPERS = _decade_papers([t["name"] for t in _DASHBOARD_THEMES])
+# Papers — 実データ優先(SOT-909)。collected-papers.json に arXiv/Semantic Scholar 由来の
+# 実在論文(実タイトル・実発行年・実引用数・実リンク)があればそれを使い、無ければ従来の
+# 合成データ(オフライン/テスト用フォールバック)で decade 分を生成する。実データは実年で
+# 分布するため paper_counts_by_year / theme-citations が実データの動きを示す。
+_COLLECTED_PAPERS = _load_collected_papers([t["name"] for t in _DASHBOARD_THEMES])
+_USING_REAL_PAPERS = bool(_COLLECTED_PAPERS)
+_DASHBOARD_PAPERS = _COLLECTED_PAPERS or _decade_papers([t["name"] for t in _DASHBOARD_THEMES])
 
 # 10 years (120 months) of monthly counts per theme, rising over the decade.
 _DASHBOARD_MONTHLY_COUNTS = [
@@ -474,18 +545,29 @@ def seed_dashboard_data_firestore():
         # gain the full 10-year dataset on the next deploy without overwriting other data.
         paper_repo = get_paper_repository()
         for p in _DASHBOARD_PAPERS:
+            tid = theme_ids.get(p["theme"])
+            if not tid:
+                continue
             paper_repo.save({
                 "paper_id": p["pid"],
                 "title": p["title"],
+                "url": p.get("url"),
+                "abstract": p.get("abstract"),
                 "published_at": p["pub"],
-                "theme_id": theme_ids[p["theme"]],
+                "theme_id": tid,
                 "citation_count": p.get("citation", 0),
+                "source": p.get("source", "arxiv" if p.get("url") else "manual"),
             })
 
-        # Reconcile: upsert だけでは旧シードの余剰doc(年次可変化で不要になった index)が
-        # 残り、過去年のバーが約10件に底上げされて年ごとの動きが消える。余剰docを削除して
-        # 各テーマ×年の件数を `_papers_in_year()` の目標値に正規化する（冪等：無ければno-op）。
-        stale_ids = _stale_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
+        # Reconcile (冪等・無ければno-op):
+        # - 実データ移行時(_USING_REAL_PAPERS): 本番に残る旧合成doc(paper-<slug>-<year>-NN)を全削除し、
+        #   ダッシュボードを実データのみにする。
+        # - 合成データ時: 年次可変化で不要になった余剰doc(index>=目標件数)だけを削除し、過去年バーの
+        #   底上げ(約10件)を防いで「年ごとの動き」を保つ。
+        if _USING_REAL_PAPERS:
+            stale_ids = _legacy_synthetic_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
+        else:
+            stale_ids = _stale_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
         deleted = 0
         for pid in stale_ids:
             if paper_repo.delete(pid):
