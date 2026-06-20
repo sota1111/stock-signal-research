@@ -1,0 +1,74 @@
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { EmptyChart } from './ChartCard'
+import type { PaperYearCount } from '../../types'
+
+/**
+ * SOT-943: クロス分析。論文件数と上位N社時価総額合計をそれぞれ基準年=100で正規化し、
+ * 2本の指数線として重ねて相関を可視化する。論文件数だけにならないよう、両系列が共通基準年で
+ * 揃わない場合は EmptyChart を表示する。
+ */
+export default function PapersMarketCapCrossChart({
+  counts,
+  marketCap,
+}: {
+  counts: PaperYearCount[]
+  marketCap: { year: number; total: number }[]
+}) {
+  const paperByYear = new Map<number, number>(counts.map(c => [c.year, c.count]))
+  const mcapByYear = new Map<number, number>(marketCap.map(m => [m.year, m.total]))
+
+  // 論文件数・時価総額がともに正となる最初の共通年を基準(=100)にする
+  const years = [...new Set([...paperByYear.keys(), ...mcapByYear.keys()])].sort((a, b) => a - b)
+  const baseYear = years.find(y => (paperByYear.get(y) ?? 0) > 0 && (mcapByYear.get(y) ?? 0) > 0)
+
+  if (baseYear == null) {
+    return <EmptyChart message="クロス分析に必要なデータ（論文件数と時価総額）が不足しています" />
+  }
+
+  const basePaper = paperByYear.get(baseYear)!
+  const baseMcap = mcapByYear.get(baseYear)!
+
+  const data = years.map(year => {
+    const paper = paperByYear.get(year)
+    const mcap = mcapByYear.get(year)
+    return {
+      year,
+      paperIdx: paper != null && paper > 0 ? (paper / basePaper) * 100 : null,
+      mcapIdx: mcap != null && mcap > 0 ? (mcap / baseMcap) * 100 : null,
+    }
+  })
+
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+        <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={v => `${v}`} />
+        <Tooltip
+          labelStyle={{ fontSize: 12 }}
+          formatter={(value, name) => [value == null ? '-' : Number(value).toFixed(0), name]}
+        />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Line
+          type="monotone"
+          dataKey="paperIdx"
+          name={`論文(指数, ${baseYear}年=100)`}
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          connectNulls
+        />
+        <Line
+          type="monotone"
+          dataKey="mcapIdx"
+          name={`時価総額(指数, ${baseYear}年=100)`}
+          stroke="#8b5cf6"
+          strokeWidth={2}
+          strokeDasharray="5 3"
+          dot={{ r: 2 }}
+          connectNulls
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
