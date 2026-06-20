@@ -333,6 +333,32 @@ class SignalReportResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
+# --- Theme citation aggregation (論文引用指標 / SOT-899) ---
+
+
+class TopCitedPaper(BaseModel):
+    paper_id: str = ""
+    title: str = ""
+    url: str = ""
+    abstract: str = ""
+    citation_count: int = 0
+
+
+class ThemeCitationSummary(BaseModel):
+    theme_id: Optional[str] = None
+    theme_name: str
+    total_citations: int = 0
+    paper_count: int = 0
+    top_papers: List[TopCitedPaper] = Field(default_factory=list)
+
+
+class ThemeCitationsResponse(BaseModel):
+    top_n: int = 100
+    total_citations: int = 0
+    themes: List[ThemeCitationSummary] = Field(default_factory=list)
+    generated_at: Optional[str] = None
+
+
 # --- 株価・財務取得（yfinance / SOT-842） ---
 class StockPricePoint(BaseModel):
     date: str
