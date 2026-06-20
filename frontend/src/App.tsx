@@ -4,6 +4,7 @@ import { useAuth } from './contexts/useAuth'
 import DashboardPage from './pages/DashboardPage'
 import StockPage from './pages/StockPage'
 import PapersPage from './pages/PapersPage'
+import PatentsPage from './pages/PatentsPage'
 import InvestorsPage from './pages/InvestorsPage'
 import SignalDetectionPage from './pages/SignalDetectionPage'
 import ListPage from './pages/ListPage'
@@ -56,6 +57,9 @@ function AppLayout() {
               <NavLink to="/papers" className={navLinkClass}>
                 論文
               </NavLink>
+              <NavLink to="/patents" className={navLinkClass}>
+                特許
+              </NavLink>
               <NavLink to="/investors" className={navLinkClass}>
                 投資家
               </NavLink>
@@ -84,6 +88,7 @@ function AppLayout() {
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
           <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
           <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
+          <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
           <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
           <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
           <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
