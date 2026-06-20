@@ -1,8 +1,11 @@
-import { useQuery, useQueries } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { fetchDashboard, fetchStock, fetchSignalReport, fetchBacktest } from '../api'
 import type { Company, StockData } from '../types'
 import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
+import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import StockPriceLines from '../components/charts/StockPriceLines'
 import NormalizedCompareLines from '../components/charts/NormalizedCompareLines'
 import ReturnRankingBar from '../components/charts/ReturnRankingBar'
@@ -78,6 +81,7 @@ function StockEvalCard({ company, stock, isLoading, isError }: { company: Compan
 }
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient()
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
 
   const tickerCompanies = (data?.notable_companies ?? []).filter((c): c is Company & { ticker: string } => !!c.ticker)
@@ -132,8 +136,109 @@ export default function DashboardPage() {
   }))
   const primaryStock = stockItems.find(it => it.stock && !it.stock.error && it.stock.prices.length > 0)
 
+  // === サマリ帯（状態・次アクション・重要指標）用の集計 ===
+  const refetchAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['signal-report'] })
+    queryClient.invalidateQueries({ queryKey: ['stock'] })
+    queryClient.invalidateQueries({ queryKey: ['backtest'] })
+  }
+
+  const trendingCount = data.trending_themes.length
+  const companyCount = data.notable_companies.length
+  const topKeyword = data.top_keywords[0]
+  const paperCounts = signalReport?.paper_counts_by_year ?? []
+  const paperTotal = signalReport?.paper_total ?? (paperCounts.length ? paperCounts.reduce((s, p) => s + p.count, 0) : null)
+  const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString('ja-JP') : '—'
+
+  const tickerTotal = tickerCompanies.length
+  const stockSettled = stockQueries.filter(q => !q.isLoading).length
+  const stockSuccess = stockQueries.filter(q => q.data && !q.data.error && q.data.prices.length > 0).length
+  const anyStockError = tickerTotal > 0 && stockSettled === tickerTotal && stockSuccess < tickerTotal
+  const successRate = tickerTotal > 0 && stockSettled === tickerTotal ? Math.round((stockSuccess / tickerTotal) * 100) : null
+
+  type StatusKey = 'ok' | 'warning' | 'empty'
+  const statusKey: StatusKey =
+    companyCount === 0 && trendingCount === 0 ? 'empty' : anyStockError ? 'warning' : 'ok'
+  const statusConfig: Record<StatusKey, { border: string; dot: string; label: string; message: string; action: ReactNode }> = {
+    ok: {
+      border: 'border-emerald-500', dot: 'bg-emerald-500', label: '正常',
+      message: '分析データを取得できています。前兆シグナルを確認できます。',
+      action: <Link to="/signals" className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">前兆検知を見る →</Link>,
+    },
+    warning: {
+      border: 'border-amber-500', dot: 'bg-amber-500', label: '警告',
+      message: '一部の株価データ取得に失敗しています。時間をおいて再取得してください。',
+      action: <button onClick={refetchAll} className="inline-flex items-center rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">再取得</button>,
+    },
+    empty: {
+      border: 'border-gray-400', dot: 'bg-gray-400', label: 'データなし',
+      message: 'テーマ・企業データがまだありません。初期リサーチを実行するとダッシュボードに反映されます。',
+      action: <Link to="/research-seeds" className="inline-flex items-center rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700">初期リサーチを実行 →</Link>,
+    },
+  }
+  const status = statusConfig[statusKey]
+
+  const kpis: { label: string; value: string; hint?: string }[] = [
+    { label: '注目テーマ', value: trendingCount > 0 ? `${trendingCount}` : '—', hint: '件' },
+    { label: '注目企業', value: companyCount > 0 ? `${companyCount}` : '—', hint: '社' },
+    { label: '急増キーワード', value: topKeyword?.keyword ?? '—', hint: topKeyword ? `${topKeyword.mom_change_pct >= 0 ? '+' : ''}${topKeyword.mom_change_pct.toFixed(0)}% MoM` : undefined },
+    { label: '10年論文件数', value: paperTotal != null ? paperTotal.toLocaleString() : '—', hint: '件' },
+    ...(tickerTotal > 0 ? [{ label: '株価取得成功率', value: successRate != null ? `${successRate}%` : '…', hint: `${stockSuccess}/${tickerTotal}` }] : []),
+  ]
+
   return (
     <div className="space-y-8">
+      {/* === サマリ帯：状態・次アクション・重要指標 === */}
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">投資前兆リサーチ ダッシュボード</h1>
+          <p className="text-sm text-gray-500 mt-0.5">投資前兆を論文 × 企業 × 株価から検知</p>
+          <p className="text-xs text-gray-400 mt-1">最終分析日時: {lastAnalyzed}</p>
+        </div>
+
+        <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${status.border}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-semibold text-gray-800">
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${status.dot}`} aria-hidden />
+                状態: {status.label}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">{status.message}</p>
+            </div>
+            <div className="shrink-0">{status.action}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {kpis.map(kpi => (
+            <div key={kpi.label} className="bg-white rounded-lg shadow p-3">
+              <p className="text-xs text-gray-500">{kpi.label}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800 mt-1 truncate" title={kpi.value}>{kpi.value}</p>
+              {kpi.hint && <p className="text-xs text-gray-400 mt-0.5">{kpi.hint}</p>}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Link to="/signals" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">前兆検知</Link>
+          <Link to="/research-seeds" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">研究シードを登録</Link>
+          <Link to="/input" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">テーマ/企業を登録</Link>
+          <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">再取得</button>
+        </div>
+
+        <ChartCard title="過去10年の論文件数推移" subtitle={signalReport ? `${signalReport.period.from_year}–${signalReport.period.to_year}年` : undefined}>
+          {paperCounts.length > 0 ? (
+            <PaperCountsByYearBar data={paperCounts} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <p>論文データがありません。</p>
+              <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">初期リサーチを実行する →</Link>
+            </div>
+          )}
+        </ChartCard>
+      </section>
+
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ダッシュボード — 企業・株価</h1>
 
       <section>
