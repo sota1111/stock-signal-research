@@ -264,13 +264,39 @@ def _decade_monthly_counts(start: int, end: int, months: int = _MONTHLY_MONTHS) 
     return [round(start + (end - start) * i / (months - 1)) for i in range(months)]
 
 
-# 1テーマ・1年あたりに生成する論文件数（要件: 各テーマ 年10件以上 × 10年分）。
-_PAPERS_PER_THEME_PER_YEAR = 10
+# 1テーマ・1年あたりに生成する論文件数の下限/上限。年次バーに「年ごとの動き」を出すため、
+# 件数は年で固定ではなく、過去→現在へ増加する決定的な可変値にする（下限は0件年を作らないため）。
+_MIN_PAPERS_PER_YEAR = 3
+_MAX_PAPERS_PER_YEAR = 20
+
+
+def _theme_seed(name: str) -> int:
+    """テーマ名から決定的な整数シードを得る（乱数を使わず再現性を保つ）。"""
+    return sum(ord(c) for c in str(name))
+
+
+def _papers_in_year(name: str, year: int, from_year: int, to_year: int) -> int:
+    """テーマ×年に対する論文件数を決定的に算出する。
+
+    過去年ほど少なく現在年へ向けて概ね増加し（年ごとの動きが見える）、テーマ毎に
+    開始水準・増加幅が異なる。小さな決定的wiggleで一直線になりすぎないようにし、
+    [_MIN_PAPERS_PER_YEAR, _MAX_PAPERS_PER_YEAR] にクランプする。
+    """
+    span = max(to_year - from_year, 1)
+    progress = (year - from_year) / span  # 0.0(最古年) .. 1.0(最新年)
+    s = _theme_seed(name)
+    base = _MIN_PAPERS_PER_YEAR + (s % 4)   # 3..6: テーマ毎の開始水準
+    growth = 6 + (s % 7)                     # 6..12: 10年間での増加幅
+    wiggle = ((s + year) % 3) - 1            # -1,0,+1: 決定的な微小変動
+    count = round(base + growth * progress) + wiggle
+    return max(_MIN_PAPERS_PER_YEAR, min(_MAX_PAPERS_PER_YEAR, count))
 
 
 def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int = _DECADE_TO_YEAR):
-    """各テーマ × 各年 (10年) に _PAPERS_PER_THEME_PER_YEAR 件の論文を生成する。
+    """各テーマ × 各年 (10年) に、年で変動する件数の論文を生成する。
 
+    件数は `_papers_in_year()` により過去→現在へ増加（テーマ毎に水準/傾きが異なる）するため、
+    `paper_counts_by_year` の年次バーに右肩上がりの「年ごとの動き」が現れる。
     各論文には決定的な `citation`（引用数）を付与する。古い年ほど、また年内では番号が
     小さいものほど引用数が多くなるようにし、引用数降順ソートが意味を持つようにする。
     """
@@ -279,10 +305,11 @@ def _decade_papers(theme_names, from_year: int = _DECADE_FROM_YEAR, to_year: int
         slug = _slug(name)
         for year in range(from_year, to_year + 1):
             age = to_year - year  # 0=最新年, 大きいほど古い
-            for n in range(_PAPERS_PER_THEME_PER_YEAR):
+            count = _papers_in_year(name, year, from_year, to_year)
+            for n in range(count):
                 month = (n % 12) + 1  # 年内で月をばらす
                 # 古い論文ほど被引用が蓄積し、年内では先頭ほど引用が多い決定的な値。
-                citation = (age + 1) * 50 + (_PAPERS_PER_THEME_PER_YEAR - n) * 5
+                citation = (age + 1) * 50 + (count - n) * 5
                 papers.append({
                     "pid": f"paper-{slug}-{year}-{n:02d}",
                     "title": f"{name}: research advances and benchmarks ({year}) #{n + 1}",
@@ -462,9 +489,11 @@ def seed_stock_prices(db, companies):
     import datetime
     from . import models
 
-    # Deterministic seeding
-    start_date = datetime.date(2024, 1, 1)
-    end_date = datetime.date(2024, 12, 31)
+    # Deterministic seeding. 過去10年(_DECADE_FROM_YEAR〜_DECADE_TO_YEAR)に拡張し、
+    # ローカルでも株価の年次推移（年ごとの動き）がダッシュボードに出るようにする。
+    # 本番はyfinanceから10年取得するため、このローカルseedは影響しない。
+    start_date = datetime.date(_DECADE_FROM_YEAR, 1, 1)
+    end_date = datetime.date(_DECADE_TO_YEAR, 12, 31)
 
     for company in companies.values():
         if not company.ticker:
