@@ -296,3 +296,27 @@ export interface SignalReport {
   paper_total: number
   generated_at?: string
 }
+
+// テーマ別 引用数集計（GET /api/dashboard/theme-citations, SOT-899）
+export interface TopCitedPaper {
+  paper_id: string
+  title: string
+  url: string
+  abstract: string
+  citation_count: number
+}
+
+export interface ThemeCitationSummary {
+  theme_id: string | null
+  theme_name: string
+  total_citations: number
+  paper_count: number
+  top_papers: TopCitedPaper[]
+}
+
+export interface ThemeCitations {
+  top_n: number
+  total_citations: number
+  themes: ThemeCitationSummary[]
+  generated_at?: string
+}

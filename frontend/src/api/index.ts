@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -52,6 +52,9 @@ export const fetchSignalReport = (query: string) =>
 
 export const fetchBacktest = (ticker: string, years = 10) =>
   api.get<BacktestResponse>('/dashboard/backtest', { params: { ticker, years } }).then(r => r.data)
+
+export const fetchThemeCitations = (topN = 100) =>
+  api.get<ThemeCitations>('/dashboard/theme-citations', { params: { top_n: topN } }).then(r => r.data)
 
 export const fetchThemeExternalInfos = (themeId: string) =>
   api.get<ThemeExternalInfos>(`/themes/${themeId}/external-infos`).then(r => r.data)

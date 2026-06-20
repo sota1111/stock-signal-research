@@ -99,6 +99,92 @@ def _matches_query(paper: Dict[str, Any], tokens: List[str]) -> bool:
     return all(tok in haystack for tok in tokens)
 
 
+# テーマ名のトークン化で無視する汎用語（どの論文にも出やすくテーマ識別に役立たない）。
+_THEME_STOPWORDS = {
+    "and", "the", "for", "with", "from", "into", "use", "using", "based",
+    "physical", "model", "models", "system", "systems", "technology", "tech",
+}
+
+
+def _theme_tokens(name: str, description: str = "") -> List[str]:
+    """テーマ名＋説明から、論文照合に使う識別トークン（小文字）を抽出する。
+
+    記号（スラッシュ等）で分割し、3文字未満と汎用ストップワードを除外する。
+    """
+    raw = re.split(r"[^a-z0-9]+", f"{name} {description}".lower())
+    return [t for t in raw if len(t) >= 3 and t not in _THEME_STOPWORDS]
+
+
+def _paper_matches_theme(paper: Dict[str, Any], tokens: List[str]) -> bool:
+    """テーマのトークンが論文の title/abstract/keywords に1つでも含まれれば一致。
+
+    テーマ名は複合語（例 "NVIDIA / GPU / Physical AI"）が多く、全トークン一致は厳しすぎる。
+    ここでは any（OR）一致の推定で、根拠（マッチ語）付きのテーマ別グルーピングを行う。
+    """
+    if not tokens:
+        return False
+    hay = _paper_haystack(paper)
+    return any(tok in hay for tok in tokens)
+
+
+def aggregate_theme_citations(
+    papers: List[Dict[str, Any]],
+    themes: List[Dict[str, Any]],
+    top_n: int = 100,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """テーマごとに「引用数上位 top_n 論文」と「その総引用数」を集計する純粋関数。
+
+    各テーマについて、テーマ名トークンに一致する論文を citation_count 降順で並べ、上位
+    top_n 本を取り出して link/概要/引用数を返す。total_citations はその上位論文の引用数合計。
+    ダッシュボードの新指標「テーマ別 引用数上位100論文の総引用数」の元データ。
+
+    Args:
+        papers: 論文 dict のリスト（title, abstract, extracted_keywords, url,
+            citation_count を想定。値はJSON文字列でも可）。
+        themes: テーマ dict のリスト（id, name, description を想定）。
+        top_n: 1テーマあたり集計する上位論文数（既定100）。
+    """
+    now = now or datetime.now(timezone.utc)
+    theme_results: List[Dict[str, Any]] = []
+
+    for theme in themes or []:
+        name = str(theme.get("name") or "")
+        tokens = _theme_tokens(name, str(theme.get("description") or ""))
+        matched = [p for p in papers if _paper_matches_theme(p, tokens)]
+        ranked = sorted(
+            matched,
+            key=lambda x: int(x.get("citation_count") or 0),
+            reverse=True,
+        )[:top_n]
+        total = sum(int(x.get("citation_count") or 0) for x in ranked)
+        theme_results.append({
+            "theme_id": theme.get("id"),
+            "theme_name": name,
+            "total_citations": total,
+            "paper_count": len(ranked),
+            "top_papers": [
+                {
+                    "paper_id": str(x.get("paper_id") or x.get("id") or ""),
+                    "title": str(x.get("title") or ""),
+                    "url": str(x.get("url") or ""),
+                    "abstract": str(x.get("abstract") or ""),
+                    "citation_count": int(x.get("citation_count") or 0),
+                }
+                for x in ranked
+            ],
+        })
+
+    theme_results.sort(key=lambda r: r["total_citations"], reverse=True)
+
+    return {
+        "top_n": top_n,
+        "total_citations": sum(r["total_citations"] for r in theme_results),
+        "themes": theme_results,
+        "generated_at": now.isoformat(),
+    }
+
+
 def generate_signal_report(
     query: str,
     papers: List[Dict[str, Any]],

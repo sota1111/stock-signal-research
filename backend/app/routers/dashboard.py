@@ -7,7 +7,7 @@ from ..repositories.score_repository import get_score_repository
 from ..repositories.supply_chain_repository import get_supply_chain_repository
 from ..repositories.trend_repository import get_trend_repository
 from ..repositories.paper_repository import get_paper_repository
-from ..services.signal_report import generate_signal_report
+from ..services.signal_report import generate_signal_report, aggregate_theme_citations
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
 
@@ -71,6 +71,23 @@ def get_signal_report(
         top_n=top_n,
         surge_top_n=surge_top_n,
     )
+
+
+@router.get("/theme-citations", response_model=schemas.ThemeCitationsResponse)
+def get_theme_citations(
+    top_n: int = Query(100, ge=1, le=200, description="1テーマあたり集計する引用数上位論文数"),
+):
+    """テーマごとの「引用数上位 top_n 論文の総引用数」と、その上位論文（link/概要/引用数）を返す。
+
+    ダッシュボードの主要指標を「論文件数」から「引用数」に切り替えるためのデータ。各テーマ名に
+    一致する論文を citation_count 降順で並べ、上位 top_n 本と総引用数を集計する。外部APIキー不要。
+    引用数は OpenAlex 由来（収集ジョブが付与）。
+    """
+    paper_repo = get_paper_repository()
+    theme_repo = get_theme_repository()
+    papers = paper_repo.list_all()
+    themes = theme_repo.list_all()
+    return aggregate_theme_citations(papers=papers, themes=themes, top_n=top_n)
 
 
 @router.get("/", response_model=schemas.DashboardResponse)

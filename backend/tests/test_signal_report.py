@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from app.services.signal_report import generate_signal_report
+from app.services.signal_report import generate_signal_report, aggregate_theme_citations
 
 
 FIXED_NOW = datetime(2025, 6, 1, tzinfo=timezone.utc)
@@ -127,6 +127,98 @@ def test_empty_papers_returns_valid_structure():
 
 
 # --- API endpoint test ---
+
+
+def _citation_papers():
+    return [
+        {
+            "paper_id": "c1",
+            "title": "GPU memory scaling for inference",
+            "abstract": "A study of GPU memory and CUDA.",
+            "extracted_keywords": '["GPU", "CUDA"]',
+            "url": "https://doi.org/10.1/gpu1",
+            "citation_count": 500,
+        },
+        {
+            "paper_id": "c2",
+            "title": "CUDA kernels for transformers",
+            "abstract": "Optimizing GPU kernels.",
+            "extracted_keywords": ["GPU"],
+            "url": "https://doi.org/10.1/gpu2",
+            "citation_count": 300,
+        },
+        {
+            "paper_id": "c3",
+            "title": "Solid state battery electrolytes",
+            "abstract": "Electrolyte chemistry for energy storage cells.",
+            "extracted_keywords": ["battery"],
+            "url": "https://doi.org/10.1/bat1",
+            "citation_count": 1000,
+        },
+    ]
+
+
+def _citation_themes():
+    return [
+        {"id": "t-gpu", "name": "GPU computing", "description": "CUDA accelerators"},
+        {"id": "t-bat", "name": "battery", "description": "solid state battery"},
+    ]
+
+
+def test_aggregate_theme_citations_sums_top_papers_per_theme():
+    result = aggregate_theme_citations(
+        papers=_citation_papers(), themes=_citation_themes(), top_n=100
+    )
+
+    themes = {t["theme_name"]: t for t in result["themes"]}
+    gpu = themes["GPU computing"]
+    assert gpu["paper_count"] == 2  # c1 + c2 match GPU/CUDA tokens
+    assert gpu["total_citations"] == 800  # 500 + 300
+    # Top papers are ordered by citation desc and carry link/abstract/citation.
+    assert gpu["top_papers"][0]["paper_id"] == "c1"
+    assert gpu["top_papers"][0]["url"] == "https://doi.org/10.1/gpu1"
+    assert gpu["top_papers"][0]["citation_count"] == 500
+
+    bat = themes["battery"]
+    assert bat["total_citations"] == 1000
+    # Themes are sorted by total citations desc -> battery (1000) first.
+    assert result["themes"][0]["theme_name"] == "battery"
+    assert result["total_citations"] == 1800
+
+
+def test_aggregate_theme_citations_respects_top_n():
+    result = aggregate_theme_citations(
+        papers=_citation_papers(), themes=_citation_themes(), top_n=1
+    )
+    gpu = next(t for t in result["themes"] if t["theme_name"] == "GPU computing")
+    assert gpu["paper_count"] == 1  # only the single most-cited paper kept
+    assert gpu["total_citations"] == 500
+
+
+def test_theme_citations_endpoint(client):
+    client.post("/api/papers/", json={
+        "paper_id": "oa-gpu-1",
+        "title": "GPU inference acceleration",
+        "abstract": "CUDA GPU memory study",
+        "extracted_keywords": '["GPU", "CUDA"]',
+        "url": "https://doi.org/10.1/oagpu",
+        "citation_count": 1234,
+        "source": "openalex",
+    })
+    client.post("/api/themes/", json={
+        "name": "GPU computing",
+        "category": "semiconductor",
+        "description": "CUDA accelerators",
+    })
+
+    resp = client.get("/api/dashboard/theme-citations", params={"top_n": 100})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["top_n"] == 100
+    gpu = next((t for t in data["themes"] if t["theme_name"] == "GPU computing"), None)
+    assert gpu is not None
+    assert gpu["total_citations"] >= 1234
+    assert any(p["citation_count"] == 1234 for p in gpu["top_papers"])
 
 
 def test_signal_report_endpoint(client):
