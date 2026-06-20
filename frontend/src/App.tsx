@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
 import DashboardPage from './pages/DashboardPage'
+import StockPage from './pages/StockPage'
+import PapersPage from './pages/PapersPage'
+import InvestorsPage from './pages/InvestorsPage'
 import SignalDetectionPage from './pages/SignalDetectionPage'
 import ListPage from './pages/ListPage'
 import DetailPage from './pages/DetailPage'
@@ -47,6 +50,15 @@ function AppLayout() {
               <NavLink to="/" end className={navLinkClass}>
                 ダッシュボード
               </NavLink>
+              <NavLink to="/stock" className={navLinkClass}>
+                株価
+              </NavLink>
+              <NavLink to="/papers" className={navLinkClass}>
+                論文
+              </NavLink>
+              <NavLink to="/investors" className={navLinkClass}>
+                投資家
+              </NavLink>
               <NavLink to="/signals" className={navLinkClass}>
                 前兆検知
               </NavLink>
@@ -70,6 +82,9 @@ function AppLayout() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+          <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
+          <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
+          <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
           <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
           <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
           <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
