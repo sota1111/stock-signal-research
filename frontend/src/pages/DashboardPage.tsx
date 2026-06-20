@@ -4,15 +4,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchSignalReport, fetchThemeCitations } from '../api'
 import ChartCard from '../components/charts/ChartCard'
-import UnifiedThemeCrossChart from '../components/charts/UnifiedThemeCrossChart'
-import { useDashboardQuery, useTickerStocks } from './dashboardData'
+import PapersCountChart from '../components/charts/PapersCountChart'
+import TopMarketCapChart from '../components/charts/TopMarketCapChart'
+import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
+import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
   const [selectedTheme, setSelectedTheme] = useState<string>('')
   const { data, isLoading, error } = useDashboardQuery()
-  const { tickerCompanies, stockQueries, primaryStock } = useTickerStocks(data?.notable_companies ?? [])
+  const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(data?.notable_companies ?? [])
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
@@ -49,6 +51,8 @@ export default function DashboardPage() {
   const companyCount = data.notable_companies.length
   const topKeyword = data.top_keywords[0]
   const paperCounts = signalReport?.paper_counts_by_year ?? []
+  const TOP_N = 10
+  const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
   const totalCitations = themeCitations?.total_citations ?? null
   const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString('ja-JP') : '—'
 
@@ -132,35 +136,50 @@ export default function DashboardPage() {
           <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">再取得</button>
         </div>
 
+        {/* テーマ選択（論文・クロス分析グラフに反映） */}
+        <div className="flex items-center gap-2 min-w-0">
+          <label htmlFor="theme-select" className="shrink-0 text-sm text-gray-600">テーマ</label>
+          <select
+            id="theme-select"
+            value={reportQuery}
+            onChange={e => setSelectedTheme(e.target.value)}
+            className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
+          >
+            {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* グラフ① 論文件数 */}
         <ChartCard
-          title="論文件数 × 株価 × クロス分析（テーマ別）"
-          subtitle={`テーマ: ${reportQuery}${signalReport ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}年` : ''}`}
+          title="論文"
+          subtitle={`テーマ: ${reportQuery}${signalReport ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}年` : ''}（年別の論文件数）`}
         >
-          <div className="mb-3 flex items-center gap-2 min-w-0">
-            <label htmlFor="theme-select" className="shrink-0 text-sm text-gray-600">テーマ</label>
-            <select
-              id="theme-select"
-              value={reportQuery}
-              onChange={e => setSelectedTheme(e.target.value)}
-              className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
-            >
-              {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
           {paperCounts.length > 0 ? (
-            <UnifiedThemeCrossChart
-              counts={paperCounts}
-              stock={primaryStock?.stock}
-              companyName={primaryStock?.name}
-            />
+            <PapersCountChart counts={paperCounts} />
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <p>論文データがありません。</p>
               <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">初期リサーチを実行する →</Link>
             </div>
           )}
+        </ChartCard>
+
+        {/* グラフ② 上位10社時価総額合計 */}
+        <ChartCard
+          title={`上位${TOP_N}社 時価総額合計`}
+          subtitle="注目企業のうち時価総額上位の合計推移（現在の時価総額×株価比率による近似）"
+        >
+          <TopMarketCapChart data={marketCapYearly} topN={TOP_N} />
+        </ChartCard>
+
+        {/* グラフ③ クロス分析（論文 × 時価総額） */}
+        <ChartCard
+          title="クロス分析（論文 × 時価総額）"
+          subtitle={`テーマ: ${reportQuery} — 論文件数と上位${TOP_N}社時価総額合計を基準年=100で正規化して比較`}
+        >
+          <PapersMarketCapCrossChart counts={paperCounts} marketCap={marketCapYearly} />
         </ChartCard>
       </section>
 
