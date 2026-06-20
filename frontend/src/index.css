@@ -3,6 +3,21 @@
 @tailwind utilities;
 
 /*
+ * Mobile horizontal-overflow guard (SOT-940).
+ * Prevent any stray element from forcing a page-level horizontal scrollbar on
+ * narrow screens. `overflow-x: clip` (not `hidden`) clips spillover at the
+ * viewport WITHOUT establishing a scroll container, so the sticky top nav keeps
+ * working. Widgets that legitimately need horizontal scrolling (wide tables, the
+ * supply-chain SVG) are individually wrapped in their own `overflow-x-auto`
+ * containers, so their content stays reachable via internal scrolling.
+ */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/*
  * Mobile responsive tables (SOT-862).
  * Below 640px, tables tagged `.responsive-table` collapse into stacked
  * "label: value" cards so their content fits within the viewport and no
