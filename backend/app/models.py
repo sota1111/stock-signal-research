@@ -32,6 +32,7 @@ class Paper(Base):
     extracted_keywords = Column(String)  # Stored as JSON string
     theme_id = Column(String, ForeignKey("themes.id"), nullable=True)
     source = Column(String, default="manual")
+    citation_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

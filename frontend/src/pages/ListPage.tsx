@@ -106,6 +106,7 @@ export default function ListPage() {
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">タイトル</th>
+                <th className="px-4 py-2 text-right whitespace-nowrap">引用数</th>
                 <th className="px-4 py-2 text-left">公開日</th>
                 <th className="px-4 py-2 text-left">ソース</th>
               </tr>
@@ -115,6 +116,9 @@ export default function ListPage() {
                 <tr key={p.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2" data-label="タイトル">
                     {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{p.title}</a> : p.title}
+                  </td>
+                  <td className="px-4 py-2 text-right font-medium whitespace-nowrap" data-label="引用数">
+                    {(p.citation_count ?? 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-2 text-gray-500 whitespace-nowrap" data-label="公開日">{p.published_at ?? '-'}</td>
                   <td className="px-4 py-2 text-gray-500" data-label="ソース">{p.source}</td>
