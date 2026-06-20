@@ -44,6 +44,9 @@ export default function UnifiedThemeCrossChart({
         <XAxis dataKey="year" tick={{ fontSize: 11 }} />
         <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} allowDecimals={false} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} width={52} tickFormatter={v => formatCompact(v)} />
+        {/* クロス分析(指数)専用の非表示軸。論文件数(棒)と軸を共有すると指数値(≈100〜200)に
+            スケールが引っ張られ棒が潰れて見えなくなるため、独立スケールに分離する。 */}
+        <YAxis yAxisId="cross" orientation="right" hide domain={['auto', 'auto']} />
         <Tooltip
           labelStyle={{ fontSize: 12 }}
           formatter={(value, name) => {
@@ -70,7 +73,7 @@ export default function UnifiedThemeCrossChart({
         )}
         {hasPrice && basePaper != null && (
           <Line
-            yAxisId="left"
+            yAxisId="cross"
             type="monotone"
             dataKey="cross"
             name="クロス分析(指数)"
