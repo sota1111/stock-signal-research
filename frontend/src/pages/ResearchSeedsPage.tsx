@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchResearchSeeds } from '../api'
-import type { ResearchSeed } from '../types'
+import type { ResearchSeed, ResearchSeedPaper } from '../types'
+
+const paperHref = (p: ResearchSeedPaper): string | undefined =>
+  p.url ?? (p.doi ? `https://doi.org/${p.doi}` : p.arxivId ? `https://arxiv.org/abs/${p.arxivId}` : undefined)
 
 const CONFIDENCE_STYLE: Record<string, string> = {
   low: 'bg-gray-100 text-gray-600 border-gray-300',
@@ -66,9 +69,17 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
         <div className="mt-3">
           <p className="text-xs text-gray-500 mb-1">関連論文</p>
           <ul className="list-disc list-inside text-xs text-gray-600">
-            {seed.papers.map((p, i) => (
-              <li key={i}>{p.title}{p.year ? ` (${p.year})` : ''}</li>
-            ))}
+            {seed.papers.map((p, i) => {
+              const href = paperHref(p)
+              return (
+                <li key={i}>
+                  {href
+                    ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{p.title}</a>
+                    : p.title}
+                  {p.year ? ` (${p.year})` : ''}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
