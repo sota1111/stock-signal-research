@@ -1,21 +1,37 @@
-"""yfinanceベースの株価・財務取得サービス（SOT-842 / 親SOT-837）。
+"""株価・財務取得サービス（SOT-842 / 親SOT-837、SOT-941 でローカルseed化）。
 
-外部APIキーは不要。yfinance（Yahoo Finance 非公式ラッパ）を用いて、指定銘柄の
-過去株価・基礎的な財務指標を取得し、stock-signal-research が利用しやすい統一JSON形状で返す。
+外部APIキー不要・**ランタイムでの外部ネットワーク取得なし**。リポジトリに同梱した
+`backend/data/stock-prices.json`（過去10年・日次終値＋財務スナップショット）を読み込み、
+stock-signal-research が利用しやすい統一JSON形状で返す。
+
+背景（SOT-941）:
+    以前は yfinance を実行時に呼び出していたが、本番では取得に失敗してダッシュボードが
+    「空表示」になった。そこで開発時に `scripts/collect_stock_data.py` で実データを一度収集して
+    同梱し、サーバはその同梱JSONを読むだけにした。yfinance はサーバのランタイム依存から除外。
 
 - 日本株は数字コード（例 "7203"）に `.T` を付与して Yahoo ティッカーへ正規化する。
-- ネットワーク/データ取得に失敗しても例外を投げず、`error` を設定した同一形状の dict を返す。
-- テスト容易性のため、`fetch_stock_data` は `yf=` で yfinance 互換オブジェクトを注入できる
-  （注入時はネットワークに触れない）。
+- 同梱データに該当ティッカーが無い場合も例外は投げず、`error` を設定した同一形状の dict を返す。
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# 同梱株価データ（scripts/collect_stock_data.py が生成）。backend/data/stock-prices.json
+_DATA_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "data",
+    "stock-prices.json",
+)
+
+# パース済みデータのモジュールキャッシュ（プロセス内で1回だけ読む）。
+_DATASET_CACHE: Optional[Dict[str, Any]] = None
 
 
 def normalize_ticker(ticker: str) -> str:
@@ -45,36 +61,40 @@ def _safe_float(value: Any) -> Optional[float]:
         return None
 
 
-def _safe_int(value: Any) -> Optional[int]:
-    f = _safe_float(value)
-    return int(f) if f is not None else None
-
-
-def _extract_prices(hist: Any) -> List[Dict[str, Any]]:
-    """yfinance の history DataFrame から昇順の {date, close} リストを抽出する。"""
-    prices: List[Dict[str, Any]] = []
-    if hist is None:
-        return prices
+def _load_dataset() -> Dict[str, Any]:
+    """同梱株価JSONを読み込みキャッシュする。読み込み失敗時は空dict。"""
+    global _DATASET_CACHE
+    if _DATASET_CACHE is not None:
+        return _DATASET_CACHE
     try:
-        if len(hist) == 0:
-            return prices
-    except TypeError:
-        return prices
-    try:
-        for idx, row in hist.iterrows():
-            try:
-                date = idx.strftime("%Y-%m-%d")
-            except AttributeError:
-                date = str(idx)[:10]
-            close = _safe_float(row["Close"]) if "Close" in row else _safe_float(row.get("close"))
-            if close is None:
-                continue
-            prices.append({"date": date, "close": round(close, 4)})
+        with open(_DATA_PATH, "r", encoding="utf-8") as f:
+            _DATASET_CACHE = json.load(f)
     except Exception as e:  # pragma: no cover - 防御的
-        logger.error(f"_extract_prices failed: {e}")
+        logger.error(f"stock-prices.json load failed: {e}")
+        _DATASET_CACHE = {}
+    return _DATASET_CACHE
+
+
+def _reset_cache() -> None:
+    """テスト用: データキャッシュをクリアする。"""
+    global _DATASET_CACHE
+    _DATASET_CACHE = None
+
+
+def _filter_recent(prices: List[Dict[str, Any]], years: int) -> List[Dict[str, Any]]:
+    """昇順 prices を直近 years 年に絞り込む（最新日付基準）。"""
+    if not prices:
         return []
-    prices.sort(key=lambda p: p["date"])
-    return prices
+    try:
+        latest = datetime.strptime(prices[-1]["date"], "%Y-%m-%d").date()
+    except (ValueError, KeyError, TypeError):
+        return list(prices)
+    try:
+        cutoff = date(latest.year - years, latest.month, latest.day)
+    except ValueError:
+        # 2/29 など → 3/1 にフォールバック
+        cutoff = date(latest.year - years, latest.month, 28)
+    return [p for p in prices if p.get("date") and p["date"] >= cutoff.isoformat()]
 
 
 def _empty_result(ticker: str, years: int, error: str) -> Dict[str, Any]:
@@ -92,63 +112,41 @@ def _empty_result(ticker: str, years: int, error: str) -> Dict[str, Any]:
             "fifty_two_week_high": None,
             "fifty_two_week_low": None,
         },
-        "source": "yfinance",
+        "source": "local-seed",
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "error": error,
     }
 
 
-def fetch_stock_data(ticker: str, years: int = 10, *, yf: Any = None) -> Dict[str, Any]:
-    """指定銘柄の過去株価・財務指標を yfinance から取得し統一JSON形状の dict で返す。
+def fetch_stock_data(ticker: str, years: int = 10) -> Dict[str, Any]:
+    """指定銘柄の過去株価・財務指標を同梱JSONから取得し統一JSON形状の dict で返す。
 
     Args:
         ticker: 銘柄コード/ティッカー（日本株は数字コードのみでも可）。
-        years: 取得する過去年数（履歴 period に使用）。
-        yf: yfinance 互換オブジェクト（テスト用注入）。未指定時は yfinance を遅延 import。
+        years: 取得する過去年数（同梱データを直近 years 年に絞り込む）。
 
-    失敗時も例外は投げず、`error` を設定した同一形状の dict を返す。
+    同梱データに該当ティッカーが無い場合も例外は投げず、`error` を設定した同一形状を返す。
     """
     normalized = normalize_ticker(ticker)
     if not normalized:
         return _empty_result(normalized, years, "empty ticker")
 
-    if yf is None:
-        try:
-            import yfinance as yf  # type: ignore
-        except Exception as e:
-            logger.error(f"yfinance import failed: {e}")
-            return _empty_result(normalized, years, f"yfinance unavailable: {e}")
+    dataset = _load_dataset()
+    entry = dataset.get(normalized)
+    if not entry:
+        return _empty_result(normalized, years, "no seeded data for ticker")
 
-    try:
-        ticker_obj = yf.Ticker(normalized)
-    except Exception as e:
-        logger.error(f"yf.Ticker failed for {normalized}: {e}")
-        return _empty_result(normalized, years, f"ticker init failed: {e}")
+    all_prices = entry.get("prices") or []
+    prices = _filter_recent(all_prices, years)
 
-    # 履歴（株価）
-    try:
-        hist = ticker_obj.history(period=f"{years}y")
-    except Exception as e:
-        logger.error(f"history fetch failed for {normalized}: {e}")
-        return _empty_result(normalized, years, f"history fetch failed: {e}")
-
-    prices = _extract_prices(hist)
-
-    # 財務指標（info / fast_info）
-    info: Dict[str, Any] = {}
-    try:
-        info = ticker_obj.info or {}
-    except Exception as e:
-        logger.warning(f"info fetch failed for {normalized}: {e}")
-        info = {}
-
+    raw_fin = entry.get("financials") or {}
     financials = {
-        "market_cap": _safe_int(info.get("marketCap")),
-        "trailing_pe": _safe_float(info.get("trailingPE")),
-        "forward_pe": _safe_float(info.get("forwardPE")),
-        "dividend_yield": _safe_float(info.get("dividendYield")),
-        "fifty_two_week_high": _safe_float(info.get("fiftyTwoWeekHigh")),
-        "fifty_two_week_low": _safe_float(info.get("fiftyTwoWeekLow")),
+        "market_cap": raw_fin.get("market_cap"),
+        "trailing_pe": _safe_float(raw_fin.get("trailing_pe")),
+        "forward_pe": _safe_float(raw_fin.get("forward_pe")),
+        "dividend_yield": _safe_float(raw_fin.get("dividend_yield")),
+        "fifty_two_week_high": _safe_float(raw_fin.get("fifty_two_week_high")),
+        "fifty_two_week_low": _safe_float(raw_fin.get("fifty_two_week_low")),
     }
 
     error: Optional[str] = None
@@ -157,8 +155,8 @@ def fetch_stock_data(ticker: str, years: int = 10, *, yf: Any = None) -> Dict[st
 
     return {
         "ticker": normalized,
-        "name": info.get("shortName") or info.get("longName"),
-        "currency": info.get("currency"),
+        "name": entry.get("name"),
+        "currency": entry.get("currency"),
         "period": {
             "years": years,
             "from": prices[0]["date"] if prices else None,
@@ -166,7 +164,7 @@ def fetch_stock_data(ticker: str, years: int = 10, *, yf: Any = None) -> Dict[st
         },
         "prices": prices,
         "financials": financials,
-        "source": "yfinance",
+        "source": "local-seed",
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "error": error,
     }

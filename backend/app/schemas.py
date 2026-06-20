@@ -374,7 +374,7 @@ class ThemeCitationMatrixResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
-# --- 株価・財務取得（yfinance / SOT-842） ---
+# --- 株価・財務取得（同梱データ / SOT-842, SOT-941） ---
 class StockPricePoint(BaseModel):
     date: str
     close: float
@@ -404,7 +404,7 @@ class StockDataResponse(BaseModel):
     period: StockDataPeriod
     prices: List[StockPricePoint] = Field(default_factory=list)
     financials: StockFinancials = Field(default_factory=StockFinancials)
-    source: str = "yfinance"
+    source: str = "local-seed"
     fetched_at: Optional[str] = None
     error: Optional[str] = None
 

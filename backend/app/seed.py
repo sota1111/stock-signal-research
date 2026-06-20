@@ -603,9 +603,9 @@ def seed_stock_prices(db, companies):
     import datetime
     from . import models
 
-    # Deterministic seeding. 過去10年(_DECADE_FROM_YEAR〜_DECADE_TO_YEAR)に拡張し、
-    # ローカルでも株価の年次推移（年ごとの動き）がダッシュボードに出るようにする。
-    # 本番はyfinanceから10年取得するため、このローカルseedは影響しない。
+    # Deterministic seeding. 過去10年(_DECADE_FROM_YEAR〜_DECADE_TO_YEAR)の StockPrice テーブル補助seed。
+    # ダッシュボードの株価グラフ/バックテストは backend/data/stock-prices.json（同梱・実データ）を
+    # 直接読むため（SOT-941）、このローカルseedはグラフ表示には使われない。
     start_date = datetime.date(_DECADE_FROM_YEAR, 1, 1)
     end_date = datetime.date(_DECADE_TO_YEAR, 12, 31)
 
