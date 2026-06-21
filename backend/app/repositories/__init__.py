@@ -13,4 +13,5 @@ from .investor_repository import get_investor_repository
 from .trend_repository import get_trend_repository
 from .supply_chain_repository import get_supply_chain_repository
 from .paper_repository import get_paper_repository
+from .patent_repository import get_patent_repository
 from .research_seed_repository import get_research_seed_repository

@@ -147,6 +147,35 @@ def run_seed():
         # 7. Stock Prices
         seed_stock_prices(db, companies)
 
+        # 8. Patents — 実データ(collected-patents.json, USPTO PPUBS由来)があれば投入する(SOT-960)。
+        patents_payload = _load_collected_patents()
+        if patents_payload:
+            for rec in patents_payload.get("patents", []):
+                theme = themes.get(rec.get("theme"))
+                if theme is None or not rec.get("patent_id") or not rec.get("title"):
+                    continue
+                db.add(models.Patent(
+                    patent_id=rec["patent_id"],
+                    patent_number=rec.get("patent_number"),
+                    title=rec["title"],
+                    published_at=rec.get("published_at"),
+                    theme_id=theme.id,
+                    assignee=rec.get("assignee"),
+                    inventors=rec.get("inventors"),
+                    cpc=rec.get("cpc"),
+                    kind=rec.get("kind"),
+                    url=rec.get("url"),
+                    source=rec.get("source", "ppubs"),
+                ))
+            for theme_name, yearly in patents_payload.get("theme_yearly_counts", {}).items():
+                theme = themes.get(theme_name)
+                if theme is None:
+                    continue
+                for year, count in yearly.items():
+                    db.add(models.PatentYearlyCount(
+                        theme_id=theme.id, year=str(year), count=int(count or 0),
+                    ))
+
         db.commit()
 
         # 8. Initial Research Seeds (from past history)
@@ -277,6 +306,33 @@ def _load_collected_investors(json_path=None):
         return None
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Could not load collected-investors.json: {e}")
+        return None
+
+
+def _load_collected_patents(json_path=None):
+    """SOT-960: USPTO Patent Public Search 由来の実特許データを collected-patents.json から読む。
+
+    返り値は {"patents": [...], "theme_yearly_counts": {theme: {year: count}}, ...} の dict。
+    ファイルが無い/壊れている場合は None を返し、呼び出し側はシードをスキップする
+    (オフライン/テストでも起動が壊れない)。"""
+    import json
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+    if json_path is None:
+        json_path = os.path.join(os.path.dirname(__file__), "..", "data", "collected-patents.json")
+    if not os.path.exists(json_path):
+        return None
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if payload and payload.get("patents"):
+            logger.info("Loaded %d real patents from collected-patents.json", len(payload["patents"]))
+            return payload
+        return None
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Could not load collected-patents.json: {e}")
         return None
 
 
@@ -677,6 +733,52 @@ def seed_investors_firestore():
         logger.info("Seeded %d institutional investors to Firestore", seeded)
     except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
         logger.warning(f"Could not seed institutional investors to Firestore: {e}")
+
+
+def seed_patents_firestore():
+    """本番(Firestore)向けに特許(USPTO PPUBS 実データ)を冪等投入する(SOT-960)。
+    `run_seed()` は SQLite 専用のため、本番では別途 patents / patent_yearly_counts コレクションへ
+    投入しないと特許ダッシュボードが空になる。テーマidは seed_dashboard_data_firestore と同じ
+    決定的 slug id(theme-<slug>)に解決する。冪等(upsert)。失敗しても起動を妨げない。
+    調査・仮説検証用の公開特許データであり投資助言ではない。"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        payload = _load_collected_patents()
+        if not payload:
+            return
+
+        from .repositories.patent_repository import get_patent_repository
+
+        repo = get_patent_repository()
+        theme_ids = {t["name"]: f"theme-{_slug(t['name'])}" for t in _DASHBOARD_THEMES}
+
+        seeded = 0
+        for rec in payload.get("patents", []):
+            tid = theme_ids.get(rec.get("theme"))
+            if not tid or not rec.get("patent_id") or not rec.get("title"):
+                continue
+            data = {k: rec.get(k) for k in (
+                "patent_id", "patent_number", "title", "published_at",
+                "assignee", "inventors", "cpc", "kind", "url", "source",
+            )}
+            data["theme_id"] = tid
+            if repo.save(data):
+                seeded += 1
+
+        years = 0
+        for theme_name, yearly in payload.get("theme_yearly_counts", {}).items():
+            tid = theme_ids.get(theme_name)
+            if not tid:
+                continue
+            for year, count in yearly.items():
+                if repo.save_yearly_count({"theme_id": tid, "year": str(year), "count": int(count or 0)}):
+                    years += 1
+        logger.info("Seeded %d patents and %d yearly counts to Firestore", seeded, years)
+    except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
+        logger.warning(f"Could not seed patents to Firestore: {e}")
 
 
 def seed_stock_prices(db, companies):
