@@ -16,6 +16,9 @@ export default function DashboardPage() {
   const { t, lang } = useI18n()
   const queryClient = useQueryClient()
   const [selectedTheme, setSelectedTheme] = useState<string>('')
+  // 表示年レンジ（null = 未選択 → データから導出した全期間を使う）
+  const [startYear, setStartYear] = useState<number | null>(null)
+  const [endYear, setEndYear] = useState<number | null>(null)
   const { data, isLoading, error } = useDashboardQuery()
   const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(data?.notable_companies ?? [])
 
@@ -69,6 +72,24 @@ export default function DashboardPage() {
   const TOP_N = 10
   const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
   const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
+
+  // 表示年レンジ: 論文件数・時価総額の年の和集合を選択可能ドメインとする
+  const yearSet = new Set<number>()
+  for (const c of paperCounts) yearSet.add(c.year)
+  for (const m of marketCapYearly) yearSet.add(m.year)
+  const availableYears = [...yearSet].sort((a, b) => a - b)
+  const minYear = availableYears.length ? availableYears[0] : null
+  const maxYear = availableYears.length ? availableYears[availableYears.length - 1] : null
+  // 未選択時は全期間（min〜max）を既定にする
+  const effStart = startYear ?? minYear
+  const effEnd = endYear ?? maxYear
+  const inRange = (year: number) =>
+    (effStart == null || year >= effStart) && (effEnd == null || year <= effEnd)
+  const filteredPaperCounts = paperCounts.filter(c => inRange(c.year))
+  const filteredMarketCapYearly = marketCapYearly.filter(m => inRange(m.year))
+  const filteredMarketCapByCompanyData = marketCapByCompany.data.filter(d => inRange(d.year))
+  const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
+
   const totalCitations = themeCitations?.total_citations ?? null
   const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString(lang === 'en' ? 'en-US' : 'ja-JP') : '—'
 
@@ -167,21 +188,65 @@ export default function DashboardPage() {
           </select>
         </div>
 
+        {/* 表示年レンジ選択（論文件数・時価総額・クロス分析グラフに反映） */}
+        {showYearRange && (
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="shrink-0 text-sm text-gray-600">{t('dashboard.yearRangeLabel')}</span>
+            <label htmlFor="year-from-select" className="sr-only">{t('dashboard.yearFrom')}</label>
+            <select
+              id="year-from-select"
+              value={effStart ?? ''}
+              onChange={e => {
+                const v = Number(e.target.value)
+                setStartYear(v)
+                if (effEnd != null && v > effEnd) setEndYear(v)
+              }}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <span className="shrink-0 text-sm text-gray-500">–</span>
+            <label htmlFor="year-to-select" className="sr-only">{t('dashboard.yearTo')}</label>
+            <select
+              id="year-to-select"
+              value={effEnd ?? ''}
+              onChange={e => {
+                const v = Number(e.target.value)
+                setEndYear(v)
+                if (effStart != null && v < effStart) setStartYear(v)
+              }}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* グラフ③ クロス分析（論文 × 時価総額） */}
         <ChartCard
           title={t('chart.cross.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
         >
-          <PapersMarketCapCrossChart counts={paperCounts} marketCap={marketCapYearly} />
+          <PapersMarketCapCrossChart counts={filteredPaperCounts} marketCap={filteredMarketCapYearly} />
         </ChartCard>
 
         {/* グラフ① 論文件数 */}
         <ChartCard
           title={t('chart.papers.title')}
-          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}${signalReport ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}` : ''}`}
+          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}${
+            effStart != null && effEnd != null
+              ? ` / ${effStart}–${effEnd}`
+              : signalReport
+                ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}`
+                : ''
+          }`}
         >
-          {paperCounts.length > 0 ? (
-            <PapersCountChart counts={paperCounts} />
+          {filteredPaperCounts.length > 0 ? (
+            <PapersCountChart counts={filteredPaperCounts} />
           ) : isPapersLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
@@ -200,7 +265,7 @@ export default function DashboardPage() {
           title={t('chart.topMarketCap.title', { n: TOP_N })}
           subtitle={t('chart.topMarketCap.subtitle')}
         >
-          <TopMarketCapChart data={marketCapByCompany.data} series={marketCapByCompany.series} />
+          <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
         </ChartCard>
 
         {/* マトリクス テーマ別 引用数（テーマ × 年） */}

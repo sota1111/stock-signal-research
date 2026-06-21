@@ -50,6 +50,10 @@ export const messages = {
     'btn.refetch': '再取得',
     // theme selector
     'dashboard.themeLabel': 'テーマ',
+    // year range selector
+    'dashboard.yearRangeLabel': '表示年',
+    'dashboard.yearFrom': '開始年',
+    'dashboard.yearTo': '終了年',
     // chart cards
     'chart.papers.title': '論文',
     'chart.topMarketCap.title': '上位{n}社 時価総額（企業別）',
@@ -356,6 +360,10 @@ export const messages = {
     'btn.refetch': 'Refetch',
     // theme selector
     'dashboard.themeLabel': 'Theme',
+    // year range selector
+    'dashboard.yearRangeLabel': 'Years',
+    'dashboard.yearFrom': 'From',
+    'dashboard.yearTo': 'To',
     // chart cards
     'chart.papers.title': 'Papers',
     'chart.topMarketCap.title': 'Top {n} companies — market cap by company',
