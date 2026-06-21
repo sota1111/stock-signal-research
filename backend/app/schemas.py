@@ -49,6 +49,36 @@ class PaperResponse(PaperBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PatentBase(BaseModel):
+    patent_id: str
+    patent_number: Optional[str] = None
+    title: str
+    published_at: Optional[str] = None
+    theme_id: Optional[str] = None
+    assignee: Optional[str] = None
+    inventors: Optional[str] = None
+    cpc: Optional[str] = None
+    kind: Optional[str] = None
+    url: Optional[str] = None
+    source: str = "ppubs"
+
+
+class PatentCreate(PatentBase):
+    pass
+
+
+class PatentResponse(PatentBase):
+    id: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatentYearlyCountResponse(BaseModel):
+    theme_id: str
+    year: str
+    count: int = 0
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PaperMonthlyCountBase(BaseModel):
     theme_id: str
     keyword: str

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .database import engine, Base
-from .routers import themes, papers, companies, supply_chain, investors, dashboard, external_infos, evaluation, research_seeds
+from .routers import themes, papers, patents, companies, supply_chain, investors, dashboard, external_infos, evaluation, research_seeds
 from .auth import router as auth_router, get_current_user
 from . import seed
 from . import models  # noqa: F401  # Register SQLAlchemy models before create_all().
@@ -51,6 +51,8 @@ async def lifespan(app: FastAPI):
         seed.seed_dashboard_data_firestore()
         # 機関投資家(SEC EDGAR 13F 実データ)も本番Firestoreへ冪等投入する(SOT-965)。
         seed.seed_investors_firestore()
+        # 特許(USPTO Patent Public Search 実データ)も本番Firestoreへ冪等投入する(SOT-960)。
+        seed.seed_patents_firestore()
     yield
 
 app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)
@@ -66,6 +68,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(themes.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(papers.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(patents.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(companies.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(supply_chain.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(investors.router, prefix="/api", dependencies=[Depends(get_current_user)])

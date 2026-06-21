@@ -49,6 +49,34 @@ class PaperMonthlyCount(Base):
     yoy_change_pct = Column(Float, default=0.0)
 
 
+class Patent(Base):
+    """SOT-960: USPTO Patent Public Search 由来の実特許データ。
+    論文(Paper)と並ぶ前兆指標として、テーマ別の特許動向を表示する。"""
+    __tablename__ = "patents"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    patent_id = Column(String, unique=True, index=True, nullable=False)
+    patent_number = Column(String)
+    title = Column(String, nullable=False)
+    published_at = Column(String)  # "YYYY-MM-DD"
+    theme_id = Column(String, ForeignKey("themes.id"), nullable=True)
+    assignee = Column(String)
+    inventors = Column(String)
+    cpc = Column(String)
+    kind = Column(String)  # "USPAT" | "US-PGPUB"
+    url = Column(String)
+    source = Column(String, default="ppubs")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PatentYearlyCount(Base):
+    """テーマ×年の特許マッチ件数(PPUBSの実numResults)。年次トレンドのバーに使う。"""
+    __tablename__ = "patent_yearly_counts"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    theme_id = Column(String, ForeignKey("themes.id"), nullable=False)
+    year = Column(String, nullable=False)
+    count = Column(Integer, default=0)
+
+
 class Company(Base):
     __tablename__ = "companies"
     id = Column(String, primary_key=True, default=generate_uuid)
