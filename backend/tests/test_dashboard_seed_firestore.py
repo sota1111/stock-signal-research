@@ -16,24 +16,42 @@ from app.repositories import (
 
 
 class FakeThemeRepo:
-    def __init__(self):
-        self.saved = []
+    def __init__(self, initial=None):
+        self._saved = {}
+        for item in initial or []:
+            self.save(item)
+
+    @property
+    def saved(self):
+        return list(self._saved.values())
 
     def list_all(self):
         return list(self.saved)
 
     def save(self, data):
-        self.saved.append(dict(data))
+        self._saved[data["id"]] = dict(data)
         return True
 
 
 class FakeSaveRepo:
     def __init__(self):
-        self.saved = []
+        self._saved = {}
         self.deleted = []
 
+    @property
+    def saved(self):
+        return list(self._saved.values())
+
+    def _key(self, data):
+        return (
+            data.get("id")
+            or data.get("paper_id")
+            or data.get("theme_id")
+            or f"{data.get('from_theme_id')}_{data.get('to_theme_id')}"
+        )
+
     def save(self, data):
-        self.saved.append(dict(data))
+        self._saved[self._key(data)] = dict(data)
         return True
 
     def delete(self, paper_id):
@@ -43,15 +61,20 @@ class FakeSaveRepo:
 
 class FakeTrendRepo:
     def __init__(self):
-        self.saved = []
+        self._saved = {}
+
+    @property
+    def saved(self):
+        return list(self._saved.values())
 
     def save_monthly_count(self, data):
-        self.saved.append(dict(data))
+        key = f"{data['theme_id']}_{data['keyword']}_{data['year_month']}"
+        self._saved[key] = dict(data)
         return True
 
 
-def _wire(monkeypatch):
-    theme = FakeThemeRepo()
+def _wire(monkeypatch, initial_themes=None):
+    theme = FakeThemeRepo(initial_themes)
     company = FakeSaveRepo()
     paper = FakeSaveRepo()
     supply = FakeSaveRepo()
@@ -104,17 +127,40 @@ def test_seed_dashboard_is_idempotent(monkeypatch):
     theme, company, paper, supply, trend, score = _wire(monkeypatch)
 
     seed.seed_dashboard_data_firestore()
-    # First-seed entities (themes/companies/supply/scores) are guarded: when themes already
-    # exist they are NOT re-seeded, so their counts stay constant across runs.
-    first_guarded = (len(theme.saved), len(company.saved), len(supply.saved), len(score.saved))
-    # 2回目: themesが既存なので first-seed ブロックはスキップ。
+    first_counts = (
+        len(theme.saved),
+        len(company.saved),
+        len(supply.saved),
+        len(score.saved),
+        len(paper.saved),
+        len(trend.saved),
+    )
     seed.seed_dashboard_data_firestore()
-    assert (len(theme.saved), len(company.saved), len(supply.saved), len(score.saved)) == first_guarded
-    # Papers / monthly counts are idempotent top-ups that always run so an already-seeded prod
-    # Firestore gains the full 10-year dataset on the next deploy. The real repos upsert by
-    # paper_id / theme_id+keyword+year_month (the in-memory fake here just appends), so the
-    # set of distinct ids stays stable even though the fake re-records them.
+    assert (
+        len(theme.saved),
+        len(company.saved),
+        len(supply.saved),
+        len(score.saved),
+        len(paper.saved),
+        len(trend.saved),
+    ) == first_counts
     assert {p["paper_id"] for p in paper.saved} == {p["pid"] for p in seed._DASHBOARD_PAPERS}
+
+
+def test_seed_dashboard_top_ups_from_existing_seven_themes(monkeypatch):
+    legacy_themes = [
+        {"id": f"theme-{seed._slug(t['name'])}", **t}
+        for t in seed._DASHBOARD_THEMES[:7]
+    ]
+    theme, company, paper, supply, trend, score = _wire(monkeypatch, initial_themes=legacy_themes)
+
+    seed.seed_dashboard_data_firestore()
+    seed.seed_dashboard_data_firestore()
+
+    assert len(theme.saved) == len(seed._DASHBOARD_THEMES)
+    assert len({t["id"] for t in theme.saved}) == len(seed._DASHBOARD_THEMES)
+    assert len(supply.saved) == len(seed._DASHBOARD_SUPPLY_CHAIN)
+    assert len({sc["id"] for sc in supply.saved}) == len(seed._DASHBOARD_SUPPLY_CHAIN)
 
 
 def test_seed_dashboard_reconciles_stale_legacy_papers(monkeypatch):

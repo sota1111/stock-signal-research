@@ -533,7 +533,7 @@ def seed_dashboard_data_firestore():
     ダッシュボード (`/api/dashboard/`) は Firestore の themes / companies / papers /
     supply_chains / paper_monthly_counts / scores コレクションを参照するが、これらを投入する
     `run_seed()` は SQLite (local/test) 専用。本番では別途 Firestore へ投入しないと
-    ダッシュボードが空になる。冪等(themesが既存ならスキップ)。失敗しても起動を妨げない。"""
+    ダッシュボードが空になる。冪等(upsert)。失敗しても起動を妨げない。"""
     import logging
 
     logger = logging.getLogger(__name__)
@@ -550,36 +550,35 @@ def seed_dashboard_data_firestore():
         # unconditionally so the papers/monthly top-up below works even when themes already exist.
         theme_ids = {t["name"]: f"theme-{_slug(t['name'])}" for t in _DASHBOARD_THEMES}
 
+        # 1. Themes: idempotent top-up so old 7-theme Firestore installs gain all themes.
         theme_repo = get_theme_repository()
-        # First-seed (themes/companies/supply-chain/scores): only on an empty dashboard.
-        if not theme_repo.list_all():
-            # 1. Themes
-            for t in _DASHBOARD_THEMES:
-                theme_repo.save({"id": theme_ids[t["name"]], **t})
+        for t in _DASHBOARD_THEMES:
+            theme_repo.save({"id": theme_ids[t["name"]], **t})
 
-            # 2. Companies (tickers drive the per-company 10y stock-eval cards)
-            company_repo = get_company_repository()
-            for c in _DASHBOARD_COMPANIES:
-                company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
+        # 2. Companies (tickers drive the per-company 10y stock-eval cards)
+        company_repo = get_company_repository()
+        for c in _DASHBOARD_COMPANIES:
+            company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
 
-            # 4. Supply chain
-            sc_repo = get_supply_chain_repository()
-            for sc in _DASHBOARD_SUPPLY_CHAIN:
-                sc_repo.save({
-                    "from_theme_id": theme_ids[sc["from"]],
-                    "to_theme_id": theme_ids[sc["to"]],
-                    "relationship": sc["rel"],
-                    "order": sc["order"],
-                })
+        # 4. Supply chain
+        sc_repo = get_supply_chain_repository()
+        for sc in _DASHBOARD_SUPPLY_CHAIN:
+            sc_repo.save({
+                "id": f"supply-chain-{_slug(sc['from'])}-{_slug(sc['to'])}",
+                "from_theme_id": theme_ids[sc["from"]],
+                "to_theme_id": theme_ids[sc["to"]],
+                "relationship": sc["rel"],
+                "order": sc["order"],
+            })
 
-            # 6. Scores (alignment_highlights uses score>=30)
-            score_repo = get_score_repository()
-            for t in _DASHBOARD_THEMES:
-                score_repo.save({
-                    "theme_id": theme_ids[t["name"]],
-                    "score": t["precursor_score"],
-                    "confidence": 0.6,
-                })
+        # 6. Scores (alignment_highlights uses score>=30)
+        score_repo = get_score_repository()
+        for t in _DASHBOARD_THEMES:
+            score_repo.save({
+                "theme_id": theme_ids[t["name"]],
+                "score": t["precursor_score"],
+                "confidence": 0.6,
+            })
 
         # 3 & 5. Papers + monthly counts: idempotent top-up that ALWAYS runs (repos upsert by
         # paper_id / theme_id+keyword+year_month). This lets an already-seeded prod Firestore
