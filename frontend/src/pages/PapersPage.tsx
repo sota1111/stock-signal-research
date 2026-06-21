@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchSignalReport, fetchThemeCitations } from '../api'
+import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import ThemeCitationsList from '../components/ThemeCitationsList'
 import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
@@ -11,7 +11,8 @@ import { useI18n } from '../i18n/useI18n'
 
 export default function PapersPage() {
   const { t } = useI18n()
-  const [selectedTheme, setSelectedTheme] = useState<string>('')
+  // テーマ選択はグローバルフィルタ(URL永続化)を参照する（SOT-997）。
+  const { theme: selectedTheme, setTheme } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
   const { primaryStock } = useTickerStocks(data?.notable_companies ?? [])
 
@@ -63,7 +64,7 @@ export default function PapersPage() {
             <select
               id="papers-theme-select"
               value={reportQuery}
-              onChange={e => setSelectedTheme(e.target.value)}
+              onChange={e => setTheme(e.target.value)}
               className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
             >
               {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
