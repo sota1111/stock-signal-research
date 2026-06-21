@@ -89,3 +89,46 @@ export function buildTopMarketCapYearly(
     .map(([year, total]) => ({ year, total }))
     .sort((a, b) => a.year - b.year)
 }
+
+/**
+ * 上位N社の時価総額を「企業別」に年次で組み立てる（SOT-971）。
+ *
+ * `buildTopMarketCapYearly` と同じ近似・eligibility・ソート・top-N を使うが、
+ * 合計せず企業ごとの系列として返す。data は wide 形式（year 行 × ticker 列）、
+ * series は描画順（時価総額降順）の凡例メタデータ。
+ */
+export function buildTopMarketCapCompanyYearly(
+  stockItems: StockItem[],
+  topN = 10,
+): { data: ({ year: number } & Record<string, number>)[]; series: { key: string; name: string }[] } {
+  const eligible = stockItems
+    .filter(
+      (it): it is StockItem & { stock: NonNullable<StockItem['stock']> } =>
+        !!it.stock &&
+        !it.stock.error &&
+        it.stock.prices.length > 0 &&
+        it.stock.financials.market_cap != null,
+    )
+    .sort((a, b) => (b.stock.financials.market_cap ?? 0) - (a.stock.financials.market_cap ?? 0))
+    .slice(0, topN)
+
+  const series: { key: string; name: string }[] = []
+  const byYear = new Map<number, { year: number } & Record<string, number>>()
+  for (const it of eligible) {
+    const yearly = toYearly(it.stock.prices)
+    if (yearly.size === 0) continue
+    const latestYear = Math.max(...yearly.keys())
+    const closeLatest = yearly.get(latestYear)!
+    if (!closeLatest) continue
+    const mcapNow = it.stock.financials.market_cap!
+    series.push({ key: it.ticker, name: it.name })
+    for (const [year, close] of yearly) {
+      const row = byYear.get(year) ?? ({ year } as { year: number } & Record<string, number>)
+      row[it.ticker] = mcapNow * (close / closeLatest)
+      byYear.set(year, row)
+    }
+  }
+
+  const data = [...byYear.values()].sort((a, b) => a.year - b.year)
+  return { data, series }
+}
