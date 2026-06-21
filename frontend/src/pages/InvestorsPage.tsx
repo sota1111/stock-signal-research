@@ -4,6 +4,7 @@ import { fetchSignalReport, fetchInvestors } from '../api'
 import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
+import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
 import { useDashboardQuery } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
@@ -12,6 +13,10 @@ export default function InvestorsPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
   const [latestOnly, setLatestOnly] = useState(true)
+  // 保有ランキングのフィルタ（投資家/企業）と保有推移の対象企業（SOT-995 /investors-3,1）。
+  const [investorFilter, setInvestorFilter] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [trendCompany, setTrendCompany] = useState('')
 
   // サプライチェーン連鎖図（C2）用。注目テーマの先頭を対象にする。
   const reportQuery = data?.trending_themes?.[0]?.name || 'AI'
@@ -38,13 +43,39 @@ export default function InvestorsPage() {
     const cur = latestByPair.get(key)
     if (!cur || inv.report_date > cur.report_date) latestByPair.set(key, inv)
   }
+  const companyKey = (inv: typeof allInvestors[number]) => inv.company_name ?? inv.company_id
   const investorRows = (latestOnly ? Array.from(latestByPair.values()) : allInvestors)
+    .filter(inv => (!investorFilter || inv.investor_name === investorFilter) && (!companyFilter || companyKey(inv) === companyFilter))
     .slice()
     .sort((a, b) =>
       a.investor_name === b.investor_name
         ? b.report_date.localeCompare(a.report_date)
         : a.investor_name.localeCompare(b.investor_name),
     )
+
+  // フィルタ選択肢
+  const investorNames = [...new Set(allInvestors.map(i => i.investor_name))].sort()
+  const companyNames = [...new Set(allInvestors.map(companyKey))].sort()
+
+  // 保有集中度（企業別・最新報告の保有比率合計, /investors-4）
+  const latestRows = Array.from(latestByPair.values())
+  const concentrationMap = new Map<string, number>()
+  for (const inv of latestRows) concentrationMap.set(companyKey(inv), (concentrationMap.get(companyKey(inv)) ?? 0) + inv.ownership_pct)
+  const concentration = [...concentrationMap.entries()].map(([company, total]) => ({ company, total })).sort((a, b) => b.total - a.total)
+  const maxConcentration = concentration.reduce((m, c) => Math.max(m, c.total), 0)
+
+  // 投資家 → 企業 関係（最新報告, /investors-2）
+  const relationMap = new Map<string, string[]>()
+  for (const inv of latestRows) {
+    const list = relationMap.get(inv.investor_name) ?? []
+    if (!list.includes(companyKey(inv))) list.push(companyKey(inv))
+    relationMap.set(inv.investor_name, list)
+  }
+  const relations = [...relationMap.entries()].map(([investor, companies]) => ({ investor, companies })).sort((a, b) => a.investor.localeCompare(b.investor))
+
+  // 保有推移の対象企業（複数期報告がある企業を既定にする, /investors-1）
+  const effTrendCompany = trendCompany || companyNames[0] || ''
+  const trendRows = allInvestors.filter(inv => companyKey(inv) === effTrendCompany)
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -69,6 +100,29 @@ export default function InvestorsPage() {
           )}
         </div>
         <p className="text-sm text-gray-500 mb-3">{t('investors.institutional.subtitle')}</p>
+        {/* 保有ランキングのフィルタ（SOT-995 /investors-3） */}
+        {allInvestors.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <select
+              value={investorFilter}
+              onChange={e => setInvestorFilter(e.target.value)}
+              aria-label={t('investors.filter.investor')}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <option value="">{t('investors.filter.investor')}: {t('investors.filter.all')}</option>
+              {investorNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select
+              value={companyFilter}
+              onChange={e => setCompanyFilter(e.target.value)}
+              aria-label={t('investors.filter.company')}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <option value="">{t('investors.filter.company')}: {t('investors.filter.all')}</option>
+              {companyNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        )}
         {investorRows.length === 0 ? (
           <p className="text-sm text-gray-400">{t('investors.noInstitutional')}</p>
         ) : (
@@ -102,6 +156,87 @@ export default function InvestorsPage() {
           </div>
         )}
       </section>
+
+      {/* 保有推移（四半期） SOT-995 /investors-1 */}
+      {allInvestors.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-700">{t('investors.trend.title')}</h2>
+              <p className="text-sm text-gray-500">{t('investors.trend.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="trend-company" className="shrink-0 text-sm text-gray-600">{t('investors.trend.selectCompany')}</label>
+              <select
+                id="trend-company"
+                value={effTrendCompany}
+                onChange={e => setTrendCompany(e.target.value)}
+                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              >
+                {companyNames.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+          <ChartCard title={t('investors.trend.title')} subtitle={effTrendCompany}>
+            <HoldingsTrendLines rows={trendRows} />
+          </ChartCard>
+        </section>
+      )}
+
+      {/* 保有集中度（企業別・最新） SOT-995 /investors-4 */}
+      {concentration.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-700">{t('investors.concentration.title')}</h2>
+            <p className="text-sm text-gray-500">{t('investors.concentration.subtitle')}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <ul className="space-y-2">
+              {concentration.map(c => (
+                <li key={c.company} className="flex items-center gap-3">
+                  <span className="w-40 shrink-0 truncate text-sm text-gray-700" title={c.company}>{c.company}</span>
+                  <span className="flex-1 min-w-0">
+                    <span
+                      className="block h-3 rounded bg-emerald-400"
+                      style={{ width: maxConcentration > 0 ? `${Math.max(6, (c.total / maxConcentration) * 100)}%` : '6%' }}
+                    />
+                  </span>
+                  <span className="w-16 shrink-0 text-right text-xs text-gray-500">{c.total.toFixed(2)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* 投資家 → 企業 関係 SOT-995 /investors-2 */}
+      {relations.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-700">{t('investors.relation.title')}</h2>
+            <p className="text-sm text-gray-500">{t('investors.relation.subtitle')}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {relations.map(r => (
+              <div key={r.investor} className="bg-white rounded-lg shadow p-4">
+                <p className="font-semibold text-gray-800 mb-2">{r.investor}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {r.companies.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => { setCompanyFilter(c); setTrendCompany(c) }}
+                      className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700 hover:bg-sky-100"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('investors.top5')}</h2>
