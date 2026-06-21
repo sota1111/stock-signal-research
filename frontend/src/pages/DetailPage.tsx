@@ -10,7 +10,7 @@ export default function DetailPage() {
   const navigate = useNavigate()
 
   const { data: theme, isLoading } = useQuery({ queryKey: ['theme', id], queryFn: () => fetchTheme(id!), enabled: !!id })
-  const { data: papers } = useQuery({ queryKey: ['papers', id], queryFn: () => fetchPapers(id), enabled: !!id })
+  const { data: papers, isLoading: isPapersLoading, isFetching: isPapersFetching } = useQuery({ queryKey: ['papers', id], queryFn: () => fetchPapers(id), enabled: !!id })
   const { data: monthly } = useQuery({ queryKey: ['monthly', id], queryFn: () => fetchMonthlyData(id), enabled: !!id })
   const { data: supplyChain } = useQuery({ queryKey: ['supplyChain'], queryFn: fetchSupplyChain })
   const { data: externalInfos } = useQuery({ queryKey: ['externalInfos', id], queryFn: () => fetchThemeExternalInfos(id!), enabled: !!id })
@@ -192,6 +192,8 @@ export default function DetailPage() {
               </div>
             ))}
           </div>
+        ) : (isPapersLoading || isPapersFetching) && !papers ? (
+          <p className="text-gray-400 text-sm">{t('common.loading')}</p>
         ) : (
           <p className="text-gray-400 text-sm">{t('detail.noRelatedPapers')}</p>
         )}

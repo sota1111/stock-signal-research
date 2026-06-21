@@ -21,7 +21,7 @@ export default function DashboardPage() {
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
-  const { data: signalReport } = useQuery({
+  const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery],
     queryFn: () => fetchSignalReport(reportQuery),
     staleTime: 1000 * 60 * 30,
@@ -64,6 +64,8 @@ export default function DashboardPage() {
   const companyCount = data.notable_companies.length
   const topKeyword = data.top_keywords[0]
   const paperCounts = signalReport?.paper_counts_by_year ?? []
+  // データ取得中（初期表示・テーマ切替時）は空表示ではなくローディングを出す
+  const isPapersLoading = (isReportLoading || isReportFetching) && !signalReport
   const TOP_N = 10
   const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
   const totalCitations = themeCitations?.total_citations ?? null
@@ -171,6 +173,11 @@ export default function DashboardPage() {
         >
           {paperCounts.length > 0 ? (
             <PapersCountChart counts={paperCounts} />
+          ) : isPapersLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('chart.papers.loading')}</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <p>{t('chart.papers.empty')}</p>
