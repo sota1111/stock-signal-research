@@ -8,7 +8,7 @@ import PapersCountChart from '../components/charts/PapersCountChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
-import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly } from './dashboardData'
+import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -68,6 +68,7 @@ export default function DashboardPage() {
   const isPapersLoading = (isReportLoading || isReportFetching) && !signalReport
   const TOP_N = 10
   const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
+  const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
   const totalCitations = themeCitations?.total_citations ?? null
   const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString(lang === 'en' ? 'en-US' : 'ja-JP') : '—'
 
@@ -199,7 +200,7 @@ export default function DashboardPage() {
           title={t('chart.topMarketCap.title', { n: TOP_N })}
           subtitle={t('chart.topMarketCap.subtitle')}
         >
-          <TopMarketCapChart data={marketCapYearly} topN={TOP_N} />
+          <TopMarketCapChart data={marketCapByCompany.data} series={marketCapByCompany.series} />
         </ChartCard>
 
         {/* マトリクス テーマ別 引用数（テーマ × 年） */}
