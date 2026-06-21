@@ -2,6 +2,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 import { EmptyChart } from './ChartCard'
 import { toYearly, formatCompact } from './chartUtils'
 import type { PaperYearCount, StockData } from '../../types'
+import { useI18n } from '../../i18n/useI18n'
 
 /**
  * SOT-894: 論文件数（棒）・株価年末終値（線）・クロス分析（指数・線）を同一グラフに統合した複合チャート。
@@ -16,7 +17,10 @@ export default function UnifiedThemeCrossChart({
   stock?: StockData
   companyName?: string
 }) {
-  if (!counts || counts.length === 0) return <EmptyChart message="論文データがありません" />
+  const { t } = useI18n()
+  const priceLabel = t('chart.legend.priceYearEnd')
+  const crossLabel = t('chart.legend.cross')
+  if (!counts || counts.length === 0) return <EmptyChart message={t('chart.empty.papers')} />
 
   const yearly = stock && !stock.error ? toYearly(stock.prices) : new Map<number, number>()
   const hasPrice = yearly.size > 0
@@ -52,19 +56,19 @@ export default function UnifiedThemeCrossChart({
           formatter={(value, name) => {
             if (value == null) return ['-', name]
             const label = String(name)
-            if (label.startsWith('株価')) return [formatCompact(Number(value)), name]
-            if (label.startsWith('クロス分析')) return [Number(value).toFixed(0), name]
-            return [`${value} 件`, name]
+            if (label.startsWith(priceLabel)) return [formatCompact(Number(value)), name]
+            if (label.startsWith(crossLabel)) return [Number(value).toFixed(0), name]
+            return [t('chart.value.papers', { n: Number(value) }), name]
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar yAxisId="left" dataKey="count" name="論文件数" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+        <Bar yAxisId="left" dataKey="count" name={t('chart.legend.paperCount')} fill="#3b82f6" radius={[4, 4, 0, 0]} />
         {hasPrice && (
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="close"
-            name={`株価(年末)${companyName ? ` ${companyName}` : ''}`}
+            name={`${priceLabel}${companyName ? ` ${companyName}` : ''}`}
             stroke="#ef4444"
             strokeWidth={2}
             dot={{ r: 3 }}
@@ -76,7 +80,7 @@ export default function UnifiedThemeCrossChart({
             yAxisId="cross"
             type="monotone"
             dataKey="cross"
-            name="クロス分析(指数)"
+            name={crossLabel}
             stroke="#8b5cf6"
             strokeWidth={2}
             strokeDasharray="5 3"

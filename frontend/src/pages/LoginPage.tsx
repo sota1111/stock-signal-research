@@ -22,7 +22,8 @@ export default function LoginPage() {
       navigate('/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
-      setError(msg || t('login.failed'))
+      const display = msg === 'INVALID_CREDENTIALS' ? t('login.invalidCredentials') : (msg || t('login.failed'))
+      setError(display)
     } finally {
       setLoading(false)
     }

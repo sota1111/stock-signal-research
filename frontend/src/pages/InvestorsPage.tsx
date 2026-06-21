@@ -5,8 +5,10 @@ import ChartCard from '../components/charts/ChartCard'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
 import { useDashboardQuery } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
+import { useI18n } from '../i18n/useI18n'
 
 export default function InvestorsPage() {
+  const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
 
   // サプライチェーン連鎖図（C2）用。注目テーマの先頭を対象にする。
@@ -25,14 +27,14 @@ export default function InvestorsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">投資家</h1>
-        <p className="text-sm text-gray-500 mt-0.5">注目企業と恩恵の連鎖（サプライチェーン）</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('investors.title')}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{t('investors.subtitle')}</p>
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">注目企業 TOP5</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('investors.top5')}</h2>
         {data.notable_companies.length === 0 ? (
-          <p className="text-sm text-gray-400">注目企業がまだありません。</p>
+          <p className="text-sm text-gray-400">{t('investors.noCompanies')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.notable_companies.map(company => (
@@ -46,7 +48,7 @@ export default function InvestorsPage() {
                     <ScoreBadge score={company.benefit_score} />
                     <p className="text-xs text-gray-500 mt-1">
                       <span className={company.benefit_type === 'direct' ? 'text-blue-600' : 'text-gray-500'}>
-                        {company.benefit_type === 'direct' ? '直接恩恵' : '間接恩恵'}
+                        {company.benefit_type === 'direct' ? t('investors.benefit.direct') : t('investors.benefit.indirect')}
                       </span>
                     </p>
                   </div>
@@ -58,10 +60,10 @@ export default function InvestorsPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">サプライチェーン連鎖</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('investors.supplyChain')}</h2>
         <div className="bg-white rounded-lg shadow p-4">
           {data.supply_chain_highlights.length === 0 ? (
-            <p className="text-sm text-gray-400">連鎖データがありません。</p>
+            <p className="text-sm text-gray-400">{t('investors.noChain')}</p>
           ) : (
             <div className="flex flex-wrap gap-2 items-center">
               {data.supply_chain_highlights.map((item, i) => (
@@ -77,7 +79,7 @@ export default function InvestorsPage() {
       </section>
 
       <section className="space-y-4">
-        <ChartCard title="C2. サプライチェーン連鎖図" subtitle="ノード/エッジ図">
+        <ChartCard title={t('investors.chainChart.title')} subtitle={t('investors.chainChart.subtitle')}>
           <SupplyChainGraphView
             nodes={signalReport?.supply_chain_graph?.nodes ?? []}
             edges={signalReport?.supply_chain_graph?.edges ?? []}

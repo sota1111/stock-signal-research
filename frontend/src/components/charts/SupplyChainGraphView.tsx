@@ -1,6 +1,7 @@
 import { EmptyChart } from './ChartCard'
 import { SERIES_COLORS } from './chartUtils'
 import type { SupplyChainGraphNode, SupplyChainGraphEdge } from '../../types'
+import { useI18n } from '../../i18n/useI18n'
 
 /** C2: サプライチェーン連鎖を円形レイアウトのノード/エッジ図で描画（recharts非依存の軽量SVG）。 */
 export default function SupplyChainGraphView({
@@ -10,7 +11,8 @@ export default function SupplyChainGraphView({
   nodes: SupplyChainGraphNode[]
   edges: SupplyChainGraphEdge[]
 }) {
-  if (!nodes || nodes.length === 0) return <EmptyChart message="サプライチェーンデータがありません" />
+  const { t } = useI18n()
+  if (!nodes || nodes.length === 0) return <EmptyChart message={t('chart.empty.supplyChain')} />
 
   const W = 640
   const H = 380
@@ -31,7 +33,7 @@ export default function SupplyChainGraphView({
 
   return (
     <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 360 }} role="img" aria-label="サプライチェーン連鎖図">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 360 }} role="img" aria-label={t('chart.aria.supplyChain')}>
         <defs>
           <marker id="sc-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8" />

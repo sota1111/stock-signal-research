@@ -1,6 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
 import type { PaperYearCount } from '../../types'
+import { useI18n } from '../../i18n/useI18n'
 
 /**
  * SOT-943: クロス分析。論文件数と上位N社時価総額合計をそれぞれ基準年=100で正規化し、
@@ -14,6 +15,7 @@ export default function PapersMarketCapCrossChart({
   counts: PaperYearCount[]
   marketCap: { year: number; total: number }[]
 }) {
+  const { t } = useI18n()
   const paperByYear = new Map<number, number>(counts.map(c => [c.year, c.count]))
   const mcapByYear = new Map<number, number>(marketCap.map(m => [m.year, m.total]))
 
@@ -22,7 +24,7 @@ export default function PapersMarketCapCrossChart({
   const baseYear = years.find(y => (paperByYear.get(y) ?? 0) > 0 && (mcapByYear.get(y) ?? 0) > 0)
 
   if (baseYear == null) {
-    return <EmptyChart message="クロス分析に必要なデータ（論文件数と時価総額）が不足しています" />
+    return <EmptyChart message={t('chart.empty.cross')} />
   }
 
   const basePaper = paperByYear.get(baseYear)!
@@ -52,7 +54,7 @@ export default function PapersMarketCapCrossChart({
         <Line
           type="monotone"
           dataKey="paperIdx"
-          name={`論文(指数, ${baseYear}年=100)`}
+          name={t('chart.legend.paperIndex', { year: baseYear })}
           stroke="#3b82f6"
           strokeWidth={2}
           dot={{ r: 2 }}
@@ -61,7 +63,7 @@ export default function PapersMarketCapCrossChart({
         <Line
           type="monotone"
           dataKey="mcapIdx"
-          name={`時価総額(指数, ${baseYear}年=100)`}
+          name={t('chart.legend.mcapIndex', { year: baseYear })}
           stroke="#8b5cf6"
           strokeWidth={2}
           strokeDasharray="5 3"

@@ -8,8 +8,10 @@ import ValuationScatter from '../components/charts/ValuationScatter'
 import SignalBacktestTable from '../components/charts/SignalBacktestTable'
 import { useDashboardQuery, useTickerStocks } from './dashboardData'
 import { StockEvalCard, DashboardLoading, DashboardError } from './dashboardShared'
+import { useI18n } from '../i18n/useI18n'
 
 export default function StockPage() {
+  const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
   const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(data?.notable_companies ?? [])
 
@@ -29,14 +31,14 @@ export default function StockPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">株価</h1>
-        <p className="text-sm text-gray-500 mt-0.5">注目企業の株価評価・推移・シグナルバックテスト（過去10年）</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('nav.stock')}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{t('stock.subtitle')}</p>
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">株価評価（過去10年）</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('stock.eval.title')}</h2>
         {tickerCompanies.length === 0 ? (
-          <p className="text-sm text-gray-400">ティッカー登録済みの注目企業がありません。</p>
+          <p className="text-sm text-gray-400">{t('stock.noTicker')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {tickerCompanies.map((company, i) => {
@@ -57,32 +59,32 @@ export default function StockPage() {
 
       {/* === 株価グラフ（過去10年） === */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-700">株価グラフ（過去10年）</h2>
+        <h2 className="text-lg font-semibold text-gray-700">{t('stock.chart.title')}</h2>
         <div>
-          <p className="text-sm font-medium text-gray-600 mb-2">A1. 株価推移（注目企業ごと）</p>
+          <p className="text-sm font-medium text-gray-600 mb-2">{t('stock.a1')}</p>
           <StockPriceLines items={stockItems} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="A2. 正規化比較（開始日=100）" subtitle="注目企業の相対パフォーマンス">
+          <ChartCard title={t('stock.a2.title')} subtitle={t('stock.a2.subtitle')}>
             <NormalizedCompareLines items={stockItems} />
           </ChartCard>
-          <ChartCard title="A3. 10年騰落率ランキング" subtitle="プラス=赤 / マイナス=青">
+          <ChartCard title={t('stock.a3.title')} subtitle={t('stock.a3.subtitle')}>
             <ReturnRankingBar items={stockItems} />
           </ChartCard>
         </div>
-        <ChartCard title="A4. バリュエーション散布図" subtitle="横軸PER × 縦軸時価総額 / バブル=配当利回り">
+        <ChartCard title={t('stock.a4.title')} subtitle={t('stock.a4.subtitle')}>
           <ValuationScatter items={stockItems} />
         </ChartCard>
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">シグナル バックテスト（過去10年）</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('stock.backtest.title')}</h2>
         {!backtestTicker ? (
-          <p className="text-sm text-gray-400">ティッカー登録済みの注目企業がありません。</p>
+          <p className="text-sm text-gray-400">{t('stock.noTicker')}</p>
         ) : (
           <>
             <p className="text-xs text-gray-400 mb-2">
-              対象: {backtest?.ticker ?? backtestTicker} — 各テクニカルシグナル発生後の的中率と平均リターン
+              {t('stock.backtest.target', { ticker: backtest?.ticker ?? backtestTicker })}
             </p>
             <SignalBacktestTable data={backtest} />
           </>

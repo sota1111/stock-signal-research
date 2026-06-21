@@ -6,8 +6,10 @@ import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
+import { useI18n } from '../i18n/useI18n'
 
 export default function SignalDetectionPage() {
+  const { t } = useI18n()
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
 
   // 急増テーマTOPを既定queryにシグナルレポートを取得（B系チャート用）
@@ -30,23 +32,23 @@ export default function SignalDetectionPage() {
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center py-20 text-slate-500">
       <span className="h-8 w-8 mb-3 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-      <p className="text-sm">読み込み中...</p>
+      <p className="text-sm">{t('common.loading')}</p>
     </div>
   )
   if (error || !data) return (
     <div className="mx-auto max-w-md text-center py-16">
       <div className="text-3xl mb-2" aria-hidden>⚠️</div>
-      <p className="font-semibold text-slate-700">データの取得に失敗しました</p>
-      <p className="text-sm text-slate-400 mt-1">時間をおいて再度お試しください。</p>
+      <p className="font-semibold text-slate-700">{t('common.loadError')}</p>
+      <p className="text-sm text-slate-400 mt-1">{t('common.retryLater')}</p>
     </div>
   )
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">前兆検知 — 技術トレンド</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('signals.title')}</h1>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">急増テーマ TOP5</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('signals.surgingThemes')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.trending_themes.map(theme => (
             <div key={theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
@@ -58,7 +60,7 @@ export default function SignalDetectionPage() {
                 <ScoreBadge score={theme.precursor_score} />
               </div>
               {theme.is_trending && (
-                <span className="mt-2 inline-block text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">継続トレンド</span>
+                <span className="mt-2 inline-block text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">{t('signals.continuingTrend')}</span>
               )}
             </div>
           ))}
@@ -67,12 +69,12 @@ export default function SignalDetectionPage() {
 
       {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
         <section>
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">外部情報との一致度 — 前兆候補</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('signals.alignment.title')}</h2>
           <div className="space-y-3">
             {/* High alignment themes */}
             {data.alignment_highlights.high_alignment?.length > 0 && (
               <div>
-                <p className="text-xs text-blue-600 font-medium mb-2">論文トレンド + 外部情報一致</p>
+                <p className="text-xs text-blue-600 font-medium mb-2">{t('signals.alignment.paperPlusExternal')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {data.alignment_highlights.high_alignment.map(item => (
                     <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
@@ -83,14 +85,14 @@ export default function SignalDetectionPage() {
                         </div>
                         <div className="text-right space-y-1">
                           <span className="block bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                            一致度 {item.score.toFixed(0)}
+                            {t('signals.matchScore')} {item.score.toFixed(0)}
                           </span>
                           <span className="block text-xs text-gray-500">
-                            信頼度 {item.confidence >= 0.8 ? '高' : item.confidence >= 0.5 ? '中' : '低'}
+                            {t('signals.confidence')} {item.confidence >= 0.8 ? t('level.high') : item.confidence >= 0.5 ? t('level.medium') : t('level.low')}
                           </span>
                         </div>
                       </div>
-                      <p className="text-xs text-blue-700 mt-2">前兆候補</p>
+                      <p className="text-xs text-blue-700 mt-2">{t('signals.precursorCandidate')}</p>
                     </div>
                   ))}
                 </div>
@@ -99,7 +101,7 @@ export default function SignalDetectionPage() {
             {/* Paper-only themes */}
             {data.alignment_highlights.paper_only?.length > 0 && (
               <div>
-                <p className="text-xs text-orange-600 font-medium mb-2">論文トレンドのみ高い（外部情報との一致度は未確認）</p>
+                <p className="text-xs text-orange-600 font-medium mb-2">{t('signals.paperOnly')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {data.alignment_highlights.paper_only.map(item => (
                     <div key={item.theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-400">
@@ -109,10 +111,10 @@ export default function SignalDetectionPage() {
                           <p className="text-xs text-gray-500 mt-1">{item.theme.category}</p>
                         </div>
                         <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-bold">
-                          前兆スコア {item.precursor_score.toFixed(0)}
+                          {t('signals.precursorScore')} {item.precursor_score.toFixed(0)}
                         </span>
                       </div>
-                      <p className="text-xs text-orange-600 mt-2">関連候補</p>
+                      <p className="text-xs text-orange-600 mt-2">{t('signals.relatedCandidate')}</p>
                     </div>
                   ))}
                 </div>
@@ -123,24 +125,24 @@ export default function SignalDetectionPage() {
       )}
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">急増キーワード ランキング</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('signals.surgingKeywords.title')}</h2>
         <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[480px] text-sm responsive-table">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">キーワード</th>
-                <th className="px-4 py-2 text-left">テーマ</th>
-                <th className="px-4 py-2 text-right whitespace-nowrap">前月比</th>
+                <th className="px-4 py-2 text-left">{t('signals.col.keyword')}</th>
+                <th className="px-4 py-2 text-left">{t('signals.col.theme')}</th>
+                <th className="px-4 py-2 text-right whitespace-nowrap">{t('signals.col.mom')}</th>
               </tr>
             </thead>
             <tbody>
               {data.top_keywords.map((kw, i) => (
                 <tr key={i} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2 text-gray-500" data-label="#">{i + 1}</td>
-                  <td className="px-4 py-2 font-medium" data-label="キーワード">{kw.keyword}</td>
-                  <td className="px-4 py-2 text-gray-600" data-label="テーマ">{kw.theme_name ?? '-'}</td>
-                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap" data-label="前月比">+{kw.mom_change_pct.toFixed(1)}%</td>
+                  <td className="px-4 py-2 font-medium" data-label={t('signals.col.keyword')}>{kw.keyword}</td>
+                  <td className="px-4 py-2 text-gray-600" data-label={t('signals.col.theme')}>{kw.theme_name ?? '-'}</td>
+                  <td className="px-4 py-2 text-right text-green-600 font-semibold whitespace-nowrap" data-label={t('signals.col.mom')}>+{kw.mom_change_pct.toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>
@@ -150,26 +152,26 @@ export default function SignalDetectionPage() {
 
       {/* === 論文・研究トレンド === */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-700">論文・研究トレンド</h2>
-        <p className="text-xs text-gray-400 -mt-2">集計テーマ: {reportQuery}</p>
+        <h2 className="text-lg font-semibold text-gray-700">{t('signals.papersTrend.title')}</h2>
+        <p className="text-xs text-gray-400 -mt-2">{t('signals.aggregatedTheme')}: {reportQuery}</p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="B1. 年別論文件数（過去10年）">
+          <ChartCard title={t('signals.b1')}>
             <PaperCountsByYearBar data={signalReport?.paper_counts_by_year ?? []} />
           </ChartCard>
-          <ChartCard title="B2. 月次論文件数トレンド" subtitle="全テーマ合算">
+          <ChartCard title={t('signals.b2')} subtitle={t('signals.b2.subtitle')}>
             <MonthlyPapersLine data={monthly ?? []} />
           </ChartCard>
-          <ChartCard title="B3. 急増キーワード" subtitle="成長率 上位10件">
+          <ChartCard title={t('signals.b3')} subtitle={t('signals.b3.subtitle')}>
             <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />
           </ChartCard>
-          <ChartCard title="B4. 注目企業 前兆スコア">
+          <ChartCard title={t('signals.b4')}>
             <CompanyScoreBar data={signalReport?.top_companies ?? []} />
           </ChartCard>
         </div>
       </section>
 
       <p className="text-xs text-gray-400 border-t pt-4">
-        ※ このツールは情報収集・分析支援を目的としています。投資判断は自己責任でお願いします。
+        {t('dashboard.disclaimer')}
       </p>
     </div>
   )

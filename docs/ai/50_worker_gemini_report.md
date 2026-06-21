@@ -1,35 +1,42 @@
-# Worker Report — SOT-942 (特許ページ追加 / Patents page)
+# Worker Report — SOT-949 i18n residual sweep
+
+## Worker Non-Response Fallback Disclosure
+- Non-responsive worker: **Gemini CLI** (implementation worker).
+- Detected failure mode: `run_gemini.sh` exited **75** — `IneligibleTierError: This client is no longer
+  supported for Gemini Code Assist for individuals` (free-tier permanently unsupported). Treated as
+  non-responsive per the Worker Non-Response Fallback Policy.
+- Action: **Claude Code performed the implementation directly** as the narrowly-scoped fallback.
+- Verification was delegated normally to **Codex CLI** (responsive); see `60_worker_codex_report.md`.
 
 ## Summary
-特許ページ（`/patents`）を追加。投資家ページは PR #58 で既出のため、最新コメント
-「投資家ページ、特許ページを追加」の新規スコープ＝特許ページのみを実装。バックエンドに特許
-データ源が無いため、既存ダッシュボードデータ（trending_themes / top_keywords）を活用し、
-テーマ・キーワード単位で Google Patents / J-PlatPat への特許検索導線を提供する閲覧ページとした。
-バックエンド・API・型は無変更。
-
-> ⚠️ Fallback disclosure（audit）: Gemini worker は非応答（`run_gemini.sh` exit 75 /
-> IneligibleTierError: free-tier UNSUPPORTED_CLIENT でクラッシュ）。Worker Non-Response
-> Fallback Policy に基づき Claude Code が本実装を直接行った。Codex worker も非応答
-> （usage-limit cooldown, exit 75）のため検証も Claude Code が実施。品質ゲートは通常どおり適用。
+Externalized all remaining hard-coded Japanese UI strings into the existing in-house i18n so the
+JP/EN toggle (added in PR#64) now switches the whole app, addressing the human's reopen comments
+listing residual Japanese across the 特許 / 投資家 / 前兆検知 / 一覧 / データ登録 / 一致度評価 /
+初期リサーチ / 株価 pages and the chart/table components.
 
 ## Changed Files
-- `frontend/src/pages/PatentsPage.tsx` — 新規。特許ページ本体（注目テーマの特許検索カード + キーワード別特許検索）
-- `frontend/src/App.tsx` — `/patents` ルート追加、ナビに「特許」を論文と投資家の間に追加、import追加
+- `frontend/src/i18n/messages.ts` — added ~200 JP/EN keys.
+- `frontend/src/i18n/seedTranslations.ts` — NEW: English display map for research-seed narrative DATA (keyed by seed id; backend JSON unchanged).
+- Pages: PatentsPage, InvestorsPage, SignalDetectionPage, ListPage, InputPage, EvaluationPage, ResearchSeedsPage, StockPage, PapersPage, DetailPage, dashboardShared.tsx, LoginPage.
+- Components: ThemeCitationsList, ThemeCitationMatrix, and charts SignalBacktestTable, ReturnRankingBar, ValuationScatter, ChartCard/EmptyChart, SupplyChainGraphView, PaperCountsByYearBar, MonthlyPapersLine, SurgingKeywordsBar, CompanyScoreBar, PapersCountChart, NormalizedCompareLines, StockPriceLines, PapersVsPriceComposed, PapersMarketCapCrossChart, TopMarketCapChart, UnifiedThemeCrossChart.
+- contexts/AuthContext.tsx — login failure fallback throws `INVALID_CREDENTIALS` sentinel, translated in LoginPage.
+
+## Notes / approach
+- List/Input tab state values stay Japanese (internal identifiers); display via label maps (MessageKey).
+- Backtest signal labels (backend data) localized via display-time map; seed narratives via id-keyed EN map. No backend/API contract change.
+- Renamed `.map(t => ...)` loop vars where they shadowed the i18n `t`.
 
 ## Commands Run
-- `npm run lint` → exit 0
-- `npm run build`（`tsc -b && vite build`）→ exit 0
+- Implementation by Claude Code fallback; build/lint verified by Codex (see codex report).
 
 ## Acceptance Criteria
-- [x] 特許 page added at route `/patents`
-- [x] nav menu links to 特許 between 論文 and 投資家
-- [x] page built on existing dashboard data (no backend change), patent-search links work
-- [x] lint + build pass
+- [x] JP/EN toggle switches the previously-untranslated UI strings
+- [x] build (`tsc -b && vite build`) passes (Codex verified, exit 0)
+- [x] lint (`eslint .`) passes (Codex verified, exit 0)
 
 ## Risks
-- 特許の実データ源は未提供のため、当ページは特許検索（Google Patents / J-PlatPat）への導線。
-  将来、特許データAPIが追加されれば集計表示に拡張可能。
-- ビルドの chunk-size 警告は既存（本変更前から存在）でエラーではない。
+- Server-provided error `detail` strings and free-form backend data outside the seed map remain in
+  their original language (out of scope — backend data, not UI chrome).
 
 ## Next Action
 READY_FOR_REVIEW

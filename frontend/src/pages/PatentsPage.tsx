@@ -2,6 +2,7 @@ import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import { useDashboardQuery } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
+import { useI18n } from '../i18n/useI18n'
 
 const J_PLATPAT_URL = 'https://www.j-platpat.inpit.go.jp/'
 
@@ -10,6 +11,7 @@ function googlePatentsUrl(query: string) {
 }
 
 export default function PatentsPage() {
+  const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
 
   if (isLoading) return <DashboardLoading />
@@ -18,21 +20,21 @@ export default function PatentsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">特許</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('patents.title')}</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          注目テーマ・キーワードごとの特許動向（論文と並ぶ前兆指標）。各テーマから特許検索へ移動できます。
+          {t('patents.subtitle')}
         </p>
       </div>
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">注目テーマの特許検索</h2>
+          <h2 className="text-lg font-semibold text-gray-700">{t('patents.themeSearch.title')}</h2>
           <p className="text-sm text-gray-500">
-            各テーマについて Google Patents・J-PlatPat（特許情報プラットフォーム）で特許を調査できます。
+            {t('patents.themeSearch.subtitle')}
           </p>
         </div>
         {data.trending_themes.length === 0 ? (
-          <p className="text-sm text-gray-400">注目テーマがまだありません。</p>
+          <p className="text-sm text-gray-400">{t('patents.noThemes')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.trending_themes.map(theme => (
@@ -70,11 +72,11 @@ export default function PatentsPage() {
 
       <section className="space-y-3">
         <ChartCard
-          title="キーワード別 特許検索"
-          subtitle="急増キーワードから関連特許を調査します（Google Patents）。"
+          title={t('patents.keywordSearch.title')}
+          subtitle={t('patents.keywordSearch.subtitle')}
         >
           {data.top_keywords.length === 0 ? (
-            <p className="text-sm text-gray-400">キーワードがまだありません。</p>
+            <p className="text-sm text-gray-400">{t('patents.noKeywords')}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {data.top_keywords.map(k => (
@@ -84,7 +86,7 @@ export default function PatentsPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 hover:text-sky-600"
-                  title={k.theme_name ? `テーマ: ${k.theme_name}` : undefined}
+                  title={k.theme_name ? t('patents.themeTooltip', { name: k.theme_name }) : undefined}
                 >
                   {k.keyword}
                   <span aria-hidden className="text-sky-600">→</span>

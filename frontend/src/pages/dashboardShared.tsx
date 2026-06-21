@@ -24,11 +24,12 @@ export function DashboardError() {
 }
 
 export function StockEvalCard({ company, stock, isLoading, isError }: { company: Company; stock?: StockData; isLoading: boolean; isError: boolean }) {
+  const { t } = useI18n()
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow p-4 animate-pulse">
         <p className="font-semibold text-gray-800">{company.name}</p>
-        <p className="text-xs text-gray-400 mt-2">株価読み込み中...</p>
+        <p className="text-xs text-gray-400 mt-2">{t('stock.loadingPrice')}</p>
       </div>
     )
   }
@@ -41,7 +42,7 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
           <p className="font-semibold text-gray-800">{company.name}</p>
           {company.ticker && <span className="text-xs text-gray-500">{company.ticker}</span>}
         </div>
-        <p className="text-xs text-gray-400 mt-2">株価取得失敗{stock?.error ? `（${stock.error}）` : ''}</p>
+        <p className="text-xs text-gray-400 mt-2">{t('stock.fetchFailed')}{stock?.error ? `（${stock.error}）` : ''}</p>
       </div>
     )
   }
@@ -60,15 +61,15 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
         </div>
         <div className="text-right">
           <p className="font-bold text-gray-800">{formatPrice(last, stock.currency)}</p>
-          <p className="text-xs text-gray-400">最新終値</p>
+          <p className="text-xs text-gray-400">{t('stock.latestClose')}</p>
         </div>
       </div>
       <div className="flex justify-between items-center mt-3 text-sm">
-        <span className="text-gray-500">10年騰落率</span>
+        <span className="text-gray-500">{t('stock.tenYearReturn')}</span>
         <span className={`font-bold ${changeColor}`}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%</span>
       </div>
       <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
-        <span>時価総額 {formatMarketCap(stock.financials.market_cap)}</span>
+        <span>{t('stock.marketCap')} {formatMarketCap(stock.financials.market_cap)}</span>
         <span>PER {stock.financials.trailing_pe != null ? stock.financials.trailing_pe.toFixed(1) : '-'}</span>
       </div>
     </div>

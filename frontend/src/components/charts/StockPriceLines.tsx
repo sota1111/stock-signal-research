@@ -1,11 +1,13 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
 import { toMonthly, formatCompact, validStockItems, type StockItem } from './chartUtils'
+import { useI18n } from '../../i18n/useI18n'
 
 /** A1: 注目企業ごとの終値推移（小チャートのグリッド・月末ダウンサンプル）。 */
 export default function StockPriceLines({ items }: { items: StockItem[] }) {
+  const { t } = useI18n()
   const valid = validStockItems(items)
-  if (valid.length === 0) return <EmptyChart message="株価データを取得できる企業がありません" />
+  if (valid.length === 0) return <EmptyChart message={t('chart.empty.stock')} />
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

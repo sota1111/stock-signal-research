@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchResearchSeeds } from '../api'
 import type { ResearchSeed, ResearchSeedPaper } from '../types'
+import { useI18n } from '../i18n/useI18n'
+import { seedTextEn } from '../i18n/seedTranslations'
 
 const paperHref = (p: ResearchSeedPaper): string | undefined =>
   p.url ?? (p.doi ? `https://doi.org/${p.doi}` : p.arxivId ? `https://arxiv.org/abs/${p.arxivId}` : undefined)
@@ -21,11 +23,17 @@ function ConfidenceBadge({ confidence }: { confidence?: string }) {
 }
 
 function SeedCard({ seed }: { seed: ResearchSeed }) {
+  const { t, lang } = useI18n()
+  const en = lang === 'en' ? seedTextEn[seed.id] : undefined
+  const theme = en?.theme ?? seed.theme
+  const summary = (en?.summary ?? seed.summary) || ''
+  const hypothesis = en?.hypothesis ?? seed.hypothesis
+  const reason = en?.reason ?? seed.reason_to_track
   return (
     <div className="bg-white rounded-lg shadow p-5">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{seed.theme}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{theme}</h2>
           <p className="text-sm text-gray-500">
             {seed.symbol && <span className="font-mono mr-2">{seed.symbol}</span>}
             {seed.company_name}
@@ -42,24 +50,24 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
         </div>
       )}
 
-      {seed.summary && <p className="text-sm text-gray-700 mb-3">{seed.summary}</p>}
+      {summary && <p className="text-sm text-gray-700 mb-3">{summary}</p>}
 
       <dl className="space-y-1 text-sm">
-        {seed.hypothesis && (
+        {hypothesis && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">仮説</dt>
-            <dd className="text-gray-700">{seed.hypothesis}</dd>
+            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.hypothesis')}</dt>
+            <dd className="text-gray-700">{hypothesis}</dd>
           </div>
         )}
-        {seed.reason_to_track && (
+        {reason && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">追跡理由</dt>
-            <dd className="text-gray-700">{seed.reason_to_track}</dd>
+            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.reason')}</dt>
+            <dd className="text-gray-700">{reason}</dd>
           </div>
         )}
         {seed.source_reference && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">出典/履歴</dt>
+            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.source')}</dt>
             <dd className="text-gray-600">{seed.source_reference}</dd>
           </div>
         )}
@@ -67,7 +75,7 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
 
       {seed.papers?.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-gray-500 mb-1">関連論文</p>
+          <p className="text-xs text-gray-500 mb-1">{t('seeds.relatedPapers')}</p>
           <ul className="list-disc list-inside text-xs text-gray-600">
             {seed.papers.map((p, i) => {
               const href = paperHref(p)
@@ -85,13 +93,14 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
       )}
 
       <div className="mt-3 pt-2 border-t text-xs text-gray-400">
-        登録日時: {seed.created_at ?? '—'}
+        {t('seeds.registeredAt')}: {seed.created_at ?? '—'}
       </div>
     </div>
   )
 }
 
 export default function ResearchSeedsPage() {
+  const { t } = useI18n()
   const { data: seeds, isLoading, isError } = useQuery({
     queryKey: ['research-seeds'],
     queryFn: fetchResearchSeeds,
@@ -99,16 +108,16 @@ export default function ResearchSeedsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">初期リサーチ (seed)</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('seeds.title')}</h1>
       <p className="text-sm text-gray-500 mb-6">
-        過去履歴から抽出した初期データ。本データは調査・仮説検証用であり投資助言ではありません。
+        {t('seeds.subtitle')}
       </p>
 
-      {isLoading && <p className="text-gray-500">読み込み中...</p>}
-      {isError && <p className="text-red-600">データの取得に失敗しました。</p>}
+      {isLoading && <p className="text-gray-500">{t('common.loading')}</p>}
+      {isError && <p className="text-red-600">{t('common.loadError')}</p>}
 
       {seeds && seeds.length === 0 && (
-        <p className="text-gray-500">初期リサーチデータがありません。</p>
+        <p className="text-gray-500">{t('seeds.empty')}</p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">

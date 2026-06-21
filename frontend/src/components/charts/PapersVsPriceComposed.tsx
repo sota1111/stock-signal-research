@@ -2,6 +2,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 import { EmptyChart } from './ChartCard'
 import { toYearly, formatCompact } from './chartUtils'
 import type { PaperYearCount, StockData } from '../../types'
+import { useI18n } from '../../i18n/useI18n'
 
 /** C1: 年別論文件数（棒・左軸）と株価年末終値（線・右軸）の2軸時系列。 */
 export default function PapersVsPriceComposed({
@@ -13,7 +14,9 @@ export default function PapersVsPriceComposed({
   stock?: StockData
   companyName?: string
 }) {
-  if (!counts || counts.length === 0) return <EmptyChart message="論文データがありません" />
+  const { t } = useI18n()
+  const priceLabel = t('chart.legend.priceYearEnd')
+  if (!counts || counts.length === 0) return <EmptyChart message={t('chart.empty.papers')} />
 
   const yearly = stock && !stock.error ? toYearly(stock.prices) : new Map<number, number>()
   const hasPrice = yearly.size > 0
@@ -33,17 +36,17 @@ export default function PapersVsPriceComposed({
         <Tooltip
           labelStyle={{ fontSize: 12 }}
           formatter={(value, name) =>
-            String(name).startsWith('株価') ? [formatCompact(Number(value)), name] : [`${value} 件`, name]
+            String(name).startsWith(priceLabel) ? [formatCompact(Number(value)), name] : [t('chart.value.papers', { n: Number(value) }), name]
           }
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar yAxisId="left" dataKey="count" name="論文件数" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+        <Bar yAxisId="left" dataKey="count" name={t('chart.legend.paperCount')} fill="#3b82f6" radius={[4, 4, 0, 0]} />
         {hasPrice && (
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="close"
-            name={`株価(年末)${companyName ? ` ${companyName}` : ''}`}
+            name={`${priceLabel}${companyName ? ` ${companyName}` : ''}`}
             stroke="#ef4444"
             strokeWidth={2}
             dot={{ r: 3 }}

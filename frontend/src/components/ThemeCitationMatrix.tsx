@@ -1,4 +1,5 @@
 import type { ThemeCitationMatrix as ThemeCitationMatrixData } from '../types'
+import { useI18n } from '../i18n/useI18n'
 
 /**
  * SOT-944: テーマ×年の引用数合計を行列（マトリクス）形式で表示する。
@@ -17,9 +18,10 @@ function cellClass(value: number, max: number): string {
 }
 
 export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatrixData }) {
+  const { t } = useI18n()
   if (!data || data.rows.length === 0 || data.years.length === 0) {
     return (
-      <p className="text-sm text-gray-400">引用数データがありません。論文収集ジョブの実行後に表示されます。</p>
+      <p className="text-sm text-gray-400">{t('citations.noData')}</p>
     )
   }
 
@@ -31,14 +33,14 @@ export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatri
         <thead>
           <tr>
             <th className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left font-semibold text-gray-600">
-              テーマ
+              {t('matrix.theme')}
             </th>
             {data.years.map(y => (
               <th key={y} className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">
                 {y}
               </th>
             ))}
-            <th className="px-2 py-1.5 text-right font-semibold text-gray-700 whitespace-nowrap">合計</th>
+            <th className="px-2 py-1.5 text-right font-semibold text-gray-700 whitespace-nowrap">{t('matrix.total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +69,7 @@ export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatri
         <tfoot>
           <tr className="border-t-2 border-gray-200">
             <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left font-semibold text-gray-700">
-              合計
+              {t('matrix.total')}
             </td>
             {data.column_totals.map((c, i) => (
               <td key={data.years[i]} className="px-2 py-1.5 text-right font-semibold text-gray-600 tabular-nums">

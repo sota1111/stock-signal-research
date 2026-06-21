@@ -2,8 +2,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain, fetchThemeExternalInfos, fetchThemeAlignment } from '../api'
+import { useI18n } from '../i18n/useI18n'
 
 export default function DetailPage() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -16,15 +18,15 @@ export default function DetailPage() {
 
   const relatedSC = supplyChain?.filter(sc => sc.from_theme_id === id || sc.to_theme_id === id) ?? []
 
-  if (isLoading) return <div className="text-center py-12 text-gray-500">読み込み中...</div>
-  if (!theme) return <div className="text-center py-12 text-red-500">テーマが見つかりません</div>
+  if (isLoading) return <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
+  if (!theme) return <div className="text-center py-12 text-red-500">{t('detail.notFound')}</div>
 
   const scoreColor = theme.precursor_score >= 70 ? 'bg-red-500' : theme.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
 
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/list')} className="text-blue-600 hover:underline text-sm">&larr; 一覧に戻る</button>
+        <button onClick={() => navigate('/list')} className="text-blue-600 hover:underline text-sm">&larr; {t('detail.back')}</button>
       </div>
 
       <section className="bg-white rounded-lg shadow p-6">
@@ -36,15 +38,15 @@ export default function DetailPage() {
           </div>
           <div className="text-right space-y-2">
             <span className={`${scoreColor} text-white text-lg px-3 py-1 rounded-full font-bold block`}>
-              {theme.precursor_score.toFixed(0)}点
+              {theme.precursor_score.toFixed(0)}{t('detail.scoreSuffix')}
             </span>
-            {theme.is_trending && <span className="block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">🔥 継続トレンド</span>}
+            {theme.is_trending && <span className="block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">🔥 {t('signals.continuingTrend')}</span>}
           </div>
         </div>
       </section>
 
       <section className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">月次論文数推移</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.monthlyPapers')}</h2>
         {monthly && monthly.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={monthly}>
@@ -53,17 +55,17 @@ export default function DetailPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="count" stroke="#2563eb" name="論文数" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="count" stroke="#2563eb" name={t('detail.paperCount')} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-400 text-sm">データなし</p>
+          <p className="text-gray-400 text-sm">{t('common.noData')}</p>
         )}
       </section>
 
       {relatedSC.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">サプライチェーン関連</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.supplyChainRelated')}</h2>
           <div className="space-y-2">
             {relatedSC.map(sc => (
               <div key={sc.id} className="flex items-center gap-3 text-sm">
@@ -79,41 +81,41 @@ export default function DetailPage() {
 
       {alignment && alignment.evidence_count > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">論文トレンドとの一致度</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.alignment.title')}</h2>
           <div className="flex items-center gap-6 flex-wrap">
             <div className="text-center">
               <div className={`text-3xl font-bold ${alignment.score >= 60 ? 'text-blue-600' : alignment.score >= 40 ? 'text-yellow-600' : 'text-gray-500'}`}>
                 {alignment.score.toFixed(0)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">総合一致度スコア</div>
+              <div className="text-xs text-gray-500 mt-1">{t('detail.alignment.totalScore')}</div>
             </div>
             <div className="flex gap-4 text-sm flex-wrap">
               <div className="text-center">
                 <div className="font-semibold text-gray-700">{alignment.news_score.toFixed(0)}</div>
-                <div className="text-xs text-gray-500">ニュース</div>
+                <div className="text-xs text-gray-500">{t('detail.alignment.news')}</div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-gray-700">{alignment.announcement_score.toFixed(0)}</div>
-                <div className="text-xs text-gray-500">企業発表</div>
+                <div className="text-xs text-gray-500">{t('detail.alignment.announcement')}</div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-gray-700">{alignment.earnings_score.toFixed(0)}</div>
-                <div className="text-xs text-gray-500">決算説明</div>
+                <div className="text-xs text-gray-500">{t('detail.alignment.earnings')}</div>
               </div>
             </div>
             <div className="text-sm">
               <span className={`px-2 py-1 rounded text-xs font-medium ${alignment.confidence >= 0.8 ? 'bg-green-100 text-green-700' : alignment.confidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
-                信頼度: {alignment.confidence >= 0.8 ? '高' : alignment.confidence >= 0.5 ? '中' : '低'} (根拠 {alignment.evidence_count}件)
+                {t('signals.confidence')}: {alignment.confidence >= 0.8 ? t('level.high') : alignment.confidence >= 0.5 ? t('level.medium') : t('level.low')} ({t('detail.evidence', { n: alignment.evidence_count })})
               </span>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-3">※ このスコアは情報収集・分析支援を目的としています。投資推奨ではありません。</p>
+          <p className="text-xs text-gray-400 mt-3">{t('detail.alignment.disclaimer')}</p>
         </section>
       )}
 
       {externalInfos && externalInfos.news.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — ニュース ({externalInfos.news.length}件)</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.news', { n: externalInfos.news.length })}</h2>
           <div className="space-y-3">
             {externalInfos.news.map(item => (
               <div key={item.id} className="border-b pb-3">
@@ -132,7 +134,7 @@ export default function DetailPage() {
 
       {externalInfos && externalInfos.announcements.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — 企業発表 ({externalInfos.announcements.length}件)</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.announcements', { n: externalInfos.announcements.length })}</h2>
           <div className="space-y-3">
             {externalInfos.announcements.map(item => (
               <div key={item.id} className="border-b pb-3">
@@ -155,7 +157,7 @@ export default function DetailPage() {
 
       {externalInfos && externalInfos.earnings.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">確認すべき外部情報 — 決算説明 ({externalInfos.earnings.length}件)</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.earnings', { n: externalInfos.earnings.length })}</h2>
           <div className="space-y-3">
             {externalInfos.earnings.map(item => (
               <div key={item.id} className="border-b pb-3">
@@ -177,7 +179,7 @@ export default function DetailPage() {
       )}
 
       <section className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">関連論文 ({papers?.length ?? 0}件)</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.relatedPapers', { n: papers?.length ?? 0 })}</h2>
         {papers && papers.length > 0 ? (
           <div className="space-y-3">
             {papers.map(p => (
@@ -191,7 +193,7 @@ export default function DetailPage() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-400 text-sm">関連論文なし</p>
+          <p className="text-gray-400 text-sm">{t('detail.noRelatedPapers')}</p>
         )}
       </section>
     </div>
