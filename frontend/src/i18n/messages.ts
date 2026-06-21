@@ -15,6 +15,11 @@ export const messages = {
     'nav.input': '登録',
     'nav.evaluation': '一致度評価',
     'nav.researchSeeds': '初期リサーチ',
+    // nav groups (SOT-998)
+    'navgroup.overview': '概要',
+    'navgroup.research': 'リサーチ根拠',
+    'navgroup.market': 'マーケット',
+    'navgroup.manage': '管理',
     'common.logout': 'ログアウト',
     'footer.tagline': 'Stock Signal Research — 技術トレンド前兆検知',
     // dashboard header
@@ -83,6 +88,8 @@ export const messages = {
     'common.loading': '読み込み中...',
     'common.loadError': 'データの取得に失敗しました',
     'common.retryLater': '時間をおいて再度お試しください。',
+    'common.retry': '再試行',
+    'common.empty': 'データがありません。',
     'common.detail': '詳細',
     'common.noData': 'データなし',
     'level.high': '高',
@@ -278,6 +285,7 @@ export const messages = {
     // detail page
     'detail.back': '一覧に戻る',
     'detail.notFound': 'テーマが見つかりません',
+    'detail.flow.title': 'このテーマで分析する',
     'detail.scoreSuffix': '点',
     'detail.monthlyPapers': '月次論文数推移',
     'detail.paperCount': '論文数',
@@ -342,6 +350,11 @@ export const messages = {
     'nav.input': 'Register',
     'nav.evaluation': 'Match Score',
     'nav.researchSeeds': 'Research Seeds',
+    // nav groups (SOT-998)
+    'navgroup.overview': 'Overview',
+    'navgroup.research': 'Research',
+    'navgroup.market': 'Market',
+    'navgroup.manage': 'Manage',
     'common.logout': 'Log out',
     'footer.tagline': 'Stock Signal Research — Early signal detection for tech trends',
     // dashboard header
@@ -410,6 +423,8 @@ export const messages = {
     'common.loading': 'Loading...',
     'common.loadError': 'Failed to load data',
     'common.retryLater': 'Please try again later.',
+    'common.retry': 'Retry',
+    'common.empty': 'No data available.',
     'common.detail': 'Details',
     'common.noData': 'No data',
     'level.high': 'High',
@@ -605,6 +620,7 @@ export const messages = {
     // detail page
     'detail.back': 'Back to list',
     'detail.notFound': 'Theme not found',
+    'detail.flow.title': 'Analyze this theme',
     'detail.scoreSuffix': ' pts',
     'detail.monthlyPapers': 'Monthly paper count trend',
     'detail.paperCount': 'Papers',

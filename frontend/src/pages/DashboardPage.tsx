@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchSignalReport, fetchThemeCitationMatrix } from '../api'
+import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
@@ -18,10 +18,8 @@ const PAPER_HISTORY_FROM_YEAR = 2000
 export default function DashboardPage() {
   const { t, lang } = useI18n()
   const queryClient = useQueryClient()
-  const [selectedTheme, setSelectedTheme] = useState<string>('')
-  // 表示年レンジ（null = 未選択 → データから導出した全期間を使う）
-  const [startYear, setStartYear] = useState<number | null>(null)
-  const [endYear, setEndYear] = useState<number | null>(null)
+  // テーマ選択・表示年レンジはグローバルフィルタ(URL永続化)を参照する（SOT-997）。
+  const { theme: selectedTheme, setTheme, fromYear, toYear, setYearRange } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
   const { stockItems } = useTickerStocks(data?.notable_companies ?? [])
 
@@ -72,8 +70,8 @@ export default function DashboardPage() {
   const minYear = availableYears.length ? availableYears[0] : null
   const maxYear = availableYears.length ? availableYears[availableYears.length - 1] : null
   // 未選択時は全期間（min〜max）を既定にする
-  const effStart = startYear ?? minYear
-  const effEnd = endYear ?? maxYear
+  const effStart = fromYear ?? minYear
+  const effEnd = toYear ?? maxYear
   const inRange = (year: number) =>
     (effStart == null || year >= effStart) && (effEnd == null || year <= effEnd)
   const filteredPaperCounts = paperCounts.filter(c => inRange(c.year))
@@ -93,12 +91,12 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-400 mt-1">{t('dashboard.lastAnalyzed')}: {lastAnalyzed}</p>
         </div>
 
-        {/* 各機能ページへのナビゲーション */}
+        {/* 各機能ページへのナビゲーション（選択中テーマを query で引き継ぐ, SOT-997/999） */}
         <div className="flex flex-wrap gap-2">
-          <Link to="/stock" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewStock')}</Link>
-          <Link to="/papers" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewPapers')}</Link>
-          <Link to="/investors" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewInvestors')}</Link>
-          <Link to="/signals" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.signals')}</Link>
+          <Link to={`/stock?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewStock')}</Link>
+          <Link to={`/papers?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewPapers')}</Link>
+          <Link to={`/investors?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewInvestors')}</Link>
+          <Link to={`/signals?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.signals')}</Link>
           <Link to="/research-seeds" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.registerSeed')}</Link>
           <Link to="/input" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.registerTheme')}</Link>
           <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.refetch')}</button>
@@ -110,7 +108,7 @@ export default function DashboardPage() {
           <select
             id="theme-select"
             value={reportQuery}
-            onChange={e => setSelectedTheme(e.target.value)}
+            onChange={e => setTheme(e.target.value)}
             className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
           >
             {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
@@ -129,8 +127,7 @@ export default function DashboardPage() {
               value={effStart ?? ''}
               onChange={e => {
                 const v = Number(e.target.value)
-                setStartYear(v)
-                if (effEnd != null && v > effEnd) setEndYear(v)
+                setYearRange(v, effEnd != null && v > effEnd ? v : effEnd)
               }}
               className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
@@ -145,8 +142,7 @@ export default function DashboardPage() {
               value={effEnd ?? ''}
               onChange={e => {
                 const v = Number(e.target.value)
-                setEndYear(v)
-                if (effStart != null && v < effStart) setStartYear(v)
+                setYearRange(effStart != null && v < effStart ? v : effStart, v)
               }}
               className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
             >

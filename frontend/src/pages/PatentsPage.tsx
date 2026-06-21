@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchThemes, fetchPatents, fetchPatentYearly, fetchPatentTopAssignees } from '../api'
+import { useFilters } from '../contexts/useFilters'
 import ChartCard, { EmptyChart } from '../components/charts/ChartCard'
 import PatentCountsByYearBar from '../components/charts/PatentCountsByYearBar'
+import { PageLoading, PageEmpty } from '../components/AsyncState'
 import { useI18n } from '../i18n/useI18n'
 
 const J_PLATPAT_URL = 'https://www.j-platpat.inpit.go.jp/'
@@ -13,7 +15,8 @@ function googlePatentsUrl(query: string) {
 
 export default function PatentsPage() {
   const { t } = useI18n()
-  const [selectedTheme, setSelectedTheme] = useState<string>('') // theme_id, '' = all
+  // テーマ選択(theme_id)はグローバルフィルタ(URL永続化)を参照する（SOT-997）。'' = 全テーマ
+  const { themeId: selectedTheme, setThemeId } = useFilters()
 
   const themeArg = selectedTheme || undefined
   const { data: themes = [] } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes })
@@ -73,7 +76,7 @@ export default function PatentsPage() {
         <select
           id="patents-theme-select"
           value={selectedTheme}
-          onChange={e => setSelectedTheme(e.target.value)}
+          onChange={e => setThemeId(e.target.value)}
           className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
         >
           <option value="">{t('patents.allThemes')}</option>
@@ -121,9 +124,9 @@ export default function PatentsPage() {
           <p className="text-sm text-gray-500">{t('patents.list.subtitle')}</p>
         </div>
         {isLoading ? (
-          <p className="text-sm text-gray-400 py-6 text-center">{t('patents.loading')}</p>
+          <PageLoading message={t('patents.loading')} />
         ) : patents.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('patents.list.empty')}</p>
+          <PageEmpty message={t('patents.list.empty')} />
         ) : (
           <div className="space-y-2">
             {patents.slice(0, 60).map(p => (

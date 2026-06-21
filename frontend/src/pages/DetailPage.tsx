@@ -1,8 +1,9 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain, fetchThemeExternalInfos, fetchThemeAlignment } from '../api'
 import { useI18n } from '../i18n/useI18n'
+import { PageLoading, PageError } from '../components/AsyncState'
 
 export default function DetailPage() {
   const { t } = useI18n()
@@ -18,8 +19,8 @@ export default function DetailPage() {
 
   const relatedSC = supplyChain?.filter(sc => sc.from_theme_id === id || sc.to_theme_id === id) ?? []
 
-  if (isLoading) return <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
-  if (!theme) return <div className="text-center py-12 text-red-500">{t('detail.notFound')}</div>
+  if (isLoading) return <PageLoading />
+  if (!theme) return <PageError message={t('detail.notFound')} />
 
   const scoreColor = theme.precursor_score >= 70 ? 'bg-red-500' : theme.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
 
@@ -42,6 +43,23 @@ export default function DetailPage() {
             </span>
             {theme.is_trending && <span className="block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">🔥 {t('signals.continuingTrend')}</span>}
           </div>
+        </div>
+      </section>
+
+      {/* 兆候→検証→投資判断の一貫導線（SOT-999 / 提案A-2）。
+          テーマ名/IDを query で引き継ぎ、遷移先のグローバルフィルタで選択済みにする。 */}
+      <section className="bg-white rounded-lg shadow p-4">
+        <p className="text-sm font-semibold text-gray-600 mb-3">{t('detail.flow.title')}</p>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Link to={`/papers?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.papers')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/patents?theme_id=${encodeURIComponent(theme.id)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.patents')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/investors?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.investors')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/stock?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.stock')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/evaluation?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.evaluation')}</Link>
         </div>
       </section>
 

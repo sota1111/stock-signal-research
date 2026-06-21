@@ -18,6 +18,19 @@ body {
 }
 
 /*
+ * Media elements never push the layout wider than the viewport (SOT-1000 / A-5).
+ * Complements the page-level overflow guard above so images/media stay within
+ * their containers on narrow screens. SVG is intentionally excluded: the
+ * supply-chain diagram is wide-by-design inside its own overflow-x-auto wrapper,
+ * and recharts manages its own responsive sizing.
+ */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/*
  * Mobile responsive tables (SOT-862).
  * Below 640px, tables tagged `.responsive-table` collapse into stacked
  * "label: value" cards so their content fits within the viewport and no
