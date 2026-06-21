@@ -1,42 +1,33 @@
-# Worker Report — SOT-949 i18n residual sweep
-
-## Worker Non-Response Fallback Disclosure
-- Non-responsive worker: **Gemini CLI** (implementation worker).
-- Detected failure mode: `run_gemini.sh` exited **75** — `IneligibleTierError: This client is no longer
-  supported for Gemini Code Assist for individuals` (free-tier permanently unsupported). Treated as
-  non-responsive per the Worker Non-Response Fallback Policy.
-- Action: **Claude Code performed the implementation directly** as the narrowly-scoped fallback.
-- Verification was delegated normally to **Codex CLI** (responsive); see `60_worker_codex_report.md`.
+# Worker Report — SOT-964 ダッシュボード配置
 
 ## Summary
-Externalized all remaining hard-coded Japanese UI strings into the existing in-house i18n so the
-JP/EN toggle (added in PR#64) now switches the whole app, addressing the human's reopen comments
-listing residual Japanese across the 特許 / 投資家 / 前兆検知 / 一覧 / データ登録 / 一致度評価 /
-初期リサーチ / 株価 pages and the chart/table components.
+**FALLBACK NOTICE (audit):** Gemini CLI was non-responsive — `scripts/ai/run_gemini.sh`
+exited 75 with `IneligibleTierError` (free-tier `UNSUPPORTED_CLIENT`, Gemini Code Assist
+for individuals no longer supported). Per the Worker Non-Response Fallback Policy, Claude
+Code performed this implementation directly.
+
+Reordered the dashboard chart cards in `frontend/src/pages/DashboardPage.tsx` so the
+「クロス分析（論文 × 時価総額）」ChartCard is rendered FIRST, per SOT-964
+「クロス分析を1番上に配置してください。」
+
+New order: クロス分析 → 論文件数 → 上位10社時価総額合計 → テーマ別引用数マトリクス.
+No other change (props, query keys, styling, i18n keys, theme selector all preserved).
 
 ## Changed Files
-- `frontend/src/i18n/messages.ts` — added ~200 JP/EN keys.
-- `frontend/src/i18n/seedTranslations.ts` — NEW: English display map for research-seed narrative DATA (keyed by seed id; backend JSON unchanged).
-- Pages: PatentsPage, InvestorsPage, SignalDetectionPage, ListPage, InputPage, EvaluationPage, ResearchSeedsPage, StockPage, PapersPage, DetailPage, dashboardShared.tsx, LoginPage.
-- Components: ThemeCitationsList, ThemeCitationMatrix, and charts SignalBacktestTable, ReturnRankingBar, ValuationScatter, ChartCard/EmptyChart, SupplyChainGraphView, PaperCountsByYearBar, MonthlyPapersLine, SurgingKeywordsBar, CompanyScoreBar, PapersCountChart, NormalizedCompareLines, StockPriceLines, PapersVsPriceComposed, PapersMarketCapCrossChart, TopMarketCapChart, UnifiedThemeCrossChart.
-- contexts/AuthContext.tsx — login failure fallback throws `INVALID_CREDENTIALS` sentinel, translated in LoginPage.
-
-## Notes / approach
-- List/Input tab state values stay Japanese (internal identifiers); display via label maps (MessageKey).
-- Backtest signal labels (backend data) localized via display-time map; seed narratives via id-keyed EN map. No backend/API contract change.
-- Renamed `.map(t => ...)` loop vars where they shadowed the i18n `t`.
+- `frontend/src/pages/DashboardPage.tsx` — moved the クロス分析 (`PapersMarketCapCrossChart`) ChartCard block to the top of the chart section
 
 ## Commands Run
-- Implementation by Claude Code fallback; build/lint verified by Codex (see codex report).
+- (verification delegated to Codex: `npm run lint` / `npm run build`)
 
 ## Acceptance Criteria
-- [x] JP/EN toggle switches the previously-untranslated UI strings
-- [x] build (`tsc -b && vite build`) passes (Codex verified, exit 0)
-- [x] lint (`eslint .`) passes (Codex verified, exit 0)
+- [x] クロス分析 ChartCard is rendered first in the chart section
+- [x] order is クロス分析 → 論文件数 → 上位10社時価総額合計 → 引用マトリクス
+- [x] no other change
+- [ ] lint pass (Codex to verify)
+- [ ] build pass (Codex to verify)
 
 ## Risks
-- Server-provided error `detail` strings and free-form backend data outside the seed map remain in
-  their original language (out of scope — backend data, not UI chrome).
+Low — pure JSX block reorder in a single file.
 
 ## Next Action
-READY_FOR_REVIEW
+NEEDS_DEBUG
