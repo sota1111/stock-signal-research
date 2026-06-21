@@ -5,6 +5,7 @@ export const messages = {
   ja: {
     // nav
     'nav.dashboard': 'ダッシュボード',
+    'nav.themes': 'テーマ',
     'nav.status': '状態',
     'nav.stock': '株価',
     'nav.papers': '論文',
@@ -354,6 +355,7 @@ export const messages = {
   en: {
     // nav
     'nav.dashboard': 'Dashboard',
+    'nav.themes': 'Themes',
     'nav.status': 'Status',
     'nav.stock': 'Stock',
     'nav.papers': 'Papers',

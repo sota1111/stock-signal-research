@@ -39,15 +39,17 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 type NavItem = { to: string; label: MessageKey; end?: boolean }
 type NavGroupDef = { label: MessageKey; items: NavItem[] }
 
+// ナビ順序（SOT-1001 / SOT-995 提案B）:
+// dashboard → signals（ダッシュボード隣）→ themes（3番目相当）… → status（最後尾）。
 const NAV_GROUPS: NavGroupDef[] = [
   { label: 'navgroup.overview', items: [
     { to: '/', label: 'nav.dashboard', end: true },
-    { to: '/status', label: 'nav.status' },
+    { to: '/signals', label: 'nav.signals' },
+    { to: '/list?tab=themes', label: 'nav.themes' },
   ] },
   { label: 'navgroup.research', items: [
     { to: '/papers', label: 'nav.papers' },
     { to: '/patents', label: 'nav.patents' },
-    { to: '/signals', label: 'nav.signals' },
   ] },
   { label: 'navgroup.market', items: [
     { to: '/stock', label: 'nav.stock' },
@@ -58,6 +60,7 @@ const NAV_GROUPS: NavGroupDef[] = [
     { to: '/list', label: 'nav.list' },
     { to: '/input', label: 'nav.input' },
     { to: '/research-seeds', label: 'nav.researchSeeds' },
+    { to: '/status', label: 'nav.status' },
   ] },
 ]
 
