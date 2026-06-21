@@ -59,6 +59,10 @@ export const messages = {
     'btn.refetch': '再取得',
     // theme selector
     'dashboard.themeLabel': 'テーマ',
+    'dashboard.categoryLabel': '大カテゴリ',
+    'dashboard.allCategories': '全カテゴリ',
+    'dashboard.themeSearch': 'テーマを検索',
+    'dashboard.cardsLabel': '表示カード',
     // year range selector
     'dashboard.yearRangeLabel': '表示年',
     'dashboard.yearFrom': '開始年',
@@ -409,6 +413,10 @@ export const messages = {
     'btn.refetch': 'Refetch',
     // theme selector
     'dashboard.themeLabel': 'Theme',
+    'dashboard.categoryLabel': 'Category',
+    'dashboard.allCategories': 'All categories',
+    'dashboard.themeSearch': 'Search theme',
+    'dashboard.cardsLabel': 'Cards',
     // year range selector
     'dashboard.yearRangeLabel': 'Years',
     'dashboard.yearFrom': 'From',
