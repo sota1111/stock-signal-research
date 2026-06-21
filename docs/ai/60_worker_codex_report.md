@@ -1,31 +1,22 @@
-# Worker Report — SOT-949 i18n Sweep Verification
+# Worker Report
 
 ## Summary
-- Verified `frontend` production build succeeds.
-- Verified `frontend` lint succeeds.
-- Ran residual Japanese text scan across `frontend/src/**/*.tsx`.
-- No code fixes were applied.
+Verification completed successfully. `frontend/src/pages/DashboardPage.tsx` now renders the クロス分析 `ChartCard` containing `PapersMarketCapCrossChart` before the 論文件数 `ChartCard`. No lint or build fixes were required.
+
+## Changed Files
+- `docs/ai/60_worker_codex_report.md` — updated verification report only
 
 ## Commands Run
+- `cd /workspaces/stock-signal-research/frontend && npm run lint` — exit 0
+- `cd /workspaces/stock-signal-research/frontend && npm run build` — exit 0
 
-| Command | Working Directory | Exit Status | Notes |
-|---|---|---:|---|
-| `git status --short` | `/workspaces/stock-signal-research` | 0 | Confirmed existing modified i18n sweep files and this report file. |
-| `npm run build` | `/workspaces/stock-signal-research/frontend` | 0 | Runs `tsc -b && vite build`; completed successfully. Vite emitted only the large chunk warning. |
-| `npm run lint` | `/workspaces/stock-signal-research/frontend` | 0 | Runs `eslint .`; completed successfully. |
-| `rg -n "[ぁ-んァ-ン一-龯]" frontend/src --glob '*.tsx'` | `/workspaces/stock-signal-research` | 0 | Remaining hits reviewed; see scan notes below. |
+## Acceptance Criteria
+- [x] lint pass (exit 0)
+- [x] build pass (exit 0)
+- [x] クロス分析 ChartCard rendered first
 
-## Fixes Applied
-- None.
-
-## Residual Japanese Scan Notes
-- Intentional tab-state identifiers and label-map keys remain in:
-  - `frontend/src/pages/InputPage.tsx`
-  - `frontend/src/pages/ListPage.tsx`
-- Intentional backend/API label mapping keys remain in:
-  - `frontend/src/components/charts/SignalBacktestTable.tsx`
-- Remaining hits are comments or JSX comments in pages and chart components.
-- No genuinely rendered hard-coded Japanese string was found in the scan output that required a fix.
+## Risks
+Build emitted the existing Vite chunk-size warning for an 824.37 kB JS asset, but the command exited 0. No SOT-964-specific risk found.
 
 ## Next Action
 READY_FOR_REVIEW

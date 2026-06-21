@@ -166,6 +166,14 @@ export default function DashboardPage() {
           </select>
         </div>
 
+        {/* グラフ③ クロス分析（論文 × 時価総額） */}
+        <ChartCard
+          title={t('chart.cross.title')}
+          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
+        >
+          <PapersMarketCapCrossChart counts={paperCounts} marketCap={marketCapYearly} />
+        </ChartCard>
+
         {/* グラフ① 論文件数 */}
         <ChartCard
           title={t('chart.papers.title')}
@@ -192,14 +200,6 @@ export default function DashboardPage() {
           subtitle={t('chart.topMarketCap.subtitle')}
         >
           <TopMarketCapChart data={marketCapYearly} topN={TOP_N} />
-        </ChartCard>
-
-        {/* グラフ③ クロス分析（論文 × 時価総額） */}
-        <ChartCard
-          title={t('chart.cross.title')}
-          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
-        >
-          <PapersMarketCapCrossChart counts={paperCounts} marketCap={marketCapYearly} />
         </ChartCard>
 
         {/* マトリクス テーマ別 引用数（テーマ × 年） */}
