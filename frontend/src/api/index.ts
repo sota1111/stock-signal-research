@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -35,6 +35,13 @@ export const fetchMonthlyData = (themeId?: string) =>
   api.get<PaperMonthlyCount[]>('/papers/monthly', { params: themeId ? { theme_id: themeId } : {} }).then(r => r.data)
 export const createPaper = (data: Partial<Paper> & { paper_id: string; title: string; source: string }) =>
   api.post<Paper>('/papers/', data).then(r => r.data)
+
+export const fetchPatents = (themeId?: string) =>
+  api.get<Patent[]>('/patents/', { params: themeId ? { theme_id: themeId } : {} }).then(r => r.data)
+export const fetchPatentYearly = (themeId?: string) =>
+  api.get<PatentYearlyCount[]>('/patents/yearly', { params: themeId ? { theme_id: themeId } : {} }).then(r => r.data)
+export const fetchPatentTopAssignees = (themeId?: string, limit = 10) =>
+  api.get<PatentTopAssignee[]>('/patents/top-assignees', { params: { ...(themeId ? { theme_id: themeId } : {}), limit } }).then(r => r.data)
 
 export const fetchCompanies = () => api.get<Company[]>('/companies/').then(r => r.data)
 export const createCompany = (data: { name: string; ticker?: string; description: string; benefit_score: number; benefit_type: string }) =>
