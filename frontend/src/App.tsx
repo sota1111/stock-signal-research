@@ -5,6 +5,7 @@ import { I18nProvider } from './i18n/I18nProvider'
 import { useI18n } from './i18n/useI18n'
 import LanguageToggle from './components/LanguageToggle'
 import DashboardPage from './pages/DashboardPage'
+import StatusPage from './pages/StatusPage'
 import StockPage from './pages/StockPage'
 import PapersPage from './pages/PapersPage'
 import PatentsPage from './pages/PatentsPage'
@@ -58,6 +59,9 @@ function AppLayout() {
               <NavLink to="/" end className={navLinkClass}>
                 {t('nav.dashboard')}
               </NavLink>
+              <NavLink to="/status" className={navLinkClass}>
+                {t('nav.status')}
+              </NavLink>
               <NavLink to="/stock" className={navLinkClass}>
                 {t('nav.stock')}
               </NavLink>
@@ -93,6 +97,7 @@ function AppLayout() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+          <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
           <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
           <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
           <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />

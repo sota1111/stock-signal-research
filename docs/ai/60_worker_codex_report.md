@@ -1,32 +1,24 @@
-# Worker Report (Claude Code Fallback)
-
-## Worker Non-Response Disclosure (audit)
-- Non-responsive worker: **Codex CLI**
-- Detected failure mode: `You've hit your usage limit` → run_codex.sh emitted non-response code **75**
-  (CODEX_USAGE_LIMIT cooldown).
-- Action: Per the Worker Non-Response Fallback Policy, Claude Code performed verification directly.
+# Worker Report
 
 ## Summary
-SOT-987 verification passed. Frontend lint and build (type gate) are green with the year-range change.
-Diff is limited to the 2 intended frontend files. Selector/filter logic is unchanged; only the fetched
-paper range was widened to start at 2000, which extends the `availableYears` domain floor to 2000.
+SOT-991 verification completed. `frontend` lint and build both pass without source-code changes. Code review confirms the status banner and KPI cards were removed from `DashboardPage` and moved to `StatusPage`, with `/status` route and nav label wired in `App.tsx`.
 
 ## Changed Files
-- none (verification only; implementation in docs/ai/50_worker_gemini_report.md)
+- `docs/ai/60_worker_codex_report.md` — verification report updated
 
 ## Commands Run
-- `cd frontend && npm run lint` → exit 0 (pass)
-- `cd frontend && npm run build` (`tsc -b && vite build`) → exit 0 (pass; 725 modules, built in 422ms)
+- `cd frontend && npm run lint` — pass (exit 0)
+- `cd frontend && npm run build` — pass (exit 0; `tsc -b && vite build`, Vite chunk-size warning only)
 
 ## Acceptance Criteria
-- [x] npm run lint passes
-- [x] npm run build passes
-- [x] Selector range floor is 2000; selector/filter logic unchanged
-- [x] Diff limited to the 2 intended frontend files
+- [x] lint pass
+- [x] build pass
+- [x] 状態バナー/KPI が DashboardPage から除去され StatusPage に存在（コード確認）
+- [x] /status ルート + nav.status が App.tsx に存在
 
 ## Risks
-- Stock/market-cap data only spans 2016+; the 時価総額/クロス分析 graphs have no data before 2016
-  (expected, data-scope limitation). The 論文件数 graph now spans 2000+.
+- No source changes were required. Build emits a Vite chunk-size warning for the existing bundled JS size, but it does not fail the build and is outside this verification scope.
+- `DashboardPage.tsx` still has a stale section comment mentioning 状態/重要指標, but the rendered status banner and KPI card JSX are no longer present there.
 
 ## Next Action
 READY_FOR_REVIEW

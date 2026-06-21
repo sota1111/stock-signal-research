@@ -5,6 +5,7 @@ export const messages = {
   ja: {
     // nav
     'nav.dashboard': 'ダッシュボード',
+    'nav.status': '状態',
     'nav.stock': '株価',
     'nav.papers': '論文',
     'nav.patents': '特許',
@@ -20,6 +21,8 @@ export const messages = {
     'dashboard.title': '投資前兆リサーチ ダッシュボード',
     'dashboard.subtitle': '投資前兆を論文 × 企業 × 株価から検知',
     'dashboard.lastAnalyzed': '最終分析日時',
+    'status.page.title': '状態',
+    'status.page.subtitle': '分析データの取得状況と重要指標',
     // status band
     'status.label': '状態',
     'status.ok.label': '正常',
@@ -329,6 +332,7 @@ export const messages = {
   en: {
     // nav
     'nav.dashboard': 'Dashboard',
+    'nav.status': 'Status',
     'nav.stock': 'Stock',
     'nav.papers': 'Papers',
     'nav.patents': 'Patents',
@@ -344,6 +348,8 @@ export const messages = {
     'dashboard.title': 'Investment Signal Research Dashboard',
     'dashboard.subtitle': 'Detect early investment signals across papers × companies × stock prices',
     'dashboard.lastAnalyzed': 'Last analyzed',
+    'status.page.title': 'Status',
+    'status.page.subtitle': 'Data status and key metrics',
     // status band
     'status.label': 'Status',
     'status.ok.label': 'Healthy',
