@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.detail ?? 'メールアドレスまたはパスワードが正しくありません')
+      throw new Error(data.detail ?? 'INVALID_CREDENTIALS')
     }
     setIsAuthenticated(true)
     setEmail(emailAddr)

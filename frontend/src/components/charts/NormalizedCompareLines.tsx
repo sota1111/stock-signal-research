@@ -1,11 +1,13 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
 import { toMonthly, validStockItems, SERIES_COLORS, type StockItem } from './chartUtils'
+import { useI18n } from '../../i18n/useI18n'
 
 /** A2: 開始日=100に正規化した複数銘柄の比較ライン（相対パフォーマンス）。 */
 export default function NormalizedCompareLines({ items }: { items: StockItem[] }) {
+  const { t } = useI18n()
   const valid = validStockItems(items)
-  if (valid.length === 0) return <EmptyChart message="比較できる株価データがありません" />
+  if (valid.length === 0) return <EmptyChart message={t('chart.empty.compare')} />
 
   // 各社の月末終値を100基準に正規化し、月キーでマージする
   const merged = new Map<string, Record<string, number | string>>()
@@ -24,7 +26,7 @@ export default function NormalizedCompareLines({ items }: { items: StockItem[] }
   }
 
   const data = Array.from(merged.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)))
-  if (data.length === 0 || names.length === 0) return <EmptyChart message="比較できる株価データがありません" />
+  if (data.length === 0 || names.length === 0) return <EmptyChart message={t('chart.empty.compare')} />
 
   return (
     <ResponsiveContainer width="100%" height={320}>

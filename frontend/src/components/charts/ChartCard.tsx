@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useI18n } from '../../i18n/useI18n'
 
 export default function ChartCard({
   title,
@@ -20,6 +21,7 @@ export default function ChartCard({
   )
 }
 
-export function EmptyChart({ message = 'データがありません' }: { message?: string }) {
-  return <p className="text-sm text-gray-400 py-8 text-center">{message}</p>
+export function EmptyChart({ message }: { message?: string }) {
+  const { t } = useI18n()
+  return <p className="text-sm text-gray-400 py-8 text-center">{message ?? t('chart.empty.default')}</p>
 }

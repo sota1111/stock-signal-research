@@ -1,6 +1,7 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
 import { formatCompact } from './chartUtils'
+import { useI18n } from '../../i18n/useI18n'
 
 /**
  * SOT-943: 上位N社の時価総額合計の年次推移を単独のエリアグラフで表示する。
@@ -13,7 +14,8 @@ export default function TopMarketCapChart({
   data: { year: number; total: number }[]
   topN?: number
 }) {
-  if (!data || data.length === 0) return <EmptyChart message="時価総額データがありません" />
+  const { t } = useI18n()
+  if (!data || data.length === 0) return <EmptyChart message={t('chart.empty.marketCap')} />
 
   return (
     <ResponsiveContainer width="100%" height={320}>
@@ -29,7 +31,7 @@ export default function TopMarketCapChart({
         <Area
           type="monotone"
           dataKey="total"
-          name={`上位${topN}社 時価総額合計`}
+          name={t('chart.topMarketCap.title', { n: topN })}
           stroke="#10b981"
           fill="#10b981"
           fillOpacity={0.15}
