@@ -14,7 +14,7 @@ export default function SignalDetectionPage() {
 
   // 急増テーマTOPを既定queryにシグナルレポートを取得（B系チャート用）
   const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
-  const { data: signalReport } = useQuery({
+  const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery],
     queryFn: () => fetchSignalReport(reportQuery),
     staleTime: 1000 * 60 * 30,
@@ -156,7 +156,14 @@ export default function SignalDetectionPage() {
         <p className="text-xs text-gray-400 -mt-2">{t('signals.aggregatedTheme')}: {reportQuery}</p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ChartCard title={t('signals.b1')}>
-            <PaperCountsByYearBar data={signalReport?.paper_counts_by_year ?? []} />
+            {(isReportLoading || isReportFetching) && !signalReport ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+                <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+                <p>{t('chart.papers.loading')}</p>
+              </div>
+            ) : (
+              <PaperCountsByYearBar data={signalReport?.paper_counts_by_year ?? []} />
+            )}
           </ChartCard>
           <ChartCard title={t('signals.b2')} subtitle={t('signals.b2.subtitle')}>
             <MonthlyPapersLine data={monthly ?? []} />
