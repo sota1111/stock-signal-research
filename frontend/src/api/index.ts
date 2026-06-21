@@ -18,7 +18,13 @@ api.interceptors.response.use(
   error => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token')
-      window.location.href = '/login'
+      // セッション切れ時に現在のパスを保持し、再ログイン後に元ページへ戻せるようにする（SOT-995 提案B-3）。
+      const current = window.location.pathname + window.location.search
+      if (window.location.pathname !== '/login') {
+        window.location.href = `/login?redirect=${encodeURIComponent(current)}`
+      } else {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

@@ -1,36 +1,51 @@
 # Worker Report
 
 ## Summary
-READY_FOR_REVIEW. Final quality gate for SOT-994 passed. No fixes were required, and no collection scripts were re-run.
+Verification completed for SOT-995 `/login` 5 improvements. No code changes were required.
 
-## Findings
-- Backend pytest passed: `90 passed in 2.14s`.
-- `_DASHBOARD_THEMES` seed assertion passed with exactly 100 themes.
-- Frontend lint passed.
-- Frontend production build passed.
-- `backend/data/collected-papers.json` is valid JSON.
-- `backend/data/stock-prices.json` is valid JSON.
-- `backend/data/sot994_universe.json` is valid JSON.
-- `collected-papers.json` contains 9,560 papers across 100 distinct themes.
-- `stock-prices.json` contains 243 ticker entries with dates from `2000-01-03` through `2026-06-19`.
-- `sot994_universe.json` contains 70 SOT-994 theme rows.
+Quality gates passed:
+- `cd frontend && npm run lint` exited 0.
+- `cd frontend && npm run build` exited 0.
+
+Diff review:
+- `git -C /workspaces/stock-signal-research diff main...HEAD` produced no output in this worktree.
+- The working-tree diff for the listed frontend files was reviewed because the expected implementation files are currently modified but not present in `main...HEAD`.
+
+Sanity checks:
+- `AuthContext` still uses cookie auth with `credentials: 'include'` for `/api/auth/me`, `/api/auth/session`, and `/api/auth/logout`.
+- `PrivateRoute` reads `loading` from auth context and renders `PageLoading` while the auth check is unresolved.
+- `PrivateRoute` preserves the attempted route in `state.from` when redirecting to `/login`.
+- `LoginPage` resolves the return target from `state.from` or `?redirect`, then redirects there on login success.
+- `LoginPage` also redirects already-authenticated users to the resolved target after auth loading completes.
+- New login i18n keys are present in both `ja` and `en`; `npm run build` confirmed `MessageKey` typing and exhaustive `AuthErrorCode` mapping.
+
+## Changed Files
+- `docs/ai/60_worker_codex_report.md` — updated verification report only.
 
 ## Commands Run
-- `cd /workspaces/stock-signal-research/backend && ./.venv/bin/python -m pytest -q`
-- `cd /workspaces/stock-signal-research/backend && ./.venv/bin/python -c "from app.seed import _DASHBOARD_THEMES; assert len(_DASHBOARD_THEMES)==100"`
-- `cd /workspaces/stock-signal-research/frontend && npm run lint && npm run build`
-- `cd /workspaces/stock-signal-research/backend && ./.venv/bin/python -m json.tool data/collected-papers.json >/dev/null`
-- `cd /workspaces/stock-signal-research/backend && ./.venv/bin/python -m json.tool data/stock-prices.json >/dev/null`
-- `cd /workspaces/stock-signal-research/backend && ./.venv/bin/python -m json.tool data/sot994_universe.json >/dev/null`
-- `cd /workspaces/stock-signal-research/backend && jq 'length' data/collected-papers.json`
-- `cd /workspaces/stock-signal-research/backend && jq '[.[].theme] | unique | length' data/collected-papers.json`
-- `cd /workspaces/stock-signal-research/backend && jq 'keys | length' data/stock-prices.json`
-- `cd /workspaces/stock-signal-research/backend && jq -r '[to_entries[] | .value.prices? // [] | .[] | .date] | {earliest:min, latest:max}' data/stock-prices.json`
-- `cd /workspaces/stock-signal-research/backend && jq '.themes | length' data/sot994_universe.json`
+- `cd frontend && npm run lint`
+- `cd frontend && npm run build`
+- `git status --short --branch`
+- `git diff -- frontend/src/contexts/authContextValue.ts frontend/src/contexts/AuthContext.tsx frontend/src/App.tsx frontend/src/pages/LoginPage.tsx frontend/src/api/index.ts frontend/src/i18n/messages.ts`
+- `git -C /workspaces/stock-signal-research diff main...HEAD --stat`
+- `git -C /workspaces/stock-signal-research diff main...HEAD --name-only`
+- `sed -n '1,240p' frontend/src/contexts/AuthContext.tsx`
+- `sed -n '1,260p' frontend/src/App.tsx`
+- `sed -n '1,320p' frontend/src/pages/LoginPage.tsx`
+- `sed -n '1,220p' frontend/src/api/index.ts`
+- `sed -n '1,260p' frontend/src/i18n/messages.ts`
 
-## Notes
-- Frontend build emitted Vite's existing chunk-size warning for an 825.18 kB minified JS chunk. This is a warning only; the build completed successfully.
-- No code, seed, data, or script fixes were applied during this quality gate.
+## Acceptance Criteria
+- [x] lint exits 0
+- [x] build exits 0
+- [x] diff reviewed for unintended changes/regressions
+- [x] cookie auth sanity checked
+- [x] PrivateRoute loading wait sanity checked
+- [x] LoginPage redirect-back behavior sanity checked
+
+## Risks
+- `frontend/src/api/index.ts` still contains the pre-existing `localStorage.auth_token` request interceptor while auth is cookie-based. This was not changed because the requested sanity check specifically targets `AuthContext` cookie auth and all verification gates passed.
+- The requested `main...HEAD` diff is empty in the current repository state, so review relied on the working-tree diff for the listed modified files.
 
 ## Next Action
 READY_FOR_REVIEW

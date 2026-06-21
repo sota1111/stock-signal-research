@@ -25,8 +25,12 @@ const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  const { isAuthenticated, loading } = useAuth()
+  const location = useLocation()
+  // 認証チェック中はリダイレクトせず待つ（有効セッションを誤って /login に飛ばさない / SOT-995 提案B-3）。
+  if (loading) return <PageLoading />
+  // 未認証確定時のみ /login へ。元のパスを state.from に保持してログイン後に復帰させる。
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />
   return <>{children}</>
 }
 
