@@ -64,6 +64,27 @@ DEFAULT_TICKERS = [
     "5803.T",     # Fujikura
 ]
 
+
+def _merge_sot994_tickers() -> None:
+    """SOT-994: backend/data/sot994_universe.json の企業ユニバースのティッカーを DEFAULT_TICKERS に追加。
+    上位10時価総額に一度でも入った企業の2000年〜株価を収集できるよう、新規70テーマ分の銘柄を取り込む。"""
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "sot994_universe.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return
+    seen = set(DEFAULT_TICKERS)
+    for t in data.get("themes", []):
+        for co in t.get("companies", []):
+            tk = co.get("ticker")
+            if tk and tk not in seen:
+                seen.add(tk)
+                DEFAULT_TICKERS.append(tk)
+
+
+_merge_sot994_tickers()
+
 DATA_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "stock-prices.json"
 )
