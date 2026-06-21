@@ -25,15 +25,22 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
     )
   }
 
-  const failed = isError || !stock || stock.error || stock.prices.length === 0
-  if (failed) {
+  // 取得エラー（通信/サーバ）と、データはあるが対象銘柄の株価が無いだけ（=正常な空）を切り分けて表示する（SOT-1003）。
+  const isFetchError = isError || !!stock?.error
+  const isNoData = !stock || stock.prices.length === 0
+  if (isFetchError || isNoData) {
+    const errorBorder = isFetchError
     return (
-      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-300">
+      <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${errorBorder ? 'border-amber-400' : 'border-gray-200'}`}>
         <div className="flex justify-between items-start">
           <p className="font-semibold text-gray-800">{company.name}</p>
           {company.ticker && <span className="text-xs text-gray-500">{company.ticker}</span>}
         </div>
-        <p className="text-xs text-gray-400 mt-2">{t('stock.fetchFailed')}{stock?.error ? `（${stock.error}）` : ''}</p>
+        <p className={`text-xs mt-2 ${errorBorder ? 'text-amber-600' : 'text-gray-400'}`}>
+          {errorBorder
+            ? `${t('stock.fetchFailed')}${stock?.error ? `（${stock.error}）` : ''}`
+            : t('stock.noPriceData')}
+        </p>
       </div>
     )
   }
