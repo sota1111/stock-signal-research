@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain, fetchThemeExternalInfos, fetchThemeAlignment } from '../api'
@@ -43,6 +43,23 @@ export default function DetailPage() {
             </span>
             {theme.is_trending && <span className="block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">🔥 {t('signals.continuingTrend')}</span>}
           </div>
+        </div>
+      </section>
+
+      {/* 兆候→検証→投資判断の一貫導線（SOT-999 / 提案A-2）。
+          テーマ名/IDを query で引き継ぎ、遷移先のグローバルフィルタで選択済みにする。 */}
+      <section className="bg-white rounded-lg shadow p-4">
+        <p className="text-sm font-semibold text-gray-600 mb-3">{t('detail.flow.title')}</p>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Link to={`/papers?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.papers')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/patents?theme_id=${encodeURIComponent(theme.id)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.patents')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/investors?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.investors')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/stock?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.stock')}</Link>
+          <span className="text-gray-300" aria-hidden>→</span>
+          <Link to={`/evaluation?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50">{t('nav.evaluation')}</Link>
         </div>
       </section>
 
