@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { fetchTheme, fetchPapers, fetchMonthlyData, fetchSupplyChain, fetchThemeExternalInfos, fetchThemeAlignment } from '../api'
 import { useI18n } from '../i18n/useI18n'
+import { PageLoading, PageError } from '../components/AsyncState'
 
 export default function DetailPage() {
   const { t } = useI18n()
@@ -18,8 +19,8 @@ export default function DetailPage() {
 
   const relatedSC = supplyChain?.filter(sc => sc.from_theme_id === id || sc.to_theme_id === id) ?? []
 
-  if (isLoading) return <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
-  if (!theme) return <div className="text-center py-12 text-red-500">{t('detail.notFound')}</div>
+  if (isLoading) return <PageLoading />
+  if (!theme) return <PageError message={t('detail.notFound')} />
 
   const scoreColor = theme.precursor_score >= 70 ? 'bg-red-500' : theme.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
 

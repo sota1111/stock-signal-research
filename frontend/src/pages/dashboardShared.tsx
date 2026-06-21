@@ -1,26 +1,17 @@
 import type { Company, StockData } from '../types'
 import { formatPrice, formatMarketCap } from './dashboardData'
 import { useI18n } from '../i18n/useI18n'
+import { PageLoading, PageError } from '../components/AsyncState'
 
+// 共通の AsyncState コンポーネントへ委譲し、全ページで表示を統一する（SOT-996）。
 export function DashboardLoading() {
   const { t } = useI18n()
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-      <span className="h-8 w-8 mb-3 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-      <p className="text-sm">{t('dashboard.loading')}</p>
-    </div>
-  )
+  return <PageLoading message={t('dashboard.loading')} />
 }
 
-export function DashboardError() {
+export function DashboardError({ onRetry }: { onRetry?: () => void } = {}) {
   const { t } = useI18n()
-  return (
-    <div className="mx-auto max-w-md text-center py-16">
-      <div className="text-3xl mb-2" aria-hidden>⚠️</div>
-      <p className="font-semibold text-slate-700">{t('dashboard.error')}</p>
-      <p className="text-sm text-slate-400 mt-1">{t('status.warning.message')}</p>
-    </div>
-  )
+  return <PageError message={t('dashboard.error')} onRetry={onRetry} />
 }
 
 export function StockEvalCard({ company, stock, isLoading, isError }: { company: Company; stock?: StockData; isLoading: boolean; isError: boolean }) {
