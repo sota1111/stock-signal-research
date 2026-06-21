@@ -57,7 +57,7 @@ export default function StockPage() {
         )}
       </section>
 
-      {/* === 株価グラフ（過去10年） === */}
+      {/* === 株価グラフ（2000年から） === */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-700">{t('stock.chart.title')}</h2>
         <div>

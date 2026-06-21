@@ -21,7 +21,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 @router.get("/stock", response_model=schemas.StockDataResponse)
 def get_stock(
     ticker: str = Query(..., description="銘柄コード/ティッカー（日本株は数字コードのみでも可、例 7203）"),
-    years: int = Query(10, ge=1, le=20, description="取得する過去年数"),
+    years: int = Query(10, ge=1, le=30, description="取得する過去年数（2000年から=約26年に対応）"),
 ):
     """指定銘柄の過去株価・財務指標を同梱データ（backend/data/stock-prices.json）から返す。
 
@@ -35,7 +35,7 @@ def get_stock(
 @router.get("/backtest", response_model=schemas.BacktestResponse)
 def get_backtest(
     ticker: str = Query(..., description="銘柄コード/ティッカー（日本株は数字コードのみでも可、例 7203）"),
-    years: int = Query(10, ge=1, le=20, description="バックテスト対象の過去年数"),
+    years: int = Query(10, ge=1, le=30, description="バックテスト対象の過去年数（2000年から=約26年に対応）"),
 ):
     """指定銘柄の過去株価データに対し、各テクニカルシグナルをバックテストした結果を返す。
 
@@ -137,8 +137,12 @@ def get_dashboard():
             "theme_name": theme["name"] if theme else "Unknown"
         })
 
-    # notable_companies: top 5 by benefit_score
-    notable_companies = company_repo.list_all()[:5]
+    # notable_companies (SOT-992): 上位5社上限を撤廃し、ティッカーを持つ全注目企業を返す。
+    # ダッシュボードの時価総額上位チャートはこのユニバースから top10 を選ぶため、候補を絞らない。
+    notable_companies = [
+        c for c in company_repo.list_all()
+        if (c.get("ticker") if isinstance(c, dict) else getattr(c, "ticker", None))
+    ]
 
     # supply_chain_highlights: all supply chain items ordered by order
     sc_results = sc_repo.list_all()

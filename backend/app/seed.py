@@ -19,22 +19,11 @@ def run_seed():
             db.flush()  # To get the ID
             themes[t["name"]] = db_theme
 
-        # 2. Companies
-        companies_data = [
-            {"name": "NVIDIA", "ticker": "NVDA", "benefit_score": 95.0, "benefit_type": "direct"},
-            {"name": "AMD", "ticker": "AMD", "benefit_score": 80.0, "benefit_type": "direct"},
-            {"name": "TSMC", "ticker": "TSM", "benefit_score": 88.0, "benefit_type": "direct"},
-            {"name": "Micron", "ticker": "MU", "benefit_score": 82.0, "benefit_type": "direct"},
-            {"name": "Samsung", "ticker": "005930.KS", "benefit_score": 78.0, "benefit_type": "direct"},
-            {"name": "SK hynix", "ticker": "000660.KS", "benefit_score": 80.0, "benefit_type": "direct"},
-            {"name": "Kioxia", "ticker": None, "benefit_score": 70.0, "benefit_type": "direct"},
-            {"name": "SanDisk", "ticker": None, "benefit_score": 65.0, "benefit_type": "direct"},
-            {"name": "Tokyo Electron", "ticker": "8035.T", "benefit_score": 72.0, "benefit_type": "indirect"},
-            {"name": "Fujikura", "ticker": "5803.T", "benefit_score": 68.0, "benefit_type": "indirect"},
-        ]
+        # 2. Companies — SOT-992: テーマ別の注目企業ユニバース(_DASHBOARD_COMPANIES)を
+        #    SQLite/local も Firestore と同じ定義で登録する。theme_ids でテーマ関連付けを保持。
         companies = {}
-        for c in companies_data:
-            db_company = models.Company(**c)
+        for c in _DASHBOARD_COMPANIES:
+            db_company = models.Company(**_company_row(c))
             db.add(db_company)
             db.flush()
             companies[c["name"]] = db_company
@@ -544,18 +533,87 @@ _DASHBOARD_THEMES = [
     {"name": "flash controller", "category": "Storage", "precursor_score": 54.0, "is_trending": False},
 ]
 
+# SOT-992: テーマ別の注目企業ユニバース。各社の `themes` は _DASHBOARD_THEMES の name と一致させる。
+# ティッカー保有企業は backend/data/stock-prices.json に2000年からの日次株価を同梱している
+# （scripts/collect_stock_data.py --start 2000-01-01 で再収集可能）。
+# ティッカー未設定(Kioxia/SanDisk)は株価グラフ対象外だが、企業・テーマ関連付けとして登録する。
 _DASHBOARD_COMPANIES = [
-    {"name": "NVIDIA", "ticker": "NVDA", "benefit_score": 95.0, "benefit_type": "direct"},
-    {"name": "AMD", "ticker": "AMD", "benefit_score": 80.0, "benefit_type": "direct"},
-    {"name": "TSMC", "ticker": "TSM", "benefit_score": 88.0, "benefit_type": "direct"},
-    {"name": "Micron", "ticker": "MU", "benefit_score": 82.0, "benefit_type": "direct"},
-    {"name": "Samsung", "ticker": "005930.KS", "benefit_score": 78.0, "benefit_type": "direct"},
-    {"name": "SK hynix", "ticker": "000660.KS", "benefit_score": 80.0, "benefit_type": "direct"},
-    {"name": "Kioxia", "ticker": None, "benefit_score": 70.0, "benefit_type": "direct"},
-    {"name": "SanDisk", "ticker": None, "benefit_score": 65.0, "benefit_type": "direct"},
-    {"name": "Tokyo Electron", "ticker": "8035.T", "benefit_score": 72.0, "benefit_type": "indirect"},
-    {"name": "Fujikura", "ticker": "5803.T", "benefit_score": 68.0, "benefit_type": "indirect"},
+    {"name": "NVIDIA", "ticker": "NVDA", "benefit_score": 95.0, "benefit_type": "direct",
+        "themes": ["GPU memory bottleneck", "HBM", "AI accelerator ASIC", "LLM inference optimization",
+                   "edge AI inference", "robotics foundation model", "autonomous driving perception",
+                   "humanoid robotics"]},
+    {"name": "AMD", "ticker": "AMD", "benefit_score": 84.0, "benefit_type": "direct",
+        "themes": ["GPU memory bottleneck", "AI accelerator ASIC", "chiplet packaging",
+                   "LLM inference optimization"]},
+    {"name": "TSMC", "ticker": "TSM", "benefit_score": 90.0, "benefit_type": "direct",
+        "themes": ["advanced packaging CoWoS", "chiplet packaging", "EUV lithography",
+                   "AI accelerator ASIC", "silicon photonics"]},
+    {"name": "Intel", "ticker": "INTC", "benefit_score": 74.0, "benefit_type": "direct",
+        "themes": ["CXL memory pooling", "AI accelerator ASIC", "chiplet packaging",
+                   "advanced packaging CoWoS"]},
+    {"name": "Micron", "ticker": "MU", "benefit_score": 85.0, "benefit_type": "direct",
+        "themes": ["HBM", "SSD / NVMe", "CXL memory pooling", "flash controller"]},
+    {"name": "Broadcom", "ticker": "AVGO", "benefit_score": 86.0, "benefit_type": "direct",
+        "themes": ["optical interconnect", "SmartNIC DPU", "AI accelerator ASIC", "silicon photonics"]},
+    {"name": "Qualcomm", "ticker": "QCOM", "benefit_score": 72.0, "benefit_type": "direct",
+        "themes": ["edge AI inference", "autonomous driving perception"]},
+    {"name": "Texas Instruments", "ticker": "TXN", "benefit_score": 60.0, "benefit_type": "indirect",
+        "themes": ["power semiconductor GaN SiC"]},
+    {"name": "Applied Materials", "ticker": "AMAT", "benefit_score": 74.0, "benefit_type": "indirect",
+        "themes": ["advanced packaging CoWoS", "EUV lithography", "chiplet packaging"]},
+    {"name": "Lam Research", "ticker": "LRCX", "benefit_score": 72.0, "benefit_type": "indirect",
+        "themes": ["flash controller", "advanced packaging CoWoS", "EUV lithography"]},
+    {"name": "KLA", "ticker": "KLAC", "benefit_score": 70.0, "benefit_type": "indirect",
+        "themes": ["EUV lithography", "advanced packaging CoWoS"]},
+    {"name": "Marvell", "ticker": "MRVL", "benefit_score": 73.0, "benefit_type": "direct",
+        "themes": ["optical interconnect", "SmartNIC DPU", "AI accelerator ASIC"]},
+    {"name": "ON Semiconductor", "ticker": "ON", "benefit_score": 66.0, "benefit_type": "direct",
+        "themes": ["power semiconductor GaN SiC", "autonomous driving perception"]},
+    {"name": "Western Digital", "ticker": "WDC", "benefit_score": 68.0, "benefit_type": "direct",
+        "themes": ["SSD / NVMe", "flash controller", "NVMe-oF disaggregation"]},
+    {"name": "Arista Networks", "ticker": "ANET", "benefit_score": 67.0, "benefit_type": "indirect",
+        "themes": ["SmartNIC DPU", "optical interconnect", "data center power"]},
+    {"name": "Super Micro Computer", "ticker": "SMCI", "benefit_score": 70.0, "benefit_type": "indirect",
+        "themes": ["data center power", "liquid cooling"]},
+    {"name": "Vertiv", "ticker": "VRT", "benefit_score": 69.0, "benefit_type": "indirect",
+        "themes": ["data center power", "liquid cooling"]},
+    {"name": "Arm Holdings", "ticker": "ARM", "benefit_score": 71.0, "benefit_type": "direct",
+        "themes": ["edge AI inference", "LLM inference optimization"]},
+    {"name": "Tesla", "ticker": "TSLA", "benefit_score": 64.0, "benefit_type": "indirect",
+        "themes": ["humanoid robotics", "autonomous driving perception", "solid-state battery"]},
+    {"name": "ASML", "ticker": "ASML", "benefit_score": 80.0, "benefit_type": "direct",
+        "themes": ["EUV lithography"]},
+    {"name": "STMicroelectronics", "ticker": "STM", "benefit_score": 58.0, "benefit_type": "indirect",
+        "themes": ["power semiconductor GaN SiC", "autonomous driving perception"]},
+    {"name": "Samsung", "ticker": "005930.KS", "benefit_score": 78.0, "benefit_type": "direct",
+        "themes": ["HBM", "SSD / NVMe", "flash controller"]},
+    {"name": "SK hynix", "ticker": "000660.KS", "benefit_score": 80.0, "benefit_type": "direct",
+        "themes": ["HBM", "CXL memory pooling", "SSD / NVMe"]},
+    {"name": "Tokyo Electron", "ticker": "8035.T", "benefit_score": 72.0, "benefit_type": "indirect",
+        "themes": ["EUV lithography", "advanced packaging CoWoS"]},
+    {"name": "Advantest", "ticker": "6857.T", "benefit_score": 62.0, "benefit_type": "indirect",
+        "themes": ["advanced packaging CoWoS", "AI accelerator ASIC"]},
+    {"name": "Fujikura", "ticker": "5803.T", "benefit_score": 68.0, "benefit_type": "indirect",
+        "themes": ["optical interconnect", "silicon photonics"]},
+    {"name": "Kioxia", "ticker": None, "benefit_score": 70.0, "benefit_type": "direct",
+        "themes": ["SSD / NVMe", "flash controller", "HBM"]},
+    {"name": "SanDisk", "ticker": None, "benefit_score": 65.0, "benefit_type": "direct",
+        "themes": ["SSD / NVMe", "flash controller"]},
 ]
+
+
+def _company_row(c):
+    """注目企業の seed 用 dict を返す。`themes`(テーマ名リスト) を theme_ids(JSON文字列) に変換し、
+    models.Company / Firestore company_repo.save の両方で使える列だけにする。"""
+    import json as _json
+
+    return {
+        "name": c["name"],
+        "ticker": c.get("ticker"),
+        "benefit_score": c["benefit_score"],
+        "benefit_type": c["benefit_type"],
+        "theme_ids": _json.dumps([f"theme-{_slug(t)}" for t in c.get("themes", [])]),
+    }
 
 _DASHBOARD_SUPPLY_CHAIN = [
     {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
@@ -614,7 +672,7 @@ def seed_dashboard_data_firestore():
         # 2. Companies (tickers drive the per-company 10y stock-eval cards)
         company_repo = get_company_repository()
         for c in _DASHBOARD_COMPANIES:
-            company_repo.save({"id": f"company-{_slug(c['name'])}", **c})
+            company_repo.save({"id": f"company-{_slug(c['name'])}", **_company_row(c)})
 
         # 4. Supply chain
         sc_repo = get_supply_chain_repository()

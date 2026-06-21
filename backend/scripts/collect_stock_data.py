@@ -32,16 +32,35 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.market_data import normalize_ticker  # noqa: E402
 
-# 注目企業（seed.py の _DASHBOARD_COMPONENTS と整合する実ティッカー）。
+# 注目企業（seed.py の _DASHBOARD_COMPANIES と整合する実ティッカー）。SOT-992 で
+# テーマ別の注目企業ユニバースを拡張し、2000年からの株価を収集する。
 # ティッカー未設定の企業（Kioxia / SanDisk 等）は株価グラフ対象外。
 DEFAULT_TICKERS = [
     "NVDA",       # NVIDIA
     "AMD",        # AMD
     "TSM",        # TSMC
+    "INTC",       # Intel
     "MU",         # Micron
+    "AVGO",       # Broadcom
+    "QCOM",       # Qualcomm
+    "TXN",        # Texas Instruments
+    "AMAT",       # Applied Materials
+    "LRCX",       # Lam Research
+    "KLAC",       # KLA
+    "MRVL",       # Marvell
+    "ON",         # ON Semiconductor
+    "WDC",        # Western Digital
+    "ANET",       # Arista Networks
+    "SMCI",       # Super Micro Computer
+    "VRT",        # Vertiv
+    "ARM",        # Arm Holdings
+    "TSLA",       # Tesla
+    "ASML",       # ASML
+    "STM",        # STMicroelectronics
     "005930.KS",  # Samsung
     "000660.KS",  # SK hynix
     "8035.T",     # Tokyo Electron
+    "6857.T",     # Advantest
     "5803.T",     # Fujikura
 ]
 
@@ -85,10 +104,14 @@ def _extract_prices(hist):
     return prices
 
 
-def collect_one(yf, ticker, years):
+def collect_one(yf, ticker, years, start=None):
     normalized = normalize_ticker(ticker)
     obj = yf.Ticker(normalized)
-    hist = obj.history(period=f"{years}y")
+    if start:
+        # 明示的な開始日（例 2000-01-01）からの全期間を取得する。
+        hist = obj.history(start=start, auto_adjust=True)
+    else:
+        hist = obj.history(period=f"{years}y")
     prices = _extract_prices(hist)
     try:
         info = obj.info or {}
@@ -111,7 +134,8 @@ def collect_one(yf, ticker, years):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="注目企業の株価データをローカル収集する（SOT-941）")
-    parser.add_argument("--years", type=int, default=10, help="取得する過去年数（既定10）")
+    parser.add_argument("--years", type=int, default=10, help="取得する過去年数（既定10。--start指定時は無視）")
+    parser.add_argument("--start", default=None, help="取得開始日 YYYY-MM-DD（例 2000-01-01。指定時は全期間取得）")
     parser.add_argument("--out", default=DATA_PATH, help="出力先JSON（既定 backend/data/stock-prices.json）")
     parser.add_argument("--tickers", nargs="*", default=DEFAULT_TICKERS, help="収集するティッカー")
     args = parser.parse_args()
@@ -127,11 +151,12 @@ def main() -> int:
             "source": "yfinance",
             "collected_at": datetime.now(timezone.utc).isoformat(),
             "years": args.years,
+            "start": args.start,
         }
     }
     for ticker in args.tickers:
         try:
-            normalized, payload = collect_one(yf, ticker, args.years)
+            normalized, payload = collect_one(yf, ticker, args.years, start=args.start)
             dataset[normalized] = payload
             print(f"  {normalized}: {len(payload['prices'])} prices, name={payload['name']}")
         except Exception as e:  # pragma: no cover

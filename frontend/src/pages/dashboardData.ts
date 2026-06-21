@@ -5,6 +5,9 @@ import type { StockItem } from '../components/charts/chartUtils'
 import { toYearly } from '../components/charts/chartUtils'
 
 const STOCK_STALE_TIME = 1000 * 60 * 30
+// SOT-992: 注目企業の株価を2000年(=約26年)から表示するため、取得年数を拡大する。
+// backend /api/dashboard/stock は years<=30 を受け付け、同梱データは2000年から保持。
+const STOCK_YEARS = 30
 
 export function formatPrice(value: number, currency?: string | null) {
   const symbol = currency === 'JPY' ? '¥' : currency === 'USD' ? '$' : ''
@@ -33,8 +36,8 @@ export function useTickerStocks(companies: Company[]) {
   const tickerCompanies = companies.filter((c): c is Company & { ticker: string } => !!c.ticker)
   const stockQueries = useQueries({
     queries: tickerCompanies.map(c => ({
-      queryKey: ['stock', c.ticker, 10],
-      queryFn: () => fetchStock(c.ticker, 10),
+      queryKey: ['stock', c.ticker, STOCK_YEARS],
+      queryFn: () => fetchStock(c.ticker, STOCK_YEARS),
       staleTime: STOCK_STALE_TIME,
       retry: 1,
     })),
