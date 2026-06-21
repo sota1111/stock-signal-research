@@ -29,6 +29,32 @@ export interface PaperMonthlyCount {
   yoy_change_pct: number
 }
 
+export interface Patent {
+  id: string
+  patent_id: string
+  patent_number?: string
+  title: string
+  published_at?: string
+  theme_id?: string
+  assignee?: string
+  inventors?: string
+  cpc?: string
+  kind?: string
+  url?: string
+  source: string
+}
+
+export interface PatentYearlyCount {
+  theme_id: string
+  year: string
+  count: number
+}
+
+export interface PatentTopAssignee {
+  assignee: string
+  count: number
+}
+
 export interface Company {
   id: string
   name: string
