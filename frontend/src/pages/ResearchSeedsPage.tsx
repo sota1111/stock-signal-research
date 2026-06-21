@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchResearchSeeds } from '../api'
+import { Link } from 'react-router-dom'
+import { fetchResearchSeeds, fetchThemes } from '../api'
 import type { ResearchSeed, ResearchSeedPaper } from '../types'
 import { useI18n } from '../i18n/useI18n'
 import { seedTextEn } from '../i18n/seedTranslations'
@@ -22,7 +24,7 @@ function ConfidenceBadge({ confidence }: { confidence?: string }) {
   )
 }
 
-function SeedCard({ seed }: { seed: ResearchSeed }) {
+function SeedCard({ seed, adopted }: { seed: ResearchSeed; adopted: boolean }) {
   const { t, lang } = useI18n()
   const en = lang === 'en' ? seedTextEn[seed.id] : undefined
   const theme = en?.theme ?? seed.theme
@@ -39,7 +41,13 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
             {seed.company_name}
           </p>
         </div>
-        <ConfidenceBadge confidence={seed.confidence} />
+        <div className="flex flex-col items-end gap-1">
+          {/* 採用状況バッジ（テーマ化済/未着手, SOT-995 /research-seeds-3） */}
+          <span className={`text-xs font-medium px-2 py-0.5 rounded border ${adopted ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+            {adopted ? t('seeds.adopted') : t('seeds.notAdopted')}
+          </span>
+          <ConfidenceBadge confidence={seed.confidence} />
+        </div>
       </div>
 
       {seed.related_keywords?.length > 0 && (
@@ -92,8 +100,10 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
         </div>
       )}
 
-      <div className="mt-3 pt-2 border-t text-xs text-gray-400">
-        {t('seeds.registeredAt')}: {seed.created_at ?? '—'}
+      <div className="mt-3 pt-2 border-t flex items-center justify-between gap-2 text-xs text-gray-400">
+        <span>{t('seeds.registeredAt')}: {seed.created_at ?? '—'}</span>
+        {/* シード→関連テーマ分析への導線（SOT-995 /research-seeds-2,5） */}
+        <Link to={`/papers?theme=${encodeURIComponent(seed.theme)}`} className="text-blue-600 hover:underline">{t('seeds.analyze')}</Link>
       </div>
     </div>
   )
@@ -101,17 +111,42 @@ function SeedCard({ seed }: { seed: ResearchSeed }) {
 
 export default function ResearchSeedsPage() {
   const { t } = useI18n()
+  const [search, setSearch] = useState('')
   const { data: seeds, isLoading, isError } = useQuery({
     queryKey: ['research-seeds'],
     queryFn: fetchResearchSeeds,
   })
+  // 採用状況判定用にテーマ名の集合を取得（SOT-995 /research-seeds-3）。
+  const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes })
+  const themeNames = new Set((themes ?? []).map(th => th.name.toLowerCase()))
+
+  const q = search.trim().toLowerCase()
+  const filteredSeeds = (seeds ?? []).filter(s =>
+    !q || [s.theme, s.company_name, s.symbol, ...(s.related_keywords ?? [])]
+      .some(v => String(v ?? '').toLowerCase().includes(q)),
+  )
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('seeds.title')}</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-gray-500 mb-4">
         {t('seeds.subtitle')}
       </p>
+
+      {/* 検索 + /登録 への統合導線（SOT-995 /research-seeds-1,4） */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <input
+          type="search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={t('seeds.search')}
+          aria-label={t('seeds.search')}
+          className="min-w-0 w-full sm:w-72 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        />
+        <Link to="/input" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+          {t('seeds.register')}
+        </Link>
+      </div>
 
       {isLoading && <p className="text-gray-500">{t('common.loading')}</p>}
       {isError && <p className="text-red-600">{t('common.loadError')}</p>}
@@ -119,9 +154,14 @@ export default function ResearchSeedsPage() {
       {seeds && seeds.length === 0 && (
         <p className="text-gray-500">{t('seeds.empty')}</p>
       )}
+      {seeds && seeds.length > 0 && filteredSeeds.length === 0 && (
+        <p className="text-gray-500">{t('seeds.noMatch')}</p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {seeds?.map(seed => <SeedCard key={seed.id} seed={seed} />)}
+        {filteredSeeds.map(seed => (
+          <SeedCard key={seed.id} seed={seed} adopted={themeNames.has(seed.theme.toLowerCase())} />
+        ))}
       </div>
     </div>
   )

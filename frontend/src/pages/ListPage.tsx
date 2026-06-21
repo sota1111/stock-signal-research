@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchThemes, fetchPapers, fetchCompanies, fetchInvestors, fetchDashboard } from '../api'
 import { useI18n } from '../i18n/useI18n'
 import type { MessageKey } from '../i18n/messages'
@@ -13,11 +13,27 @@ const TAB_LABEL_KEY: Record<Tab, MessageKey> = {
   '企業': 'list.tab.companies',
   '投資家': 'list.tab.investors',
 }
+// ナビ等の URL クエリ(?tab=)からタブを初期選択する（SOT-995 /list, ナビのテーマ導線対応）。
+const TAB_FROM_QUERY: Record<string, Tab> = {
+  themes: 'テーマ', papers: '論文', companies: '企業', investors: '投資家',
+}
 
 export default function ListPage() {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('テーマ')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(TAB_FROM_QUERY[searchParams.get('tab') ?? ''] ?? 'テーマ')
+  const [search, setSearch] = useState('')
   const navigate = useNavigate()
+
+  // 横断検索（全タブ共通, SOT-995 /list-1）。指定列の値いずれかに部分一致でフィルタ。
+  const q = search.trim().toLowerCase()
+  const match = (...vals: (string | number | null | undefined)[]) =>
+    !q || vals.some(v => String(v ?? '').toLowerCase().includes(q))
+
+  // 数値列のソート方向（タブ別, SOT-995 /list-2）。
+  const [paperSortDesc, setPaperSortDesc] = useState(true)
+  const [companySortDesc, setCompanySortDesc] = useState(true)
+  const [investorSortDesc, setInvestorSortDesc] = useState(true)
 
   const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, enabled: tab === 'テーマ' })
   const { data: papers } = useQuery({ queryKey: ['papers'], queryFn: () => fetchPapers(), enabled: tab === '論文' })
@@ -40,19 +56,41 @@ export default function ListPage() {
     return b.precursor_score - a.precursor_score
   })
 
+  // 横断検索 + 数値ソート適用（SOT-995 /list-1,2）。
+  const visibleThemes = sortedThemes.filter(r => match(r.name, r.category))
+  const visiblePapers = [...(papers ?? [])]
+    .filter(p => match(p.title, p.source, p.published_at))
+    .sort((a, b) => (paperSortDesc ? 1 : -1) * ((b.citation_count ?? 0) - (a.citation_count ?? 0)))
+  const visibleCompanies = [...(companies ?? [])]
+    .filter(c => match(c.name, c.ticker, c.benefit_type))
+    .sort((a, b) => (companySortDesc ? 1 : -1) * (b.benefit_score - a.benefit_score))
+  const visibleInvestors = [...(investors ?? [])]
+    .filter(inv => match(inv.investor_name, inv.company_name, inv.report_type, inv.report_date))
+    .sort((a, b) => (investorSortDesc ? 1 : -1) * (b.ownership_pct - a.ownership_pct))
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">{t('list.title')}</h1>
-      <div className="flex gap-2 mb-6 border-b">
-        {TABS.map(tb => (
-          <button
-            key={tb}
-            onClick={() => setTab(tb)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            {t(TAB_LABEL_KEY[tb])}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b pb-2">
+        <div className="flex gap-2">
+          {TABS.map(tb => (
+            <button
+              key={tb}
+              onClick={() => setTab(tb)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              {t(TAB_LABEL_KEY[tb])}
+            </button>
+          ))}
+        </div>
+        <input
+          type="search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={t('list.search')}
+          aria-label={t('list.search')}
+          className="min-w-0 w-full sm:w-64 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        />
       </div>
 
       {tab === 'テーマ' && (
@@ -75,8 +113,8 @@ export default function ListPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedThemes.map(row => (
-                <tr key={row.id} className="border-t hover:bg-gray-50">
+              {visibleThemes.map(row => (
+                <tr key={row.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/themes/${row.id}`)}>
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.themeName')}>{row.name}</td>
                   <td className="px-4 py-2 text-gray-500" data-label={t('list.col.category')}>{row.category}</td>
                   <td className="px-4 py-2 text-right" data-label={t('list.col.precursorScore')}>
@@ -115,13 +153,16 @@ export default function ListPage() {
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.title')}</th>
-                <th className="px-4 py-2 text-right whitespace-nowrap">{t('list.col.citations')}</th>
+                <th className="px-4 py-2 text-right whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => setPaperSortDesc(v => !v)}>
+                  {t('list.col.citations')} {paperSortDesc ? '↓' : '↑'}
+                </th>
                 <th className="px-4 py-2 text-left">{t('list.col.publishedAt')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.source')}</th>
               </tr>
             </thead>
             <tbody>
-              {papers?.map(p => (
+              {visiblePapers.map(p => (
                 <tr key={p.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2" data-label={t('list.col.title')}>
                     {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{p.title}</a> : p.title}
@@ -145,12 +186,15 @@ export default function ListPage() {
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.companyName')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.ticker')}</th>
-                <th className="px-4 py-2 text-right">{t('list.col.benefitScore')}</th>
+                <th className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => setCompanySortDesc(v => !v)}>
+                  {t('list.col.benefitScore')} {companySortDesc ? '↓' : '↑'}
+                </th>
                 <th className="px-4 py-2 text-center">{t('list.col.benefitType')}</th>
               </tr>
             </thead>
             <tbody>
-              {companies?.map(c => (
+              {visibleCompanies.map(c => (
                 <tr key={c.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.companyName')}>{c.name}</td>
                   <td className="px-4 py-2 text-gray-500" data-label={t('list.col.ticker')}>{c.ticker ?? '-'}</td>
@@ -175,14 +219,17 @@ export default function ListPage() {
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.investorName')}</th>
-                <th className="px-4 py-2 text-right">{t('list.col.ownership')}</th>
+                <th className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => setInvestorSortDesc(v => !v)}>
+                  {t('list.col.ownership')} {investorSortDesc ? '↓' : '↑'}
+                </th>
                 <th className="px-4 py-2 text-right">{t('list.col.change')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.reportDate')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.reportType')}</th>
               </tr>
             </thead>
             <tbody>
-              {investors?.map(inv => (
+              {visibleInvestors.map(inv => (
                 <tr key={inv.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.investorName')}>{inv.investor_name}</td>
                   <td className="px-4 py-2 text-right" data-label={t('list.col.ownership')}>{inv.ownership_pct.toFixed(2)}%</td>

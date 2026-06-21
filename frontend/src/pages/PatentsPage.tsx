@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchThemes, fetchPatents, fetchPatentYearly, fetchPatentTopAssignees } from '../api'
+import { fetchThemes, fetchPatents, fetchPatentYearly, fetchPatentTopAssignees, fetchSignalReport } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard, { EmptyChart } from '../components/charts/ChartCard'
 import PatentCountsByYearBar from '../components/charts/PatentCountsByYearBar'
+import PatentsVsPapersComposed from '../components/charts/PatentsVsPapersComposed'
 import { PageLoading, PageEmpty } from '../components/AsyncState'
 import { useI18n } from '../i18n/useI18n'
 
@@ -34,6 +35,16 @@ export default function PatentsPage() {
     queryKey: ['patent-top-assignees', selectedTheme],
     queryFn: () => fetchPatentTopAssignees(themeArg, 10),
     staleTime: 1000 * 60 * 30,
+  })
+
+  // 特許×論文 重ね合わせ用に、選択テーマ名から論文の年次件数を取得する（SOT-995 /patents-1）。
+  const selectedThemeName = themes.find(th => th.id === selectedTheme)?.name ?? ''
+  const { data: signalReport } = useQuery({
+    queryKey: ['signal-report', selectedThemeName],
+    queryFn: () => fetchSignalReport(selectedThemeName),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!selectedThemeName,
   })
 
   const themeName = useMemo(() => {
@@ -86,12 +97,28 @@ export default function PatentsPage() {
         </select>
       </div>
 
+      {/* テーマ未選択時の空状態ガイド（SOT-995 /patents-5） */}
+      {!selectedTheme && (
+        <div className="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          {t('patents.selectThemeGuide')}
+        </div>
+      )}
+
       {/* 年次トレンド */}
       <section className="space-y-3">
         <ChartCard title={t('patents.trend.title')} subtitle={t('patents.trend.subtitle')}>
           <PatentCountsByYearBar data={yearlyChart} />
         </ChartCard>
       </section>
+
+      {/* 特許 × 論文 トレンド重ね合わせ（SOT-995 /patents-1） */}
+      {selectedTheme && (
+        <section className="space-y-3">
+          <ChartCard title={t('patents.overlay.title')} subtitle={t('patents.overlay.subtitle')}>
+            <PatentsVsPapersComposed patents={yearlyChart} papers={signalReport?.paper_counts_by_year ?? []} />
+          </ChartCard>
+        </section>
+      )}
 
       {/* 主要出願人 */}
       <section className="space-y-3">

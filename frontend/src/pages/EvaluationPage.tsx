@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSignalAlignment } from '../api'
 import { useI18n } from '../i18n/useI18n'
@@ -20,19 +21,80 @@ function FormatPercent({ value, showPlus = false }: { value: number; showPlus?: 
 
 export default function EvaluationPage() {
   const { t } = useI18n()
+  // 評価窓(期間)を可変化: baseline を変更して再評価する（SOT-995 /evaluation-1）。
+  const [baseline, setBaseline] = useState('')
+  // 低スコア要因ドリルダウン用の展開行（SOT-995 /evaluation-4）。
+  const [expanded, setExpanded] = useState<string | null>(null)
   const { data, isLoading, error } = useQuery({
-    queryKey: ['signal-alignment'],
-    queryFn: () => fetchSignalAlignment()
+    queryKey: ['signal-alignment', baseline],
+    queryFn: () => fetchSignalAlignment(baseline || undefined),
   })
 
   if (isLoading) return <div className="text-center py-12 text-gray-500">{t('common.loading')}</div>
   if (error || !data) return <div className="text-center py-12 text-red-500">{t('common.loadError')}</div>
 
+  // 最も相関が高い窓（リードラグの目安, /evaluation-2）。
+  const bestWindow = data.summary.windows.reduce<typeof data.summary.windows[number] | null>(
+    (best, w) => (best == null || Math.abs(w.correlation) > Math.abs(best.correlation) ? w : best),
+    null,
+  )
+
+  // CSV エクスポート（/evaluation-4）。
+  const exportCsv = () => {
+    const windows = data.summary.windows
+    const header = ['ticker', 'name', 'signal_score', ...windows.flatMap(w => [`return_${w.window_days}d`, `hit_${w.window_days}d`])]
+    const rows = data.companies.map(c => [
+      c.ticker,
+      c.name,
+      c.signal_score.toFixed(2),
+      ...windows.flatMap(w => {
+        const r = c.results.find(x => x.window_days === w.window_days)
+        return [r ? (r.forward_return_pct * 100).toFixed(2) : '', r ? (r.hit ? '1' : '0') : '']
+      }),
+    ])
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([`${String.fromCharCode(0xfeff)}${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `evaluation_${data.baseline}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // リターン ヒートマップ用の色（/evaluation-3）。
+  const returnColor = (pct: number) => {
+    const clamped = Math.max(-0.2, Math.min(0.2, pct))
+    if (clamped >= 0) return `rgba(239, 68, 68, ${0.15 + (clamped / 0.2) * 0.55})`
+    return `rgba(59, 130, 246, ${0.15 + (Math.abs(clamped) / 0.2) * 0.55})`
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-gray-800">{t('eval.title')}</h1>
-        <p className="text-sm text-gray-500">{t('eval.baseline')}: {data.baseline}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            {t('eval.baseline')}
+            <input
+              type="date"
+              value={baseline || data.baseline}
+              onChange={e => setBaseline(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            />
+          </label>
+          {bestWindow && (
+            <span className="text-xs rounded bg-blue-50 px-2 py-1 text-blue-700">
+              {t('eval.bestWindow')}: {t('eval.windowLabel', { n: bestWindow.window_days })}（{t('eval.correlation')} {bestWindow.correlation.toFixed(2)}）
+            </span>
+          )}
+          <button
+            onClick={exportCsv}
+            className="ml-auto rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            {t('eval.export')}
+          </button>
+        </div>
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
@@ -68,9 +130,51 @@ export default function EvaluationPage() {
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-4 text-right">{t('eval.evaluatedCount')}: {window.evaluated_count}</p>
+              {/* シグナル有効性（高シグナル−低シグナルのリターン差, /evaluation-5） */}
+              <div className="mt-3 flex items-center justify-between bg-blue-50 rounded px-3 py-2">
+                <span className="text-xs text-blue-700">{t('eval.effectiveness')}</span>
+                <FormatPercent value={window.avg_return_high_signal - window.avg_return_low_signal} showPlus />
+              </div>
+              <p className="text-xs text-gray-400 mt-3 text-right">{t('eval.evaluatedCount')}: {window.evaluated_count}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* リターン ヒートマップ（銘柄 × 窓, /evaluation-3） */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-700 mb-1">{t('eval.heatmap.title')}</h2>
+        <p className="text-sm text-gray-500 mb-3">{t('eval.heatmap.subtitle')}</p>
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-600">
+              <tr>
+                <th className="px-4 py-2 text-left">Ticker</th>
+                {data.summary.windows.map(w => (
+                  <th key={w.window_days} className="px-4 py-2 text-center">{t('eval.windowLabel', { n: w.window_days })}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.companies.map(company => (
+                <tr key={company.company_id} className="border-t">
+                  <td className="px-4 py-2 font-mono text-gray-600">{company.ticker}</td>
+                  {data.summary.windows.map(w => {
+                    const r = company.results.find(x => x.window_days === w.window_days)
+                    return (
+                      <td
+                        key={w.window_days}
+                        className="px-4 py-2 text-center"
+                        style={{ backgroundColor: r ? returnColor(r.forward_return_pct) : undefined }}
+                      >
+                        {r ? `${(r.forward_return_pct * 100).toFixed(1)}%` : '-'}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -92,28 +196,52 @@ export default function EvaluationPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {data.companies.map(company => (
-                <tr key={company.company_id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-gray-600" data-label="Ticker">{company.ticker}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900" data-label={t('eval.col.name')}>{company.name}</td>
-                  <td className="px-4 py-3 text-right" data-label={t('eval.col.signalScore')}>
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">
-                      {company.signal_score.toFixed(1)}
-                    </span>
-                  </td>
-                  {data.summary.windows.map(w => {
-                    const result = company.results.find(r => r.window_days === w.window_days)
-                    return (
-                      <React.Fragment key={w.window_days}>
-                        <td className="px-4 py-3 text-right border-l" data-label={t('eval.col.return', { n: w.window_days })}>
-                          {result ? <FormatPercent value={result.forward_return_pct} showPlus /> : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-center" data-label={t('eval.col.verdict', { n: w.window_days })}>
-                          {result ? <HitBadge hit={result.hit} /> : '-'}
-                        </td>
-                      </React.Fragment>
-                    )
-                  })}
-                </tr>
+                <React.Fragment key={company.company_id}>
+                  <tr
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setExpanded(e => (e === company.company_id ? null : company.company_id))}
+                  >
+                    <td className="px-4 py-3 font-mono text-gray-600" data-label="Ticker">
+                      <span className="mr-1 text-gray-400">{expanded === company.company_id ? '▾' : '▸'}</span>{company.ticker}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900" data-label={t('eval.col.name')}>{company.name}</td>
+                    <td className="px-4 py-3 text-right" data-label={t('eval.col.signalScore')}>
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">
+                        {company.signal_score.toFixed(1)}
+                      </span>
+                    </td>
+                    {data.summary.windows.map(w => {
+                      const result = company.results.find(r => r.window_days === w.window_days)
+                      return (
+                        <React.Fragment key={w.window_days}>
+                          <td className="px-4 py-3 text-right border-l" data-label={t('eval.col.return', { n: w.window_days })}>
+                            {result ? <FormatPercent value={result.forward_return_pct} showPlus /> : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-center" data-label={t('eval.col.verdict', { n: w.window_days })}>
+                            {result ? <HitBadge hit={result.hit} /> : '-'}
+                          </td>
+                        </React.Fragment>
+                      )
+                    })}
+                  </tr>
+                  {/* 低スコア要因ドリルダウン（予測方向 vs 実際, /evaluation-4） */}
+                  {expanded === company.company_id && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={3 + data.summary.windows.length * 2} className="px-4 py-3">
+                        <div className="flex flex-wrap gap-4">
+                          {company.results.map(r => (
+                            <div key={r.window_days} className="rounded border border-gray-200 bg-white px-3 py-2 text-xs">
+                              <p className="font-semibold text-gray-700 mb-1">{t('eval.windowLabel', { n: r.window_days })}</p>
+                              <p className="text-gray-500">{t('eval.col.predicted')}: {r.predicted_direction === 'up' ? t('eval.dir.up') : t('eval.dir.down')}</p>
+                              <p className="text-gray-500">{t('eval.col.actual')}: {r.actual_direction === 'up' ? t('eval.dir.up') : t('eval.dir.down')}</p>
+                              <p className="mt-1"><FormatPercent value={r.forward_return_pct} showPlus /> <HitBadge hit={r.hit} /></p>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -122,6 +250,3 @@ export default function EvaluationPage() {
     </div>
   )
 }
-
-// React dependency for React.Fragment if not auto-imported
-import React from 'react'

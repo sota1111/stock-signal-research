@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchSignalReport, fetchThemeCitationMatrix } from '../api'
@@ -42,6 +43,11 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
+  const [category, setCategory] = useState('')
+  const [themeSearch, setThemeSearch] = useState('')
+  const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
+
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
 
@@ -79,6 +85,42 @@ export default function DashboardPage() {
   const filteredMarketCapByCompanyData = marketCapByCompany.data.filter(d => inRange(d.year))
   const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
 
+  // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002）。
+  // 大カテゴリ = Theme.category。選択した大カテゴリ内のテーマだけを、検索文字でさらに絞り込む。
+  const themes = data.trending_themes
+  const categories = [...new Set(themes.map(th => th.category).filter(Boolean))].sort()
+  const currentThemeObj = themes.find(th => th.name === reportQuery)
+  const effectiveCategory = category || currentThemeObj?.category || ''
+  const themesInCategory = effectiveCategory
+    ? themes.filter(th => th.category === effectiveCategory)
+    : themes
+  const search = themeSearch.trim().toLowerCase()
+  const themeOptions = themesInCategory
+    .filter(th => !search || th.name.toLowerCase().includes(search))
+    .map(th => th.name)
+  // 現在選択中のテーマは絞り込みで消えても option に残し、select が空欄にならないようにする。
+  const selectableThemes = themeOptions.includes(reportQuery)
+    ? themeOptions
+    : [reportQuery, ...themeOptions]
+
+  const onSelectCategory = (cat: string) => {
+    setCategory(cat)
+    setThemeSearch('')
+    // 大カテゴリを切り替えたら、そのカテゴリ先頭のテーマへ自動で合わせる。
+    const first = (cat ? themes.filter(th => th.category === cat) : themes)[0]
+    if (first && first.name !== reportQuery) setTheme(first.name)
+  }
+
+  // カード表示ON/OFF（SOT-1002 / 提案5）。
+  const CARDS: { id: string; label: string }[] = [
+    { id: 'cross', label: t('chart.cross.title') },
+    { id: 'papers', label: t('chart.papers.title') },
+    { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
+    { id: 'matrix', label: t('chart.citationMatrix.title') },
+  ]
+  const isCardVisible = (id: string) => !hiddenCards[id]
+  const toggleCard = (id: string) => setHiddenCards(h => ({ ...h, [id]: !h[id] }))
+
   const lastAnalyzed = signalReport?.generated_at ? new Date(signalReport.generated_at).toLocaleString(lang === 'en' ? 'en-US' : 'ja-JP') : '—'
 
   return (
@@ -102,8 +144,31 @@ export default function DashboardPage() {
           <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.refetch')}</button>
         </div>
 
-        {/* テーマ選択（論文・クロス分析グラフに反映） */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* 大カテゴリ → テーマ の順次選択 + テーマ検索（SOT-1002 / 提案B 3） */}
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          {/* 大カテゴリ */}
+          <label htmlFor="category-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.categoryLabel')}</label>
+          <select
+            id="category-select"
+            value={effectiveCategory}
+            onChange={e => onSelectCategory(e.target.value)}
+            className="min-w-0 max-w-[12rem] truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          >
+            <option value="">{t('dashboard.allCategories')}</option>
+            {categories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          {/* テーマ検索 */}
+          <input
+            type="search"
+            value={themeSearch}
+            onChange={e => setThemeSearch(e.target.value)}
+            placeholder={t('dashboard.themeSearch')}
+            aria-label={t('dashboard.themeSearch')}
+            className="min-w-0 max-w-[12rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+          {/* テーマ（カテゴリ） */}
           <label htmlFor="theme-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.themeLabel')}</label>
           <select
             id="theme-select"
@@ -111,10 +176,26 @@ export default function DashboardPage() {
             onChange={e => setTheme(e.target.value)}
             className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
           >
-            {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
+            {(selectableThemes.length > 0 ? selectableThemes : [reportQuery]).map(name => (
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+        </div>
+
+        {/* 表示カードの ON/OFF（SOT-1002 / 提案B 5） */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
+          <span className="shrink-0 text-sm text-gray-600">{t('dashboard.cardsLabel')}</span>
+          {CARDS.map(card => (
+            <label key={card.id} className="flex items-center gap-1.5 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={isCardVisible(card.id)}
+                onChange={() => toggleCard(card.id)}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-sky-600 focus:ring-sky-400"
+              />
+              <span className="truncate max-w-[10rem]">{card.label}</span>
+            </label>
+          ))}
         </div>
 
         {/* 表示年レンジ選択（論文件数・時価総額・クロス分析グラフに反映） */}
@@ -154,14 +235,24 @@ export default function DashboardPage() {
         )}
 
         {/* グラフ③ クロス分析（論文 × 時価総額） */}
+        {isCardVisible('cross') && (
         <ChartCard
           title={t('chart.cross.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
         >
-          <PapersMarketCapCrossChart counts={filteredPaperCounts} marketCap={filteredMarketCapYearly} />
+          {isPapersLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('chart.papers.loading')}</p>
+            </div>
+          ) : (
+            <PapersMarketCapCrossChart counts={filteredPaperCounts} marketCap={filteredMarketCapYearly} />
+          )}
         </ChartCard>
+        )}
 
         {/* グラフ① 論文件数 */}
+        {isCardVisible('papers') && (
         <ChartCard
           title={t('chart.papers.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}${
@@ -186,16 +277,20 @@ export default function DashboardPage() {
             </div>
           )}
         </ChartCard>
+        )}
 
         {/* グラフ② 上位10社時価総額合計 */}
+        {isCardVisible('marketCap') && (
         <ChartCard
           title={t('chart.topMarketCap.title', { n: TOP_N })}
           subtitle={t('chart.topMarketCap.subtitle')}
         >
           <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
         </ChartCard>
+        )}
 
         {/* マトリクス テーマ別 引用数（テーマ × 年） */}
+        {isCardVisible('matrix') && (
         <ChartCard
           title={t('chart.citationMatrix.title')}
           subtitle={t('chart.citationMatrix.subtitle')}
@@ -206,6 +301,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-400">{t('chart.citationMatrix.loading')}</p>
           )}
         </ChartCard>
+        )}
       </section>
 
       <p className="text-xs text-gray-400 border-t pt-4">

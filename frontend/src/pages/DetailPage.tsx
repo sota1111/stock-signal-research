@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -19,10 +20,29 @@ export default function DetailPage() {
 
   const relatedSC = supplyChain?.filter(sc => sc.from_theme_id === id || sc.to_theme_id === id) ?? []
 
+  // 情報構造のタブ化（SOT-995 /themes-2）。
+  const [detailTab, setDetailTab] = useState<'overview' | 'papers' | 'external' | 'related'>('overview')
+
   if (isLoading) return <PageLoading />
   if (!theme) return <PageError message={t('detail.notFound')} />
 
   const scoreColor = theme.precursor_score >= 70 ? 'bg-red-500' : theme.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+
+  // 隣接/関連テーマ（SOT-995 /themes-4）。サプライチェーンの相手側テーマを抽出。
+  const relatedThemes = relatedSC
+    .map(sc => (sc.from_theme_id === id
+      ? { id: sc.to_theme_id, name: sc.to_theme_name }
+      : { id: sc.from_theme_id, name: sc.from_theme_name }))
+    .filter((th, i, arr) => th.id && th.id !== id && arr.findIndex(x => x.id === th.id) === i)
+
+  const externalCount = externalInfos ? externalInfos.news.length + externalInfos.announcements.length + externalInfos.earnings.length : 0
+
+  const detailTabs: { id: typeof detailTab; label: string }[] = [
+    { id: 'overview', label: t('detail.tab.overview') },
+    { id: 'papers', label: t('detail.tab.papers') },
+    { id: 'external', label: t('detail.tab.external') },
+    { id: 'related', label: t('detail.tab.related') },
+  ]
 
   return (
     <div className="space-y-8">
@@ -38,13 +58,38 @@ export default function DetailPage() {
             {theme.description && <p className="text-gray-700 mt-3">{theme.description}</p>}
           </div>
           <div className="text-right space-y-2">
-            <span className={`${scoreColor} text-white text-lg px-3 py-1 rounded-full font-bold block`}>
-              {theme.precursor_score.toFixed(0)}{t('detail.scoreSuffix')}
-            </span>
+            <div>
+              <span className={`${scoreColor} text-white text-lg px-3 py-1 rounded-full font-bold block`}>
+                {theme.precursor_score.toFixed(0)}{t('detail.scoreSuffix')}
+              </span>
+              <span className="block text-xs text-gray-400 mt-0.5">{t('detail.summary.precursor')}</span>
+            </div>
+            {/* アラインメントスコア＋兆候サマリを冒頭に（SOT-995 /themes-1） */}
+            {alignment && alignment.evidence_count > 0 && (
+              <div>
+                <span className="bg-blue-600 text-white text-lg px-3 py-1 rounded-full font-bold block">
+                  {alignment.score.toFixed(0)}
+                </span>
+                <span className="block text-xs text-gray-400 mt-0.5">{t('detail.summary.alignment')}</span>
+              </div>
+            )}
             {theme.is_trending && <span className="block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">🔥 {t('signals.continuingTrend')}</span>}
           </div>
         </div>
       </section>
+
+      {/* セクションタブ（SOT-995 /themes-2） */}
+      <div className="flex flex-wrap gap-2 border-b">
+        {detailTabs.map(tb => (
+          <button
+            key={tb.id}
+            onClick={() => setDetailTab(tb.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${detailTab === tb.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            {tb.id === 'external' ? `${tb.label} (${externalCount})` : tb.id === 'papers' ? `${tb.label} (${papers?.length ?? 0})` : tb.label}
+          </button>
+        ))}
+      </div>
 
       {/* 兆候→検証→投資判断の一貫導線（SOT-999 / 提案A-2）。
           テーマ名/IDを query で引き継ぎ、遷移先のグローバルフィルタで選択済みにする。 */}
@@ -63,6 +108,7 @@ export default function DetailPage() {
         </div>
       </section>
 
+      {detailTab === 'overview' && (
       <section className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.monthlyPapers')}</h2>
         {monthly && monthly.length > 0 ? (
@@ -80,24 +126,51 @@ export default function DetailPage() {
           <p className="text-gray-400 text-sm">{t('common.noData')}</p>
         )}
       </section>
+      )}
 
-      {relatedSC.length > 0 && (
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.supplyChainRelated')}</h2>
-          <div className="space-y-2">
-            {relatedSC.map(sc => (
-              <div key={sc.id} className="flex items-center gap-3 text-sm">
-                <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded">{sc.from_theme_name}</span>
-                <span className="text-gray-400">→</span>
-                <span className="bg-green-50 text-green-800 px-2 py-1 rounded">{sc.to_theme_name}</span>
-                {sc.description && <span className="text-gray-500 text-xs">({sc.description})</span>}
+      {detailTab === 'related' && (
+        <section className="bg-white rounded-lg shadow p-6 space-y-6">
+          {/* 関連テーマ間ナビ（SOT-995 /themes-4） */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('detail.relatedThemes')}</h2>
+            {relatedThemes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {relatedThemes.map(rt => (
+                  <Link
+                    key={rt.id}
+                    to={`/themes/${rt.id}`}
+                    className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700 hover:bg-sky-100"
+                  >
+                    {rt.name || rt.id}
+                  </Link>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className="text-gray-400 text-sm">{t('common.noData')}</p>
+            )}
+          </div>
+          {/* サプライチェーン関連 */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('detail.supplyChainRelated')}</h2>
+            {relatedSC.length > 0 ? (
+              <div className="space-y-2">
+                {relatedSC.map(sc => (
+                  <div key={sc.id} className="flex items-center gap-3 text-sm">
+                    <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded">{sc.from_theme_name}</span>
+                    <span className="text-gray-400">→</span>
+                    <span className="bg-green-50 text-green-800 px-2 py-1 rounded">{sc.to_theme_name}</span>
+                    {sc.description && <span className="text-gray-500 text-xs">({sc.description})</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">{t('common.noData')}</p>
+            )}
           </div>
         </section>
       )}
 
-      {alignment && alignment.evidence_count > 0 && (
+      {detailTab === 'overview' && alignment && alignment.evidence_count > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.alignment.title')}</h2>
           <div className="flex items-center gap-6 flex-wrap">
@@ -131,7 +204,7 @@ export default function DetailPage() {
         </section>
       )}
 
-      {externalInfos && externalInfos.news.length > 0 && (
+      {detailTab === 'external' && externalInfos && externalInfos.news.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.news', { n: externalInfos.news.length })}</h2>
           <div className="space-y-3">
@@ -150,7 +223,7 @@ export default function DetailPage() {
         </section>
       )}
 
-      {externalInfos && externalInfos.announcements.length > 0 && (
+      {detailTab === 'external' && externalInfos && externalInfos.announcements.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.announcements', { n: externalInfos.announcements.length })}</h2>
           <div className="space-y-3">
@@ -173,7 +246,7 @@ export default function DetailPage() {
         </section>
       )}
 
-      {externalInfos && externalInfos.earnings.length > 0 && (
+      {detailTab === 'external' && externalInfos && externalInfos.earnings.length > 0 && (
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.earnings', { n: externalInfos.earnings.length })}</h2>
           <div className="space-y-3">
@@ -196,8 +269,13 @@ export default function DetailPage() {
         </section>
       )}
 
+      {detailTab === 'papers' && (
       <section className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.relatedPapers', { n: papers?.length ?? 0 })}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-700">{t('detail.relatedPapers', { n: papers?.length ?? 0 })}</h2>
+          {/* 論文一覧への相互リンク（SOT-995 /themes-3） */}
+          <Link to={`/papers?theme=${encodeURIComponent(theme.name)}`} className="text-sm text-blue-600 hover:underline">{t('detail.viewInPapers')}</Link>
+        </div>
         {papers && papers.length > 0 ? (
           <div className="space-y-3">
             {papers.map(p => (
@@ -216,6 +294,7 @@ export default function DetailPage() {
           <p className="text-gray-400 text-sm">{t('detail.noRelatedPapers')}</p>
         )}
       </section>
+      )}
     </div>
   )
 }
