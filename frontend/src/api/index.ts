@@ -47,8 +47,12 @@ export const fetchDashboard = () => api.get<DashboardData>('/dashboard/').then(r
 export const fetchStock = (ticker: string, years = 10) =>
   api.get<StockData>('/dashboard/stock', { params: { ticker, years } }).then(r => r.data)
 
-export const fetchSignalReport = (query: string) =>
-  api.get<SignalReport>('/dashboard/signal-report', { params: { query } }).then(r => r.data)
+export const fetchSignalReport = (query: string, fromYear?: number) =>
+  api
+    .get<SignalReport>('/dashboard/signal-report', {
+      params: { query, ...(fromYear != null ? { from_year: fromYear } : {}) },
+    })
+    .then(r => r.data)
 
 export const fetchBacktest = (ticker: string, years = 10) =>
   api.get<BacktestResponse>('/dashboard/backtest', { params: { ticker, years } }).then(r => r.data)

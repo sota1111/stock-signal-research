@@ -1,33 +1,33 @@
-# Worker Report — SOT-964 ダッシュボード配置
+# Worker Report (Claude Code Fallback)
+
+## Worker Non-Response Disclosure (audit)
+- Non-responsive worker: **Gemini CLI**
+- Detected failure mode: CLI crashed exit 1 → run_gemini.sh emitted non-response code **75**
+  (`IneligibleTierError: UNSUPPORTED_CLIENT` — Gemini Code Assist free tier no longer supported).
+- Action: Per the Worker Non-Response Fallback Policy, Claude Code performed this IMPLEMENT work directly.
 
 ## Summary
-**FALLBACK NOTICE (audit):** Gemini CLI was non-responsive — `scripts/ai/run_gemini.sh`
-exited 75 with `IneligibleTierError` (free-tier `UNSUPPORTED_CLIENT`, Gemini Code Assist
-for individuals no longer supported). Per the Worker Non-Response Fallback Policy, Claude
-Code performed this implementation directly.
-
-Reordered the dashboard chart cards in `frontend/src/pages/DashboardPage.tsx` so the
-「クロス分析（論文 × 時価総額）」ChartCard is rendered FIRST, per SOT-964
-「クロス分析を1番上に配置してください。」
-
-New order: クロス分析 → 論文件数 → 上位10社時価総額合計 → テーマ別引用数マトリクス.
-No other change (props, query keys, styling, i18n keys, theme selector all preserved).
+SOT-987: dashboard graph year-range floor changed from 2016 to 2000. Frontend-only change — the
+dashboard now requests papers from year 2000 so the year-range selector (SOT-972) lists 2000+.
+Backend already supported `from_year`/`to_year`; paper data already exists back to 2000.
 
 ## Changed Files
-- `frontend/src/pages/DashboardPage.tsx` — moved the クロス分析 (`PapersMarketCapCrossChart`) ChartCard block to the top of the chart section
+- `frontend/src/api/index.ts` — `fetchSignalReport(query, fromYear?)` now passes optional `from_year`.
+- `frontend/src/pages/DashboardPage.tsx` — added `PAPER_HISTORY_FROM_YEAR = 2000`; signal-report query
+  fetches from 2000 and includes the from-year in its queryKey.
 
 ## Commands Run
-- (verification delegated to Codex: `npm run lint` / `npm run build`)
+- (verification delegated to Codex — see docs/ai/60_worker_codex_report.md)
 
 ## Acceptance Criteria
-- [x] クロス分析 ChartCard is rendered first in the chart section
-- [x] order is クロス分析 → 論文件数 → 上位10社時価総額合計 → 引用マトリクス
-- [x] no other change
-- [ ] lint pass (Codex to verify)
-- [ ] build pass (Codex to verify)
+- [x] Dashboard year-range selector lists years starting from 2000 (papers fetched from 2000)
+- [x] 開始/終了 selectors and filtering unchanged; default shows full range
+- [x] Market-cap/stock behavior unchanged (no data before 2016 is expected)
+- [ ] lint + build pass (Codex to verify)
 
 ## Risks
-Low — pure JSX block reorder in a single file.
+- Stock/market-cap data only exists from 2016 (10-year snapshot); the 時価総額/クロス分析 graphs will
+  have no data before 2016. This is expected per the data scope; papers graph now spans 2000+.
 
 ## Next Action
-NEEDS_DEBUG
+READY_FOR_REVIEW
