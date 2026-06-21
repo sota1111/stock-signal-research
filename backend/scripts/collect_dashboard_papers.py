@@ -61,6 +61,26 @@ THEME_QUERIES: dict[str, str] = {
     "flash controller": '"flash" AND ("controller" OR "FTL" OR "SSD firmware")',
 }
 
+
+def _merge_sot994_queries() -> None:
+    """SOT-994: backend/data/sot994_universe.json の70テーマ分の arXiv クエリを THEME_QUERIES に追加。
+    既存30テーマは温存(setdefault)。これにより1回の実行で合計100テーマの論文を収集する。"""
+    import json as _json
+    import os as _os
+
+    path = _os.path.join(_os.path.dirname(__file__), "..", "data", "sot994_universe.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = _json.load(f)
+    except (OSError, ValueError):
+        return
+    for t in data.get("themes", []):
+        if t.get("name") and t.get("query"):
+            THEME_QUERIES.setdefault(t["name"], t["query"])
+
+
+_merge_sot994_queries()
+
 ARXIV_API = "https://export.arxiv.org/api/query"
 S2_BATCH_API = "https://api.semanticscholar.org/graph/v1/paper/batch"
 ATOM = {"a": "http://www.w3.org/2005/Atom"}

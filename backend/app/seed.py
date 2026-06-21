@@ -602,6 +602,57 @@ _DASHBOARD_COMPANIES = [
 ]
 
 
+def _load_sot994_universe():
+    """SOT-994: 70テーマ(10ドメイン×7)とその上場企業ユニバースを backend/data/sot994_universe.json
+    から読み込み、_DASHBOARD_THEMES / _DASHBOARD_COMPANIES に統合して合計100テーマにする。
+    論文(collect_dashboard_papers.py)・株価(collect_stock_data.py)も同じ JSON を参照する。
+    既存テーマ/企業は温存し、企業は name で名寄せして themes を追記する(実データのみ)。"""
+    import json as _json
+    import os as _os
+
+    path = _os.path.join(_os.path.dirname(__file__), "..", "data", "sot994_universe.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+    except (OSError, ValueError):
+        return
+
+    existing_theme_names = {t["name"] for t in _DASHBOARD_THEMES}
+    companies_by_name = {c["name"]: c for c in _DASHBOARD_COMPANIES}
+    for t in data.get("themes", []):
+        if t["name"] not in existing_theme_names:
+            _DASHBOARD_THEMES.append({
+                "name": t["name"],
+                "category": t["category"],
+                "precursor_score": float(t["precursor_score"]),
+                "is_trending": bool(t["is_trending"]),
+            })
+            existing_theme_names.add(t["name"])
+        for co in t.get("companies", []):
+            ex = companies_by_name.get(co["name"])
+            if ex is None:
+                ex = {
+                    "name": co["name"],
+                    "ticker": co.get("ticker"),
+                    "benefit_score": float(co.get("benefit_score", 60.0)),
+                    "benefit_type": co.get("benefit_type", "indirect"),
+                    "themes": [],
+                }
+                companies_by_name[co["name"]] = ex
+                _DASHBOARD_COMPANIES.append(ex)
+            if t["name"] not in ex["themes"]:
+                ex["themes"].append(t["name"])
+            if not ex.get("ticker") and co.get("ticker"):
+                ex["ticker"] = co["ticker"]
+            if float(co.get("benefit_score", 0)) > float(ex.get("benefit_score", 0)):
+                ex["benefit_score"] = float(co["benefit_score"])
+            if co.get("benefit_type") == "direct":
+                ex["benefit_type"] = "direct"
+
+
+_load_sot994_universe()
+
+
 def _company_row(c):
     """注目企業の seed 用 dict を返す。`themes`(テーマ名リスト) を theme_ids(JSON文字列) に変換し、
     models.Company / Firestore company_repo.save の両方で使える列だけにする。"""
