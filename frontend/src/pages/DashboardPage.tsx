@@ -12,6 +12,10 @@ import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMa
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
+// 論文グラフ・年レンジセレクタの下限年（SOT-987: 2016年→2000年から選択可能にする）。
+// バックエンドの既定「直近10年」窓ではなく、この年から論文を取得して選択肢を広げる。
+const PAPER_HISTORY_FROM_YEAR = 2000
+
 export default function DashboardPage() {
   const { t, lang } = useI18n()
   const queryClient = useQueryClient()
@@ -25,8 +29,8 @@ export default function DashboardPage() {
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
-    queryKey: ['signal-report', reportQuery],
-    queryFn: () => fetchSignalReport(reportQuery),
+    queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchSignalReport(reportQuery, PAPER_HISTORY_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
