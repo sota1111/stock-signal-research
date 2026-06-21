@@ -103,29 +103,46 @@ def run_seed():
                 db.add(db_pm)
                 prev_count = count
 
-        # 6. Institutional Investors
-        investors_data = [
-            {
-                "name": "Vanguard Group",
-                "company": "NVIDIA",
-                "pct": 8.5,
-                "chg": 0.3,
-                "date": "2024-09-30",
-                "type": "13F",
-            },
-            {"name": "BlackRock", "company": "Micron", "pct": 7.2, "chg": 0.8, "date": "2024-09-30", "type": "13F"},
-            {"name": "Nomura Asset", "company": "TSMC", "pct": 2.1, "chg": 0.2, "date": "2024-09-30", "type": "大量保有"},
-        ]
-        for inv in investors_data:
-            db_inv = models.InstitutionalInvestor(
-                investor_name=inv["name"],
-                company_id=companies[inv["company"]].id,
-                ownership_pct=inv["pct"],
-                change_pct=inv["chg"],
-                report_date=inv["date"],
-                report_type=inv["type"]
-            )
-            db.add(db_inv)
+        # 6. Institutional Investors — 実データ(SEC EDGAR 13F)優先(SOT-965)。
+        # collected-investors.json があれば過去約10年の主要機関投資家保有を投入。無ければ合成3件。
+        collected_investors = _load_collected_investors()
+        if collected_investors:
+            for rec in collected_investors:
+                company = companies.get(rec.get("company_name"))
+                if not company:
+                    continue
+                db.add(models.InstitutionalInvestor(
+                    investor_name=rec["investor_name"],
+                    company_id=company.id,
+                    ownership_pct=rec.get("ownership_pct", 0.0),
+                    change_pct=rec.get("change_pct", 0.0),
+                    report_date=rec.get("report_date"),
+                    report_type=rec.get("report_type", "13F"),
+                    notes=rec.get("notes"),
+                ))
+        else:
+            investors_data = [
+                {
+                    "name": "Vanguard Group",
+                    "company": "NVIDIA",
+                    "pct": 8.5,
+                    "chg": 0.3,
+                    "date": "2024-09-30",
+                    "type": "13F",
+                },
+                {"name": "BlackRock", "company": "Micron", "pct": 7.2, "chg": 0.8, "date": "2024-09-30", "type": "13F"},
+                {"name": "Nomura Asset", "company": "TSMC", "pct": 2.1, "chg": 0.2, "date": "2024-09-30", "type": "大量保有"},
+            ]
+            for inv in investors_data:
+                db_inv = models.InstitutionalInvestor(
+                    investor_name=inv["name"],
+                    company_id=companies[inv["company"]].id,
+                    ownership_pct=inv["pct"],
+                    change_pct=inv["chg"],
+                    report_date=inv["date"],
+                    report_type=inv["type"]
+                )
+                db.add(db_inv)
 
         # 7. Stock Prices
         seed_stock_prices(db, companies)
@@ -237,6 +254,30 @@ def seed_research_seeds_firestore():
         logger.info(f"Seeded {seeded} research seeds to Firestore")
     except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
         logger.warning(f"Could not seed research seeds to Firestore: {e}")
+
+
+def _load_collected_investors(json_path=None):
+    """SOT-965: SEC EDGAR 13F 由来の実機関投資家データを collected-investors.json から読み込む。
+    無ければ None を返し、呼び出し側は合成データへフォールバックする。"""
+    import json
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+    if json_path is None:
+        json_path = os.path.join(os.path.dirname(__file__), "..", "data", "collected-investors.json")
+    if not os.path.exists(json_path):
+        return None
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        if records:
+            logger.info("Loaded %d real institutional investors from collected-investors.json", len(records))
+            return records
+        return None
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Could not load collected-investors.json: {e}")
+        return None
 
 
 def _slug(text: str) -> str:
@@ -596,6 +637,47 @@ def seed_dashboard_data_firestore():
         )
     except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
         logger.warning(f"Could not seed dashboard data to Firestore: {e}")
+
+
+def seed_investors_firestore():
+    """本番(Firestore)向けに機関投資家(13F実データ)を冪等投入する(SOT-965)。
+    `run_seed()` は SQLite 専用のため、本番では別途 institutional_investors コレクションへ
+    投入しないと投資家情報ページが空になる。冪等(既に投入済みならスキップ)。
+    調査・仮説検証用の公開開示データであり投資助言ではない。失敗しても起動を妨げない。"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        records = _load_collected_investors()
+        if not records:
+            return
+
+        from .repositories.investor_repository import get_investor_repository
+
+        repo = get_investor_repository()
+        if repo.list_all():
+            return
+
+        seeded = 0
+        for rec in records:
+            company_name = rec.get("company_name")
+            if not company_name:
+                continue
+            data = {
+                "investor_name": rec["investor_name"],
+                "company_id": f"company-{_slug(company_name)}",
+                "ownership_pct": rec.get("ownership_pct", 0.0),
+                "change_pct": rec.get("change_pct", 0.0),
+                "report_date": rec.get("report_date"),
+                "report_type": rec.get("report_type", "13F"),
+                "notes": rec.get("notes"),
+            }
+            if repo.save(data):
+                seeded += 1
+        logger.info("Seeded %d institutional investors to Firestore", seeded)
+    except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
+        logger.warning(f"Could not seed institutional investors to Firestore: {e}")
 
 
 def seed_stock_prices(db, companies):

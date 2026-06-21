@@ -49,6 +49,8 @@ async def lifespan(app: FastAPI):
         # ダッシュボードのコアデータ(themes/companies/papers/supply_chains/月次件数/scores)も
         # 本番Firestoreへ冪等投入する。投入しないとダッシュボードが空になる。
         seed.seed_dashboard_data_firestore()
+        # 機関投資家(SEC EDGAR 13F 実データ)も本番Firestoreへ冪等投入する(SOT-965)。
+        seed.seed_investors_firestore()
     yield
 
 app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)
