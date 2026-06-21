@@ -59,6 +59,7 @@ export interface InstitutionalInvestor {
   report_date: string
   report_type: string
   notes?: string
+  company_name?: string | null
 }
 
 export interface DashboardData {
