@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { fetchDashboard, fetchSignalReport, fetchMonthlyData } from '../api'
 import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
@@ -14,6 +16,8 @@ const PAPER_HISTORY_FROM_YEAR = 2000
 export default function SignalDetectionPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+  // 閾値（最小前兆スコア）の調整UI（SOT-995 /signals-2）。
+  const [minScore, setMinScore] = useState(0)
 
   // 急増テーマTOPを既定queryにシグナルレポートを取得（B系チャート用）
   const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
@@ -46,28 +50,66 @@ export default function SignalDetectionPage() {
     </div>
   )
 
+  // テーマ別の一致度（根拠内訳, /signals-1）。alignment_highlights から theme.id→score。
+  const alignmentMap = new Map<string, number>()
+  data.alignment_highlights?.high_alignment?.forEach(item => alignmentMap.set(item.theme.id, item.score))
+  // 閾値フィルタ後の急増テーマ（/signals-2）。
+  const filteredThemes = data.trending_themes.filter(theme => theme.precursor_score >= minScore)
+
   return (
     <div className="space-y-8">
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('signals.title')}</h1>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('signals.surgingThemes')}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.trending_themes.map(theme => (
-            <div key={theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-gray-800">{theme.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{theme.category}</p>
-                </div>
-                <ScoreBadge score={theme.precursor_score} />
-              </div>
-              {theme.is_trending && (
-                <span className="mt-2 inline-block text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">{t('signals.continuingTrend')}</span>
-              )}
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 className="text-lg font-semibold text-gray-700">{t('signals.surgingThemes')}</h2>
+          {/* 閾値（最小前兆スコア）調整スライダー（SOT-995 /signals-2） */}
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            {t('signals.threshold.label')}
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={minScore}
+              onChange={e => setMinScore(Number(e.target.value))}
+              className="accent-sky-600"
+            />
+            <span className="w-8 text-right font-semibold text-gray-700">{minScore}</span>
+          </label>
         </div>
+        {filteredThemes.length === 0 ? (
+          <p className="text-sm text-gray-400">{t('signals.noMatch')}</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredThemes.map(theme => (
+              <div key={theme.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-gray-800">{theme.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{theme.category}</p>
+                  </div>
+                  <ScoreBadge score={theme.precursor_score} />
+                </div>
+                {/* シグナル強度の根拠内訳（/signals-1） */}
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-gray-500">{t('signals.strength')}: {theme.precursor_score.toFixed(0)}</span>
+                  {alignmentMap.has(theme.id) && (
+                    <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700">{t('signals.matchScore')} {alignmentMap.get(theme.id)!.toFixed(0)}</span>
+                  )}
+                  {theme.is_trending && (
+                    <span className="rounded bg-orange-100 px-1.5 py-0.5 text-orange-700">{t('signals.continuingTrend')}</span>
+                  )}
+                </div>
+                {/* テーマ詳細・株価評価へワンクリック（/signals-4） */}
+                <div className="mt-3 flex items-center gap-3 text-xs">
+                  <Link to={`/themes/${theme.id}`} className="text-blue-600 hover:underline">{t('common.detail')}</Link>
+                  <Link to={`/stock?theme=${encodeURIComponent(theme.name)}`} className="text-blue-600 hover:underline">{t('nav.stock')}</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
@@ -177,6 +219,17 @@ export default function SignalDetectionPage() {
           <ChartCard title={t('signals.b4')}>
             <CompanyScoreBar data={signalReport?.top_companies ?? []} />
           </ChartCard>
+        </div>
+      </section>
+
+      {/* 精度振り返り（検出後の株価で前兆スコアの精度を確認, SOT-995 /signals-5） */}
+      <section>
+        <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
+          <h2 className="text-base font-semibold text-sky-900">{t('signals.accuracy.title')}</h2>
+          <p className="text-sm text-sky-800 mt-1">{t('signals.accuracy.desc')}</p>
+          <Link to="/evaluation" className="mt-2 inline-block text-sm font-medium text-sky-700 hover:underline">
+            {t('signals.accuracy.cta')}
+          </Link>
         </div>
       </section>
 
