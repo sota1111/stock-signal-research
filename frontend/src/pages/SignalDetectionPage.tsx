@@ -8,6 +8,9 @@ import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import { useI18n } from '../i18n/useI18n'
 
+// SOT-945/SOT-987: keep the paper graph on the same 2000+ history floor as DashboardPage.
+const PAPER_HISTORY_FROM_YEAR = 2000
+
 export default function SignalDetectionPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
@@ -15,8 +18,8 @@ export default function SignalDetectionPage() {
   // 急増テーマTOPを既定queryにシグナルレポートを取得（B系チャート用）
   const reportQuery = data?.trending_themes?.[0]?.name ?? 'AI'
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
-    queryKey: ['signal-report', reportQuery],
-    queryFn: () => fetchSignalReport(reportQuery),
+    queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchSignalReport(reportQuery, PAPER_HISTORY_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
