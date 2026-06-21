@@ -1,22 +1,28 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useState } from 'react'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
+import { FilterProvider } from './contexts/FilterProvider'
 import { I18nProvider } from './i18n/I18nProvider'
 import { useI18n } from './i18n/useI18n'
+import type { MessageKey } from './i18n/messages'
 import LanguageToggle from './components/LanguageToggle'
-import DashboardPage from './pages/DashboardPage'
-import StatusPage from './pages/StatusPage'
-import StockPage from './pages/StockPage'
-import PapersPage from './pages/PapersPage'
-import PatentsPage from './pages/PatentsPage'
-import InvestorsPage from './pages/InvestorsPage'
-import SignalDetectionPage from './pages/SignalDetectionPage'
-import ListPage from './pages/ListPage'
-import DetailPage from './pages/DetailPage'
-import InputPage from './pages/InputPage'
-import EvaluationPage from './pages/EvaluationPage'
-import ResearchSeedsPage from './pages/ResearchSeedsPage'
-import LoginPage from './pages/LoginPage'
+import { PageLoading } from './components/AsyncState'
+
+// ページコンポーネントは React.lazy で動的 import し、ルート単位でチャンク分割する（SOT-1000 / 提案A-5）。
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const StatusPage = lazy(() => import('./pages/StatusPage'))
+const StockPage = lazy(() => import('./pages/StockPage'))
+const PapersPage = lazy(() => import('./pages/PapersPage'))
+const PatentsPage = lazy(() => import('./pages/PatentsPage'))
+const InvestorsPage = lazy(() => import('./pages/InvestorsPage'))
+const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
+const ListPage = lazy(() => import('./pages/ListPage'))
+const DetailPage = lazy(() => import('./pages/DetailPage'))
+const InputPage = lazy(() => import('./pages/InputPage'))
+const EvaluationPage = lazy(() => import('./pages/EvaluationPage'))
+const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -24,10 +30,81 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+// ナビゲーションを4グループに階層化する（SOT-998 / 提案A-1）。
+// /login と /themes/:id はルートだがナビには出さない。
+type NavItem = { to: string; label: MessageKey; end?: boolean }
+type NavGroupDef = { label: MessageKey; items: NavItem[] }
+
+const NAV_GROUPS: NavGroupDef[] = [
+  { label: 'navgroup.overview', items: [
+    { to: '/', label: 'nav.dashboard', end: true },
+    { to: '/status', label: 'nav.status' },
+  ] },
+  { label: 'navgroup.research', items: [
+    { to: '/papers', label: 'nav.papers' },
+    { to: '/patents', label: 'nav.patents' },
+    { to: '/signals', label: 'nav.signals' },
+  ] },
+  { label: 'navgroup.market', items: [
+    { to: '/stock', label: 'nav.stock' },
+    { to: '/investors', label: 'nav.investors' },
+    { to: '/evaluation', label: 'nav.evaluation' },
+  ] },
+  { label: 'navgroup.manage', items: [
+    { to: '/list', label: 'nav.list' },
+    { to: '/input', label: 'nav.input' },
+    { to: '/research-seeds', label: 'nav.researchSeeds' },
+  ] },
+]
+
+const dropdownLinkClass = ({ isActive }: { isActive: boolean }) =>
   isActive
-    ? 'text-white font-semibold border-b-2 border-sky-400 pb-0.5'
-    : 'text-slate-300 hover:text-white transition-colors'
+    ? 'block px-4 py-2 text-sm text-white bg-white/10 font-semibold'
+    : 'block px-4 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white'
+
+function NavGroup({ group }: { group: NavGroupDef }) {
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const location = useLocation()
+  const groupActive = group.items.some(item =>
+    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
+  )
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false)
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        className={
+          groupActive
+            ? 'flex items-center gap-1 text-white font-semibold border-b-2 border-sky-400 pb-0.5'
+            : 'flex items-center gap-1 text-slate-300 hover:text-white transition-colors'
+        }
+      >
+        {t(group.label)}
+        <span aria-hidden className="text-xs">▾</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-2 min-w-[12rem] overflow-hidden rounded-md border border-white/10 bg-slate-800 py-1 shadow-lg">
+          {group.items.map(item => (
+            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setOpen(false)} className={dropdownLinkClass}>
+              {t(item.label)}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
@@ -54,61 +131,33 @@ function AppLayout() {
                 </button>
               </div>
             </div>
-            {/* Menu row: single line, scrolls horizontally on overflow */}
-            <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap pt-3">
-              <NavLink to="/" end className={navLinkClass}>
-                {t('nav.dashboard')}
-              </NavLink>
-              <NavLink to="/status" className={navLinkClass}>
-                {t('nav.status')}
-              </NavLink>
-              <NavLink to="/stock" className={navLinkClass}>
-                {t('nav.stock')}
-              </NavLink>
-              <NavLink to="/papers" className={navLinkClass}>
-                {t('nav.papers')}
-              </NavLink>
-              <NavLink to="/patents" className={navLinkClass}>
-                {t('nav.patents')}
-              </NavLink>
-              <NavLink to="/investors" className={navLinkClass}>
-                {t('nav.investors')}
-              </NavLink>
-              <NavLink to="/signals" className={navLinkClass}>
-                {t('nav.signals')}
-              </NavLink>
-              <NavLink to="/list" className={navLinkClass}>
-                {t('nav.list')}
-              </NavLink>
-              <NavLink to="/input" className={navLinkClass}>
-                {t('nav.input')}
-              </NavLink>
-              <NavLink to="/evaluation" className={navLinkClass}>
-                {t('nav.evaluation')}
-              </NavLink>
-              <NavLink to="/research-seeds" className={navLinkClass}>
-                {t('nav.researchSeeds')}
-              </NavLink>
+            {/* Menu row: 4 grouped dropdowns; wraps on very narrow screens */}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-3">
+              {NAV_GROUPS.map(group => (
+                <NavGroup key={group.label} group={group} />
+              ))}
             </div>
           </div>
         </nav>
       )}
       <main className="w-full max-w-7xl mx-auto px-4 py-6 flex-1">
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
-          <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
-          <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
-          <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
-          <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
-          <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
-          <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
-          <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
-          <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
-          <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
-          <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
-        </Routes>
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+            <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
+            <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
+            <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
+            <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
+            <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
+            <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
+            <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
+            <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
+            <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
+            <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
+            <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
+          </Routes>
+        </Suspense>
       </main>
       {isAuthenticated && (
         <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
@@ -124,7 +173,9 @@ export default function App() {
     <BrowserRouter>
       <I18nProvider>
         <AuthProvider>
-          <AppLayout />
+          <FilterProvider>
+            <AppLayout />
+          </FilterProvider>
         </AuthProvider>
       </I18nProvider>
     </BrowserRouter>
