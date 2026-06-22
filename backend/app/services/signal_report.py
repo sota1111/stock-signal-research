@@ -335,6 +335,82 @@ def aggregate_category_paper_averages(
     }
 
 
+def aggregate_category_paper_counts(
+    papers: List[Dict[str, Any]],
+    themes: List[Dict[str, Any]],
+    category: str,
+    from_year: Optional[int] = None,
+    to_year: Optional[int] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """指定した大カテゴリ（Theme.category）内の「テーマ別 年次論文数」を集計する純粋関数。
+
+    SOT-1081 要件③④: 大カテゴリを選択すると、その中のカテゴリ（=テーマ）ごとの年別論文数を
+    折れ線で表示するためのデータ。論文は ``theme_id`` でテーマに割り当て（決定的）、年が
+    解釈できない論文は除外する。論文が1件以上あるテーマのみ系列に含め、総数の多い順に並べる。
+
+    Args:
+        papers: 論文 dict のリスト（theme_id, published_at を想定）。
+        themes: テーマ dict のリスト（id, name, category を想定）。
+        category: 対象の大カテゴリ（Theme.category）。
+        from_year / to_year: 集計年範囲。from 未指定なら観測最小年、to 未指定なら現在年。
+    """
+    now = now or datetime.now(timezone.utc)
+    target = str(category or "").strip()
+
+    # 対象大カテゴリ内のテーマ（id→name）
+    theme_name_by_id: Dict[str, str] = {}
+    for theme in themes or []:
+        if str(theme.get("category") or "").strip() != target:
+            continue
+        tid = theme.get("id")
+        if tid is not None:
+            theme_name_by_id[str(tid)] = str(theme.get("name") or "")
+
+    # 論文を (theme_id, year) にバケットしつつ観測年を集める
+    counts: Dict[str, Dict[int, int]] = {}
+    observed_years: List[int] = []
+    for p in papers or []:
+        tid = p.get("theme_id")
+        if tid is None or str(tid) not in theme_name_by_id:
+            continue
+        year = _parse_year(p.get("published_at"))
+        if year is None:
+            continue
+        observed_years.append(year)
+        counts.setdefault(str(tid), {}).setdefault(year, 0)
+        counts[str(tid)][year] += 1
+
+    if from_year is not None and to_year is not None and from_year > to_year:
+        from_year, to_year = to_year, from_year
+    resolved_from = from_year if from_year is not None else (min(observed_years) if observed_years else now.year)
+    resolved_to = to_year if to_year is not None else (max(observed_years) if observed_years else now.year)
+    year_columns = list(range(resolved_from, resolved_to + 1))
+
+    series: List[Dict[str, Any]] = []
+    for tid, name in theme_name_by_id.items():
+        year_counts = counts.get(tid, {})
+        cells = [year_counts.get(y, 0) for y in year_columns]
+        total = sum(cells)
+        if total <= 0:
+            continue
+        series.append({
+            "theme_id": tid,
+            "theme_name": name,
+            "total": total,
+            "counts": cells,
+        })
+
+    series.sort(key=lambda s: s["total"], reverse=True)
+
+    return {
+        "category": target,
+        "years": year_columns,
+        "series": series,
+        "generated_at": now.isoformat(),
+    }
+
+
 def generate_signal_report(
     query: str,
     papers: List[Dict[str, Any]],

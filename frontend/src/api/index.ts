@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryListResponse, CategoryMarketCap } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -84,6 +84,18 @@ export const fetchCategoryPaperAverages = (fromYear?: number, toYear?: number) =
   api
     .get<CategoryPaperAverages>('/dashboard/category-paper-averages', {
       params: {
+        ...(fromYear != null ? { from_year: fromYear } : {}),
+        ...(toYear != null ? { to_year: toYear } : {}),
+      },
+    })
+    .then(r => r.data)
+
+// 大カテゴリ内 テーマ別 年次論文数（SOT-1081 要件③④）
+export const fetchCategoryPaperCounts = (category: string, fromYear?: number, toYear?: number) =>
+  api
+    .get<CategoryPaperCounts>('/dashboard/category-paper-counts', {
+      params: {
+        category,
         ...(fromYear != null ? { from_year: fromYear } : {}),
         ...(toYear != null ? { to_year: toYear } : {}),
       },

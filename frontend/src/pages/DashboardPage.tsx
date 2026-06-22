@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
 import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
+import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
@@ -62,6 +63,18 @@ export default function DashboardPage() {
   const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
   // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
   const [baseYear, setBaseYear] = useState<number | null>(null)
+
+  // 論文カードは大カテゴリ選択で駆動する（SOT-1081 要件③④）。選択中の大カテゴリ内の
+  // テーマごとの年別論文数を取得する。大カテゴリ = 明示選択 or 現在テーマのカテゴリ。
+  const queryThemes = (allThemes && allThemes.length > 0 ? allThemes : data?.trending_themes) ?? []
+  const queryCategory = category || queryThemes.find(th => th.name === reportQuery)?.category || ''
+  const { data: categoryPaperCounts, isLoading: isCatPapersLoading, isFetching: isCatPapersFetching } = useQuery({
+    queryKey: ['category-paper-counts', queryCategory, PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchCategoryPaperCounts(queryCategory, PAPER_HISTORY_FROM_YEAR),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data && !!queryCategory,
+  })
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -325,19 +338,29 @@ export default function DashboardPage() {
         </ChartCard>
         )}
 
-        {/* グラフ① 論文件数 */}
+        {/* グラフ① 論文件数（大カテゴリ駆動: その中のカテゴリ=テーマごとの折れ線, SOT-1081 要件③④） */}
         {isCardVisible('papers') && (
         <ChartCard
           title={t('chart.papers.title')}
-          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}${
-            effStart != null && effEnd != null
-              ? ` / ${effStart}–${effEnd}`
-              : signalReport
-                ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}`
-                : ''
+          subtitle={`${t('dashboard.categoryLabel')}: ${effectiveCategory || t('dashboard.allCategories')}${
+            effStart != null && effEnd != null ? ` / ${effStart}–${effEnd}` : ''
           }`}
         >
-          {filteredPaperCounts.length > 0 ? (
+          {effectiveCategory ? (
+            categoryPaperCounts && categoryPaperCounts.series.length > 0 ? (
+              <CategoryPaperCountsChart data={categoryPaperCounts} fromYear={effStart} toYear={effEnd} />
+            ) : (isCatPapersLoading || isCatPapersFetching) && !categoryPaperCounts ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+                <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+                <p>{t('chart.papers.loading')}</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+                <p>{t('chart.papers.empty')}</p>
+                <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
+              </div>
+            )
+          ) : filteredPaperCounts.length > 0 ? (
             <PapersCountChart counts={filteredPaperCounts} />
           ) : isPapersLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">

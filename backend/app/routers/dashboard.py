@@ -12,6 +12,7 @@ from ..services.signal_report import (
     aggregate_theme_citations,
     aggregate_theme_citation_matrix,
     aggregate_category_paper_averages,
+    aggregate_category_paper_counts,
 )
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
@@ -134,6 +135,26 @@ def get_category_paper_averages(
     themes = theme_repo.list_all()
     return aggregate_category_paper_averages(
         papers=papers, themes=themes, from_year=from_year, to_year=to_year
+    )
+
+
+@router.get("/category-paper-counts", response_model=schemas.CategoryPaperCountsResponse)
+def get_category_paper_counts(
+    category: str = Query(..., description="対象の大カテゴリ（Theme.category）"),
+    from_year: Optional[int] = Query(None, description="集計開始年（未指定で観測最小年, SOT-1081: 2009起点）"),
+    to_year: Optional[int] = Query(None, description="集計終了年（未指定で現在年）"),
+):
+    """指定大カテゴリ内の「テーマ別 年次論文数」を返す（SOT-1081 要件③④）。
+
+    大カテゴリを選択すると、その中のカテゴリ（=テーマ）ごとの年別論文数を折れ線で
+    表示するためのデータ。論文が1件以上あるテーマのみ総数降順で返す。外部APIキー不要。
+    """
+    paper_repo = get_paper_repository()
+    theme_repo = get_theme_repository()
+    papers = paper_repo.list_all()
+    themes = theme_repo.list_all()
+    return aggregate_category_paper_counts(
+        papers=papers, themes=themes, category=category, from_year=from_year, to_year=to_year
     )
 
 

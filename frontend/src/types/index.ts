@@ -377,6 +377,21 @@ export interface CategoryPaperAverages {
   generated_at?: string
 }
 
+// 大カテゴリ内 テーマ別 年次論文数（SOT-1081 要件③④）
+export interface CategoryPaperCountsSeries {
+  theme_id?: string | null
+  theme_name: string
+  total: number
+  counts: number[]
+}
+
+export interface CategoryPaperCounts {
+  category?: string | null
+  years: number[]
+  series: CategoryPaperCountsSeries[]
+  generated_at?: string
+}
+
 // カテゴリ別 真の歴史的時価総額（SOT-1056 / A-1 + B-3）
 export interface CategoryListItem {
   theme_id: string
