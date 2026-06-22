@@ -46,6 +46,14 @@ export default function DetailPage() {
 
   return (
     <div className="space-y-8">
+      {/* パンくず: ダッシュボード / テーマ一覧 / 現在のテーマ（SOT-1020 / 提案6） */}
+      <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-gray-500 flex-wrap">
+        <Link to="/" className="text-blue-600 hover:underline">{t('nav.dashboard')}</Link>
+        <span aria-hidden className="text-gray-300">/</span>
+        <Link to="/list" className="text-blue-600 hover:underline">{t('nav.themes')}</Link>
+        <span aria-hidden className="text-gray-300">/</span>
+        <span className="text-gray-700 font-medium truncate max-w-[16rem]">{theme.name}</span>
+      </nav>
       <div className="flex items-center gap-4">
         <button onClick={() => navigate('/list')} className="text-blue-600 hover:underline text-sm">&larr; {t('detail.back')}</button>
       </div>

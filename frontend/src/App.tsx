@@ -116,6 +116,11 @@ function NavGroup({ group }: { group: NavGroupDef }) {
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
   const { t } = useI18n()
+  // モバイルではホバー型ドロップダウンが開きにくいため、ハンバーガー→ドロワーで全項目を縦並び表示する（SOT-1020 / 提案3）。
+  const [mobileOpenRoute, setMobileOpenRoute] = useState<string | null>(null)
+  const location = useLocation()
+  const currentRoute = `${location.pathname}${location.search}`
+  const mobileOpen = mobileOpenRoute === currentRoute
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -136,14 +141,52 @@ function AppLayout() {
                 >
                   {t('common.logout')}
                 </button>
+                {/* ハンバーガー（モバイルのみ） */}
+                <button
+                  type="button"
+                  onClick={() => setMobileOpenRoute(route => route === currentRoute ? null : currentRoute)}
+                  aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.menu')}
+                  aria-expanded={mobileOpen}
+                  aria-controls="mobile-nav-drawer"
+                  className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded border border-white/30 bg-white/10 hover:bg-white/20"
+                >
+                  <span aria-hidden className="text-lg leading-none">{mobileOpen ? '✕' : '☰'}</span>
+                </button>
               </div>
             </div>
-            {/* Menu row: 4 grouped dropdowns; wraps on very narrow screens */}
-            <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-3">
+            {/* Menu row (desktop/tablet): 4 grouped dropdowns. Hidden on mobile in favor of the drawer. */}
+            <div className="hidden sm:flex flex-wrap items-center gap-3 sm:gap-6 pt-3">
               {NAV_GROUPS.map(group => (
                 <NavGroup key={group.label} group={group} />
               ))}
             </div>
+            {/* Mobile drawer: all groups/items as a vertical list (SOT-1020 / 提案3). */}
+            {mobileOpen && (
+              <div id="mobile-nav-drawer" className="sm:hidden pt-3 space-y-3">
+                {NAV_GROUPS.map(group => (
+                  <div key={group.label}>
+                    <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t(group.label)}</p>
+                    <div className="flex flex-col">
+                      {group.items.map(item => (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          end={item.end}
+                          onClick={() => setMobileOpenRoute(null)}
+                          className={({ isActive }) =>
+                            isActive
+                              ? 'rounded px-3 py-2 text-sm font-semibold text-white bg-white/10'
+                              : 'rounded px-3 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white'
+                          }
+                        >
+                          {t(item.label)}
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </nav>
       )}
