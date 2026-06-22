@@ -81,6 +81,13 @@ export default function DashboardPage() {
   const TOP_N = 10
   const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
   const isMarketCapLoading = stockQueries.some(q => q.isLoading || q.isFetching) && marketCapYearly.length === 0
+  // クロス分析カードは論文・時価総額の両系列に依存する。どちらかが取得中の間は
+  // 空表示ではなくローディングを出す（テーマ切替時のバックグラウンド再取得を含む, SOT-1055）。
+  const isCrossLoading =
+    isReportLoading ||
+    isReportFetching ||
+    stockQueries.some(q => q.isLoading || q.isFetching) ||
+    isMarketCapLoading
   const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
 
   // 表示年レンジ: 論文件数・時価総額の年の和集合を選択可能ドメインとする
@@ -282,7 +289,7 @@ export default function DashboardPage() {
           title={t('chart.cross.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
         >
-          {isPapersLoading || isMarketCapLoading ? (
+          {isCrossLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.papers.loading')}</p>
