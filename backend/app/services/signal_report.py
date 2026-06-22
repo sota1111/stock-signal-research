@@ -384,7 +384,7 @@ def aggregate_category_paper_counts(
     if from_year is not None and to_year is not None and from_year > to_year:
         from_year, to_year = to_year, from_year
     resolved_from = from_year if from_year is not None else (min(observed_years) if observed_years else now.year)
-    resolved_to = to_year if to_year is not None else (max(observed_years) if observed_years else now.year)
+    resolved_to = to_year if to_year is not None else now.year
     year_columns = list(range(resolved_from, resolved_to + 1))
 
     series: List[Dict[str, Any]] = []

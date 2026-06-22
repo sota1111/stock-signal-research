@@ -6,6 +6,7 @@ from app.services.signal_report import (
     generate_signal_report,
     aggregate_theme_citations,
     aggregate_theme_citation_matrix,
+    aggregate_category_paper_counts,
 )
 
 
@@ -243,6 +244,32 @@ def test_aggregate_theme_citation_matrix_totals_consistency_and_sort():
     assert result["grand_total"] == 700  # 200 (GPU) + 500 (battery)
     # rows sorted by total desc -> battery (500) before GPU (200)
     assert result["rows"][0]["theme_name"] == "battery"
+
+
+def test_aggregate_category_paper_counts_defaults_to_current_year():
+    result = aggregate_category_paper_counts(
+        papers=[
+            {"paper_id": "p1", "theme_id": "t-gpu", "published_at": "2010-01-01"},
+            {"paper_id": "p2", "theme_id": "t-gpu", "published_at": "2024-01-01"},
+            {"paper_id": "p3", "theme_id": "t-bat", "published_at": "2024-01-01"},
+        ],
+        themes=[
+            {"id": "t-gpu", "name": "GPU computing", "category": "semiconductor"},
+            {"id": "t-bat", "name": "battery", "category": "energy"},
+        ],
+        category="semiconductor",
+        from_year=2009,
+        now=FIXED_NOW,
+    )
+
+    assert result["years"] == list(range(2009, 2026))
+    series = result["series"][0]
+    idx = {year: i for i, year in enumerate(result["years"])}
+    assert series["theme_name"] == "GPU computing"
+    assert series["counts"][idx[2010]] == 1
+    assert series["counts"][idx[2024]] == 1
+    assert series["counts"][idx[2025]] == 0
+    assert series["total"] == 2
 
 
 def test_theme_citations_endpoint(client):
