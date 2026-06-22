@@ -11,24 +11,30 @@ import { useI18n } from '../../i18n/useI18n'
 export default function PapersMarketCapCrossChart({
   counts,
   marketCap,
+  baseYear,
 }: {
   counts: PaperYearCount[]
   marketCap: { year: number; total: number }[]
+  // SOT-1014: 指数の基準年。未指定/無効な年のときは自動（両系列が正の最初の共通年）にフォールバック。
+  baseYear?: number
 }) {
   const { t } = useI18n()
   const paperByYear = new Map<number, number>(counts.map(c => [c.year, c.count]))
   const mcapByYear = new Map<number, number>(marketCap.map(m => [m.year, m.total]))
 
-  // 論文件数・時価総額がともに正となる最初の共通年を基準(=100)にする
+  // 論文件数・時価総額がともに正となる最初の共通年を自動基準にする（SOT-1014: 指定があればそれを優先）
   const years = [...new Set([...paperByYear.keys(), ...mcapByYear.keys()])].sort((a, b) => a - b)
-  const baseYear = years.find(y => (paperByYear.get(y) ?? 0) > 0 && (mcapByYear.get(y) ?? 0) > 0)
+  const autoBaseYear = years.find(y => (paperByYear.get(y) ?? 0) > 0 && (mcapByYear.get(y) ?? 0) > 0)
+  const isValidBase = (y?: number) =>
+    y != null && (paperByYear.get(y) ?? 0) > 0 && (mcapByYear.get(y) ?? 0) > 0
+  const effectiveBaseYear = isValidBase(baseYear) ? baseYear! : autoBaseYear
 
-  if (baseYear == null) {
+  if (effectiveBaseYear == null) {
     return <EmptyChart message={t('chart.empty.cross')} />
   }
 
-  const basePaper = paperByYear.get(baseYear)!
-  const baseMcap = mcapByYear.get(baseYear)!
+  const basePaper = paperByYear.get(effectiveBaseYear)!
+  const baseMcap = mcapByYear.get(effectiveBaseYear)!
 
   const data = years.map(year => {
     const paper = paperByYear.get(year)
@@ -54,7 +60,7 @@ export default function PapersMarketCapCrossChart({
         <Line
           type="monotone"
           dataKey="paperIdx"
-          name={t('chart.legend.paperIndex', { year: baseYear })}
+          name={t('chart.legend.paperIndex', { year: effectiveBaseYear })}
           stroke="#3b82f6"
           strokeWidth={2}
           dot={{ r: 2 }}
@@ -63,7 +69,7 @@ export default function PapersMarketCapCrossChart({
         <Line
           type="monotone"
           dataKey="mcapIdx"
-          name={t('chart.legend.mcapIndex', { year: baseYear })}
+          name={t('chart.legend.mcapIndex', { year: effectiveBaseYear })}
           stroke="#8b5cf6"
           strokeWidth={2}
           strokeDasharray="5 3"

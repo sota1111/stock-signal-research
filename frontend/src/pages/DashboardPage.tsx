@@ -47,6 +47,8 @@ export default function DashboardPage() {
   const [category, setCategory] = useState('')
   const [themeSearch, setThemeSearch] = useState('')
   const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
+  // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
+  const [baseYear, setBaseYear] = useState<number | null>(null)
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -85,6 +87,15 @@ export default function DashboardPage() {
   const filteredMarketCapYearly = marketCapYearly.filter(m => inRange(m.year))
   const filteredMarketCapByCompanyData = marketCapByCompany.data.filter(d => inRange(d.year))
   const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
+
+  // クロス分析（指数）の基準年セレクタ（SOT-1014）。
+  // 基準にできるのは「論文件数・時価総額がともに正」の年だけなので、その年だけを選択肢にする。
+  const filteredPaperPos = new Set(filteredPaperCounts.filter(c => c.count > 0).map(c => c.year))
+  const filteredMcapPos = new Set(filteredMarketCapYearly.filter(m => m.total > 0).map(m => m.year))
+  const baseYearOptions = [...filteredPaperPos].filter(y => filteredMcapPos.has(y)).sort((a, b) => a - b)
+  // 選択が有効ならそれ、無効/未選択なら先頭(=自動と一致)を表示値にする。
+  const effectiveBaseYear =
+    baseYear != null && baseYearOptions.includes(baseYear) ? baseYear : (baseYearOptions[0] ?? null)
 
   // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002）。
   // 大カテゴリ = Theme.category。選択した大カテゴリ内のテーマだけを、検索文字でさらに絞り込む。
@@ -235,6 +246,23 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* 指数の基準年選択（クロス分析グラフに反映, SOT-1014） */}
+        {isCardVisible('cross') && baseYearOptions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <label htmlFor="base-year-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.baseYearLabel')}</label>
+            <select
+              id="base-year-select"
+              value={effectiveBaseYear ?? ''}
+              onChange={e => setBaseYear(Number(e.target.value))}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              {baseYearOptions.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* グラフ③ クロス分析（論文 × 時価総額） */}
         {isCardVisible('cross') && (
         <ChartCard
@@ -247,7 +275,7 @@ export default function DashboardPage() {
               <p>{t('chart.papers.loading')}</p>
             </div>
           ) : (
-            <PapersMarketCapCrossChart counts={filteredPaperCounts} marketCap={filteredMarketCapYearly} />
+            <PapersMarketCapCrossChart counts={filteredPaperCounts} marketCap={filteredMarketCapYearly} baseYear={effectiveBaseYear ?? undefined} />
           )}
         </ChartCard>
         )}
