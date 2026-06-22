@@ -452,6 +452,39 @@ class StockDataResponse(BaseModel):
     error: Optional[str] = None
 
 
+# --- カテゴリ別 真の歴史的時価総額グラフ（SOT-1056 / A-1 + B-3） ---
+class CategoryMarketCapSeries(BaseModel):
+    key: str  # ティッカー
+    name: str
+
+
+class CategoryMarketCapPoint(BaseModel):
+    year: int
+    values: dict = Field(default_factory=dict)  # {ticker: market_cap}
+
+
+class CategoryMarketCapResponse(BaseModel):
+    theme_id: str
+    theme_name: Optional[str] = None
+    currency: str = "USD"
+    note: str = ""
+    series: List[CategoryMarketCapSeries] = Field(default_factory=list)
+    years: List[int] = Field(default_factory=list)
+    points: List[CategoryMarketCapPoint] = Field(default_factory=list)
+
+
+class CategoryListItem(BaseModel):
+    theme_id: str
+    theme_name: Optional[str] = None
+    category: Optional[str] = None
+    company_count: int = 0
+    has_market_cap: bool = False
+
+
+class CategoryListResponse(BaseModel):
+    categories: List[CategoryListItem] = Field(default_factory=list)
+
+
 # --- 株価シグナル バックテスト（SOT-881） ---
 class BacktestWindowResult(BaseModel):
     window_days: int

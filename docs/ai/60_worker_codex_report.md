@@ -1,32 +1,38 @@
 # Worker Report
 
 ## Summary
-Verified SOT-1057 is actionable: production `lifespan()` in `backend/app/main.py` performed synchronous Firestore seeding before yielding, so uvicorn could not bind/listen on Cloud Run `PORT=8080` until thousands of Firestore writes finished. Confirmed the root cause from code: after `_check_firestore_connection()`, startup called `seed_research_seeds_firestore()`, `seed_dashboard_data_firestore()`, `seed_investors_firestore()`, and `seed_patents_firestore()` synchronously.
+Verified the implemented SOT-1056 A-1 + B-3 category market-cap work. Backend focused tests and full test suite pass, frontend lint and production build pass, and an integration smoke against a freshly seeded temporary SQLite database returns non-empty real category market-cap data.
 
-Fixed startup by moving those four production Firestore seed calls into a background daemon thread. `_check_auth_config()` and `_check_firestore_connection()` still run synchronously, local/test seeding remains synchronous and unchanged, and the production seed sequence itself is preserved.
+No implementation fixes were required.
 
 ## Changed Files
-- `backend/app/main.py` — added `_run_prod_seed()` background runner with exception logging; production lifespan now starts it via `threading.Thread(..., daemon=True)` after the Firestore connection check.
-- `docs/ai/60_worker_codex_report.md` — worker verification report.
+- `docs/ai/60_worker_codex_report.md` — replaced prior investigation notes with this verification report.
 
 ## Commands Run
-- `pwd && git status --short --branch && sed -n '1,260p' backend/app/main.py` — confirmed working directory/branch and inspected startup code.
-- `rg -n "def lifespan|lifespan|seed_.*firestore|run_seed|health" backend/app -S` — confirmed production lifespan seed call sites and `/health` route.
-- `git diff -- backend/app/main.py` — reviewed minimal change limited to `backend/app/main.py`.
-- `cd backend && ./.venv/bin/python -c "import app.main"` — passed; app imports cleanly.
-- `cd backend && ./.venv/bin/python - <<'PY' ... PY` — passed; simulated production lifespan with slow seed functions. Lifespan entered in `0.000s`, background seed started, and `/health` was registered while the first seed was still sleeping.
-- `cd backend && ./.venv/bin/ruff check .` — failed on pre-existing lint issues outside this change, including `app/repositories/__init__.py` E402/F401 re-export warnings, unused `os` imports in repository modules, unused imports in tests, and `app/services/evaluation.py` unused local variable.
-- `cd backend && ./.venv/bin/ruff check app/main.py` — passed.
-- `cd backend && ./.venv/bin/pytest` — failed because `app` was not importable without `PYTHONPATH=.`, matching this repo's local package layout.
-- `cd backend && PYTHONPATH=. ./.venv/bin/pytest` — passed; `90 passed in 2.13s`.
+- `git status --short && git branch --show-current` — branch confirmed as `feat/SOT-1056-category-market-cap`; expected dirty implementation files present.
+- `rg -n "def run_seed|run_seed|seed|build_category_market_cap|list_categories" backend/app backend/tests backend/scripts` — located seed path, repository usage, service functions, and tests.
+- `cd backend && python -m pytest tests/test_category_market_cap.py -q` — passed: 5 passed, 2 warnings.
+- `cd backend && python -m pytest -q` — passed: 95 passed, 2 warnings.
+- `cd frontend && npm run lint` — passed.
+- `cd frontend && npm run build` — passed; `tsc -b` and `vite build` completed.
+- Temporary SQLite smoke:
+  - `DATABASE_URL=sqlite:////tmp/sot1056-smoke-*.db APP_ENV=local python ...`
+  - Created tables with `Base.metadata.create_all(bind=engine)`.
+  - Ran `app.seed.run_seed()`.
+  - Instantiated `SQLiteThemeRepository` and `SQLiteCompanyRepository`.
+  - Confirmed `list_categories(...)` returned 100 categories, 92 with `has_market_cap=True`.
+  - Called `build_category_market_cap(...)` for real theme `AI accelerator ASIC`.
+  - Result: 6 series, 18 yearly points, first series keys `TSM`, `NVDA`, `AVGO`, `AMD`, `INTC`.
 
 ## Acceptance Criteria
-- [x] Container/app binds the port without waiting for heavy Firestore seeding (startup is non-blocking)
-- [x] Production seeding still occurs (in background), local/test seeding unchanged
-- [ ] App imports cleanly; existing tests/lint pass (import passes, targeted lint for `app/main.py` passes, and tests pass with `PYTHONPATH=.`; full repo lint fails on pre-existing unrelated issues)
+- [x] backend pytest pass
+- [x] frontend lint+build pass
+- [x] integration smoke: real theme returns non-empty series
 
 ## Risks
-Full repository lint still fails due to unrelated pre-existing issues outside `backend/app/main.py`; targeted lint for the changed file passes. Because the production seed thread is daemonized, a container shutdown during seeding can interrupt it, but the existing seed functions are idempotent and will retry on the next boot.
+- Pytest emits existing warnings: Starlette `python_multipart` pending deprecation and unknown pytest config option `asyncio_mode`.
+- `npm run build` emits a Node warning that `NO_COLOR` is ignored because `FORCE_COLOR` is set; build still succeeds.
+- Smoke test used a temporary SQLite database and did not mutate `backend/data/app.db`.
 
 ## Next Action
 READY_FOR_REVIEW

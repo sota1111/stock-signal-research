@@ -1,20 +1,43 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchBacktest } from '../api'
+import { fetchBacktest, fetchCategories, fetchCategoryMarketCap } from '../api'
 import ChartCard from '../components/charts/ChartCard'
 import StockPriceLines from '../components/charts/StockPriceLines'
 import NormalizedCompareLines from '../components/charts/NormalizedCompareLines'
 import ReturnRankingBar from '../components/charts/ReturnRankingBar'
 import ValuationScatter from '../components/charts/ValuationScatter'
 import SignalBacktestTable from '../components/charts/SignalBacktestTable'
+import CategoryMarketCapChart from '../components/charts/CategoryMarketCapChart'
 import { useDashboardQuery, useTickerStocks } from './dashboardData'
 import { StockEvalCard, DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
+
+const CATEGORY_STALE_TIME = 1000 * 60 * 30
 
 export default function StockPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
   const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(data?.notable_companies ?? [])
+
+  // === カテゴリ別 時価総額推移（SOT-1056 / A-1 + B-3）===
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: CATEGORY_STALE_TIME,
+  })
+  // 時価総額データのあるカテゴリのみセレクタに出す。
+  const mcapCategories = (categories?.categories ?? []).filter(c => c.has_market_cap)
+  const [selectedTheme, setSelectedTheme] = useState<string>('')
+  const [topN, setTopN] = useState<number>(10)
+  // 明示選択が無ければ先頭カテゴリを既定にする（effect で setState せず派生値で解決）。
+  const effectiveTheme = selectedTheme || mcapCategories[0]?.theme_id || ''
+
+  const { data: categoryMcap, isLoading: isCategoryLoading } = useQuery({
+    queryKey: ['category-market-cap', effectiveTheme, topN],
+    queryFn: () => fetchCategoryMarketCap(effectiveTheme, topN),
+    staleTime: CATEGORY_STALE_TIME,
+    enabled: !!effectiveTheme,
+  })
 
   // バックテスト: 注目企業の先頭ティッカーを対象に各シグナルの的中率/リターンを集計
   const backtestTicker = tickerCompanies[0]?.ticker
@@ -51,6 +74,59 @@ export default function StockPage() {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('nav.stock')}</h1>
         <p className="text-sm text-gray-500 mt-0.5">{t('stock.subtitle')}</p>
       </div>
+
+      {/* === カテゴリ別 時価総額推移（SOT-1056 / A-1 + B-3） === */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-700">{t('category.section.title')}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t('category.section.subtitle')}</p>
+        </div>
+        {mcapCategories.length === 0 ? (
+          <p className="text-sm text-gray-400">{t('category.noData')}</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-sm text-gray-600">
+                <span className="text-xs text-gray-500">{t('category.selectLabel')}</span>
+                <select
+                  value={effectiveTheme}
+                  onChange={e => setSelectedTheme(e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-sky-400 focus:ring-1 focus:ring-sky-400 max-w-[20rem]"
+                >
+                  {mcapCategories.map(c => (
+                    <option key={c.theme_id} value={c.theme_id}>
+                      {c.theme_name} ({c.company_count})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-gray-600">
+                <span className="text-xs text-gray-500">{t('category.topNLabel')}</span>
+                <select
+                  value={topN}
+                  onChange={e => setTopN(Number(e.target.value))}
+                  className="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                >
+                  {[5, 10, 20].map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <ChartCard
+              title={t('category.chart.title', { n: topN })}
+              subtitle={categoryMcap?.theme_name ?? undefined}
+            >
+              {isCategoryLoading ? (
+                <p className="py-16 text-center text-sm text-gray-400">{t('category.loading')}</p>
+              ) : (
+                <CategoryMarketCapChart data={categoryMcap} />
+              )}
+            </ChartCard>
+            <p className="text-xs text-gray-400">{t('category.note', { n: topN })}</p>
+          </>
+        )}
+      </section>
 
       {/* === ページ上部: 概観グラフ + 表示/非表示トグル（SOT-1003） === */}
       <section className="space-y-4">

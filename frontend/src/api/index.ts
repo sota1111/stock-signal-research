@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryListResponse, CategoryMarketCap } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -84,6 +84,15 @@ export const fetchCategoryPaperAverages = (fromYear?: number, toYear?: number) =
         ...(toYear != null ? { to_year: toYear } : {}),
       },
     })
+    .then(r => r.data)
+
+// カテゴリ別 真の歴史的時価総額（SOT-1056 / A-1 + B-3）
+export const fetchCategories = () =>
+  api.get<CategoryListResponse>('/dashboard/categories').then(r => r.data)
+
+export const fetchCategoryMarketCap = (themeId: string, topN = 10) =>
+  api
+    .get<CategoryMarketCap>('/dashboard/category-market-cap', { params: { theme_id: themeId, top_n: topN } })
     .then(r => r.data)
 
 export const fetchThemeExternalInfos = (themeId: string) =>

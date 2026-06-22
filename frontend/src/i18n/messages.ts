@@ -359,6 +359,16 @@ export const messages = {
     'stock.latestClose': '最新終値',
     'stock.tenYearReturn': '10年騰落率',
     'stock.marketCap': '時価総額',
+    // category market-cap trends (SOT-1056 / A-1 + B-3)
+    'category.section.title': 'カテゴリ別 時価総額推移',
+    'category.section.subtitle': '米国上場株・2009年〜の真の時価総額（株価 × SEC開示の発行株式数）',
+    'category.selectLabel': 'カテゴリ',
+    'category.topNLabel': '表示社数',
+    'category.chart.title': '時価総額推移（上位{n}社）',
+    'category.note': '各年で一度でも上位{n}位に入った企業を表示（米国・2009年〜の実データ）。',
+    'category.empty': 'このカテゴリには時価総額データがありません。',
+    'category.loading': '読み込み中...',
+    'category.noData': '時価総額データのあるカテゴリがありません。',
     // backtest table
     'backtest.col.signal': 'シグナル',
     'backtest.col.occurrences': '発生回数',
@@ -802,6 +812,16 @@ export const messages = {
     'stock.latestClose': 'Latest close',
     'stock.tenYearReturn': '10-year return',
     'stock.marketCap': 'Market cap',
+    // category market-cap trends (SOT-1056 / A-1 + B-3)
+    'category.section.title': 'Category market-cap trends',
+    'category.section.subtitle': 'Real market cap for US-listed stocks since 2009 (price × SEC-reported shares outstanding)',
+    'category.selectLabel': 'Category',
+    'category.topNLabel': 'Companies',
+    'category.chart.title': 'Market-cap trend (top {n})',
+    'category.note': 'Shows companies that ever ranked in the top {n} in any year (real data, US-listed, since 2009).',
+    'category.empty': 'No market-cap data for this category.',
+    'category.loading': 'Loading...',
+    'category.noData': 'No category has market-cap data.',
     // backtest table
     'backtest.col.signal': 'Signal',
     'backtest.col.occurrences': 'Occurrences',
