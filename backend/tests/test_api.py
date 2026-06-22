@@ -1,9 +1,20 @@
-import pytest
+import app.main as app_main
+
 
 def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_spa_shell_response_is_revalidated(client, monkeypatch, tmp_path):
+    (tmp_path / "index.html").write_text("<!doctype html><div id=\"root\"></div>", encoding="utf-8")
+    monkeypatch.setattr(app_main, "_dist_dir", str(tmp_path))
+
+    response = client.get("/some-spa-route")
+
+    assert response.status_code == 200
+    assert "no-cache" in response.headers.get("cache-control", "")
 
 def test_get_themes_empty(client):
     response = client.get("/api/themes/")
