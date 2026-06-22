@@ -67,6 +67,7 @@ export const messages = {
     'dashboard.yearRangeLabel': '表示年',
     'dashboard.yearFrom': '開始年',
     'dashboard.yearTo': '終了年',
+    'dashboard.baseYearLabel': '基準年',
     // chart cards
     'chart.papers.title': '論文',
     'chart.topMarketCap.title': '上位{n}社 時価総額（企業別）',
@@ -477,6 +478,7 @@ export const messages = {
     'dashboard.yearRangeLabel': 'Years',
     'dashboard.yearFrom': 'From',
     'dashboard.yearTo': 'To',
+    'dashboard.baseYearLabel': 'Base year',
     // chart cards
     'chart.papers.title': 'Papers',
     'chart.topMarketCap.title': 'Top {n} companies — market cap by company',
