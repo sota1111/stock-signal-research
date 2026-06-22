@@ -10,7 +10,7 @@ import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsCh
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
-import { useDashboardQuery, useAllThemes, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -26,10 +26,24 @@ export default function DashboardPage() {
   const { data, isLoading, error } = useDashboardQuery()
   // 選択肢のユニバースは全テーマ（SOT-1088）。未取得時は trending_themes にフォールバック。
   const { data: allThemes } = useAllThemes()
-  const { stockItems, stockQueries } = useTickerStocks(data?.notable_companies ?? [])
+
+  // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
+  const [category, setCategory] = useState('')
+  const [themeSearch, setThemeSearch] = useState('')
+  const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
+  // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
+  const [baseYear, setBaseYear] = useState<number | null>(null)
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
+  // 選択肢ユニバース（全テーマ）と、論文/時価総額カードを駆動する大カテゴリ。
+  const queryThemes = (allThemes && allThemes.length > 0 ? allThemes : data?.trending_themes) ?? []
+  const queryCategory = category || queryThemes.find(th => th.name === reportQuery)?.category || ''
+
+  // 時価総額上位10社は選択中の大カテゴリの企業に絞る（SOT-1081 要件⑤）。未選択時は全注目企業。
+  const scopedCompanies = filterCompaniesByCategory(data?.notable_companies ?? [], queryCategory, queryThemes)
+  const { stockItems, stockQueries } = useTickerStocks(scopedCompanies)
+
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
     queryFn: () => fetchSignalReport(reportQuery, PAPER_HISTORY_FROM_YEAR),
@@ -57,17 +71,8 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
-  // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
-  const [category, setCategory] = useState('')
-  const [themeSearch, setThemeSearch] = useState('')
-  const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
-  // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
-  const [baseYear, setBaseYear] = useState<number | null>(null)
-
   // 論文カードは大カテゴリ選択で駆動する（SOT-1081 要件③④）。選択中の大カテゴリ内の
-  // テーマごとの年別論文数を取得する。大カテゴリ = 明示選択 or 現在テーマのカテゴリ。
-  const queryThemes = (allThemes && allThemes.length > 0 ? allThemes : data?.trending_themes) ?? []
-  const queryCategory = category || queryThemes.find(th => th.name === reportQuery)?.category || ''
+  // テーマごとの年別論文数を取得する（queryCategory は上で算出済み）。
   const { data: categoryPaperCounts, isLoading: isCatPapersLoading, isFetching: isCatPapersFetching } = useQuery({
     queryKey: ['category-paper-counts', queryCategory, PAPER_HISTORY_FROM_YEAR],
     queryFn: () => fetchCategoryPaperCounts(queryCategory, PAPER_HISTORY_FROM_YEAR),
@@ -397,7 +402,7 @@ export default function DashboardPage() {
         {isCardVisible('marketCap') && (
         <ChartCard
           title={t('chart.topMarketCap.title', { n: TOP_N })}
-          subtitle={t('chart.topMarketCap.subtitle')}
+          subtitle={`${t('chart.topMarketCap.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
         >
           <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
         </ChartCard>
