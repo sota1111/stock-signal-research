@@ -15,6 +15,7 @@ from ..services.signal_report import (
 )
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
+from ..services.market_cap_history import build_category_market_cap, list_categories
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -130,6 +131,33 @@ def get_category_paper_averages(
     return aggregate_category_paper_averages(
         papers=papers, themes=themes, from_year=from_year, to_year=to_year
     )
+
+
+@router.get("/categories", response_model=schemas.CategoryListResponse)
+def get_categories():
+    """カテゴリ（テーマ）一覧を返す（SOT-1056）。各テーマに真の歴史的時価総額データがあるかを併記。
+
+    フロントのカテゴリセレクタ用。`has_market_cap=True` のテーマのみグラフを描画できる。
+    """
+    theme_repo = get_theme_repository()
+    company_repo = get_company_repository()
+    return {"categories": list_categories(theme_repo, company_repo)}
+
+
+@router.get("/category-market-cap", response_model=schemas.CategoryMarketCapResponse)
+def get_category_market_cap(
+    theme_id: str = Query(..., description="対象テーマ（カテゴリ）ID"),
+    top_n: int = Query(10, ge=1, le=30, description="採用する上位社数（一度でも上位N入りした企業の和集合）"),
+):
+    """指定カテゴリ（テーマ）の上位 top_n 社の「真の歴史的時価総額（年次）」系列を返す（SOT-1056 / B-3）。
+
+    `backend/data/market-cap-history.json`（SEC EDGAR の発行株式数 × 同梱株価, 米国・2009年〜）に基づく。
+    ある年に時価総額上位 top_n に**一度でも**入った企業（期間通算の和集合）を系列にする。フロント側の
+    近似（現在時価総額×株価比）は使わない。データが無いテーマは空系列を返す（例外は投げない）。
+    """
+    theme_repo = get_theme_repository()
+    company_repo = get_company_repository()
+    return build_category_market_cap(theme_id, theme_repo, company_repo, top_n=top_n)
 
 
 @router.get("/", response_model=schemas.DashboardResponse)
