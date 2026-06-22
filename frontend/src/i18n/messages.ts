@@ -16,6 +16,9 @@ export const messages = {
     'nav.input': '登録',
     'nav.evaluation': '一致度評価',
     'nav.researchSeeds': '初期リサーチ',
+    // mobile drawer (SOT-1020 / 提案3)
+    'nav.menu': 'メニュー',
+    'nav.closeMenu': 'メニューを閉じる',
     // nav groups (SOT-998)
     'navgroup.overview': '概要',
     'navgroup.research': 'リサーチ根拠',
@@ -427,6 +430,9 @@ export const messages = {
     'nav.input': 'Register',
     'nav.evaluation': 'Match Score',
     'nav.researchSeeds': 'Research Seeds',
+    // mobile drawer (SOT-1020 / proposal 3)
+    'nav.menu': 'Menu',
+    'nav.closeMenu': 'Close menu',
     // nav groups (SOT-998)
     'navgroup.overview': 'Overview',
     'navgroup.research': 'Research',
