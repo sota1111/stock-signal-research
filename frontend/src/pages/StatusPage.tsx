@@ -2,12 +2,13 @@ import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchSignalReport, fetchThemeCitations } from '../api'
-import { useDashboardQuery, useTickerStocks } from './dashboardData'
+import { useDashboardQuery, useTickerStocks, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
-// 論文取得の下限年（SOT-987 と同一）。lastAnalyzed の generated_at 取得用。
-const PAPER_HISTORY_FROM_YEAR = 2000
+// 論文取得の下限年（SOT-1069: 他ページと同じ 2009 起点に統一）。lastAnalyzed の generated_at 取得用。
+// グラフ表示は無いが、signal-report の queryKey を Dashboard/Signals と揃えてキャッシュを共有する。
+const PAPER_HISTORY_FROM_YEAR = GRAPH_FROM_YEAR
 
 // SOT-991: ダッシュボードにあった「状態表示」（状態バナー + 重要指標KPI）を独立ページへ移行。
 export default function StatusPage() {

@@ -6,7 +6,7 @@ import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import ThemeCitationsList from '../components/ThemeCitationsList'
 import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
-import { useDashboardQuery, useTickerStocks } from './dashboardData'
+import { useDashboardQuery, useTickerStocks, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -20,8 +20,8 @@ export default function PapersPage() {
   // テーマ選択（C1 の論文件数を切り替える）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
-    queryKey: ['signal-report', reportQuery],
-    queryFn: () => fetchSignalReport(reportQuery),
+    queryKey: ['signal-report', reportQuery, GRAPH_FROM_YEAR],
+    queryFn: () => fetchSignalReport(reportQuery, GRAPH_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,

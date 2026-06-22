@@ -8,10 +8,11 @@ import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
+import { GRAPH_FROM_YEAR } from './dashboardData'
 import { useI18n } from '../i18n/useI18n'
 
-// SOT-945/SOT-987: keep the paper graph on the same 2000+ history floor as DashboardPage.
-const PAPER_HISTORY_FROM_YEAR = 2000
+// SOT-945/SOT-987/SOT-1069: keep the paper graph on the same 2009 history floor as DashboardPage.
+const PAPER_HISTORY_FROM_YEAR = GRAPH_FROM_YEAR
 
 export default function SignalDetectionPage() {
   const { t } = useI18n()
