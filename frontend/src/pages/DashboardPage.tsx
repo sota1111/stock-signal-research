@@ -37,10 +37,10 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
-  // テーマ×年 引用数マトリクス（行=テーマ / 列=直近10年 / セル=引用数合計, SOT-944）
+  // テーマ×年 引用数マトリクス（行=テーマ / 列=2009〜現在 / セル=引用数合計, SOT-944 / SOT-1081 要件①）
   const { data: citationMatrix } = useQuery({
-    queryKey: ['theme-citation-matrix'],
-    queryFn: () => fetchThemeCitationMatrix(10),
+    queryKey: ['theme-citation-matrix', PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchThemeCitationMatrix(10, PAPER_HISTORY_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
@@ -122,6 +122,10 @@ export default function DashboardPage() {
   // 大カテゴリ = Theme.category。選択肢のユニバースは全テーマ（未取得時は trending_themes）。
   const themes = allThemes && allThemes.length > 0 ? allThemes : data.trending_themes
   const categories = [...new Set(themes.map(th => th.category).filter(Boolean))].sort()
+  // theme_id → 大カテゴリ のマップ（引用数マトリクス・時価総額の大カテゴリ絞り込みで再利用, SOT-1089/1091）。
+  const categoryByThemeId = new Map<string, string>(
+    themes.filter(th => th.id && th.category).map(th => [th.id, th.category]),
+  )
   const currentThemeObj = themes.find(th => th.name === reportQuery)
   const effectiveCategory = category || currentThemeObj?.category || ''
   const themesInCategory = effectiveCategory
@@ -143,6 +147,25 @@ export default function DashboardPage() {
     const first = (cat ? themes.filter(th => th.category === cat) : themes)[0]
     if (first && first.name !== reportQuery) setTheme(first.name)
   }
+
+  // 引用数マトリクスは選択中の大カテゴリのテーマ行のみ表示する（SOT-1081 要件⑥）。
+  // 大カテゴリ未選択時は全テーマ。行を絞った上で列合計・総合計を再計算する。
+  const displayCitationMatrix = (() => {
+    if (!citationMatrix) return undefined
+    if (!effectiveCategory) return citationMatrix
+    const rows = citationMatrix.rows.filter(
+      r => r.theme_id != null && categoryByThemeId.get(r.theme_id) === effectiveCategory,
+    )
+    const columnTotals = citationMatrix.years.map((_, i) =>
+      rows.reduce((sum, r) => sum + (r.cells[i] ?? 0), 0),
+    )
+    return {
+      ...citationMatrix,
+      rows,
+      column_totals: columnTotals,
+      grand_total: columnTotals.reduce((a, b) => a + b, 0),
+    }
+  })()
 
   // カード表示ON/OFF（SOT-1002 / 提案5）。
   const CARDS: { id: string; label: string }[] = [
@@ -361,10 +384,10 @@ export default function DashboardPage() {
         {isCardVisible('matrix') && (
         <ChartCard
           title={t('chart.citationMatrix.title')}
-          subtitle={t('chart.citationMatrix.subtitle')}
+          subtitle={`${t('chart.citationMatrix.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
         >
-          {citationMatrix ? (
-            <ThemeCitationMatrix data={citationMatrix} />
+          {displayCitationMatrix ? (
+            <ThemeCitationMatrix data={displayCitationMatrix} />
           ) : (
             <p className="text-sm text-gray-400">{t('chart.citationMatrix.loading')}</p>
           )}

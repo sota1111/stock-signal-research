@@ -99,18 +99,22 @@ def get_theme_citations(
 
 @router.get("/theme-citation-matrix", response_model=schemas.ThemeCitationMatrixResponse)
 def get_theme_citation_matrix(
-    years: int = Query(10, ge=1, le=30, description="列に表示する直近の年数"),
+    years: int = Query(10, ge=1, le=30, description="列に表示する直近の年数（from_year 未指定時のみ）"),
+    from_year: Optional[int] = Query(None, ge=1900, le=2100, description="列の開始年（指定で from_year..現在年, SOT-1081: 2009起点）"),
 ):
-    """テーマ×年の引用数合計マトリクスを返す（行=テーマ / 列=直近years年 / セル=引用数合計）。
+    """テーマ×年の引用数合計マトリクスを返す（行=テーマ / 列=年 / セル=引用数合計）。
 
     各テーマ名に一致する論文を年別にバケットし、citation_count を合計する。テーマ別合計
-    （行合計）・年別合計（列合計）・総合計を併せて返す。外部APIキー不要。
+    （行合計）・年別合計（列合計）・総合計を併せて返す。`from_year` 指定時は列を
+    from_year..現在年にする（SOT-1081 要件①）。外部APIキー不要。
     """
     paper_repo = get_paper_repository()
     theme_repo = get_theme_repository()
     papers = paper_repo.list_all()
     themes = theme_repo.list_all()
-    return aggregate_theme_citation_matrix(papers=papers, themes=themes, years=years)
+    return aggregate_theme_citation_matrix(
+        papers=papers, themes=themes, years=years, from_year=from_year
+    )
 
 
 @router.get("/category-paper-averages", response_model=schemas.CategoryPaperAveragesResponse)

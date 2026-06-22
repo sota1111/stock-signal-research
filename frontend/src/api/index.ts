@@ -73,8 +73,12 @@ export const fetchBacktest = (ticker: string, years = 10) =>
 export const fetchThemeCitations = (topN = 100) =>
   api.get<ThemeCitations>('/dashboard/theme-citations', { params: { top_n: topN } }).then(r => r.data)
 
-export const fetchThemeCitationMatrix = (years = 10) =>
-  api.get<ThemeCitationMatrix>('/dashboard/theme-citation-matrix', { params: { years } }).then(r => r.data)
+export const fetchThemeCitationMatrix = (years = 10, fromYear?: number) =>
+  api
+    .get<ThemeCitationMatrix>('/dashboard/theme-citation-matrix', {
+      params: { years, ...(fromYear != null ? { from_year: fromYear } : {}) },
+    })
+    .then(r => r.data)
 
 export const fetchCategoryPaperAverages = (fromYear?: number, toYear?: number) =>
   api

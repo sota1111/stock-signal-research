@@ -189,6 +189,7 @@ def aggregate_theme_citation_matrix(
     papers: List[Dict[str, Any]],
     themes: List[Dict[str, Any]],
     years: int = 10,
+    from_year: Optional[int] = None,
     now: Optional[datetime] = None,
 ) -> Dict[str, Any]:
     """テーマ×年の引用数合計マトリクスを集計する純粋関数。
@@ -200,12 +201,17 @@ def aggregate_theme_citation_matrix(
     Args:
         papers: 論文 dict のリスト（title, abstract, citation_count, published_at を想定）。
         themes: テーマ dict のリスト（id, name, description を想定）。
-        years: 列に表示する直近の年数（既定10）。
+        years: 列に表示する直近の年数（既定10, from_year 未指定時のみ使用）。
+        from_year: 指定すると列を from_year..現在年にする（SOT-1081 要件①: 2009起点）。
     """
     now = now or datetime.now(timezone.utc)
-    span = max(1, int(years))
     current_year = now.year
-    year_columns = list(range(current_year - span + 1, current_year + 1))
+    if from_year is not None:
+        start = min(int(from_year), current_year)
+        year_columns = list(range(start, current_year + 1))
+    else:
+        span = max(1, int(years))
+        year_columns = list(range(current_year - span + 1, current_year + 1))
     year_index = {y: i for i, y in enumerate(year_columns)}
 
     rows: List[Dict[str, Any]] = []
