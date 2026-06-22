@@ -13,7 +13,11 @@
 - arXiv 等から論文情報を収集し、キーワード別に月次集計
 - テーマ（AI、GPU、SSD/NVMe、HBM 等）ごとに前兆スコアを算出
 - サプライチェーン連鎖（AI需要 → GPU → HBM → NVMe SSD → データセンター電力 → 光通信）を可視化
-- 大口投資家の保有比率変化を記録（MVPはサンプルデータ）
+- 特許（USPTO）の年次出願件数・トップ出願人を集計・可視化
+- 大口投資家（13F）の保有動向を記録・可視化（SEC EDGAR 由来の実データを seed）
+- 株価・時価総額の推移（同梱データ）と論文トレンドのクロス分析・大カテゴリ別ビュー
+- 論文トレンドと株価の lead-lag 相関・複合スコアで投資候補をランキング（`/candidates`）
+- UI は日本語/英語のトグル切り替えに対応
 
 ---
 
@@ -69,7 +73,9 @@ docker compose up --build
 
 ```
 frontend/          React 18 + TypeScript + Vite + Tailwind CSS + Recharts
-backend/           Python 3.11 + FastAPI + SQLAlchemy + SQLite (APP_ENV=local のみ)
+                   （@tanstack/react-query, axios, react-router-dom v7, i18n ja/en）
+backend/           Python 3.11 + FastAPI + SQLAlchemy
+                   永続化: SQLite（APP_ENV=local のみ） / Firestore（APP_ENV=production）
 docker-compose.yml フロント・バック同時起動
 ```
 
@@ -120,13 +126,22 @@ npm run dev
 
 | 画面 | URL | 説明 |
 |------|-----|------|
-| ダッシュボード | `/` | 急増テーマ・急増キーワード・注目企業・サプライチェーン連鎖・株価/論文推移グラフを表示 |
+| ログイン | `/login` | サーバサイド Firebase REST 認証によるログイン |
+| ダッシュボード | `/` | 急増テーマ・急増キーワード・注目企業・サプライチェーン連鎖・株価/論文クロス分析・大カテゴリ別ビューを表示 |
+| 状態 | `/status` | システム状態バナー・主要 KPI カードを表示 |
+| 株価 | `/stock` | 銘柄別の株価・時価総額・テクニカルシグナルのバックテストを表示 |
+| 論文 | `/papers` | 論文の年次・月次件数などの集計を表示 |
+| 特許 | `/patents` | 特許の年次出願件数・トップ出願人を表示 |
+| 投資家 | `/investors` | 大口投資家（13F）の保有動向を表示 |
+| 投資候補 | `/candidates` | lead-lag 相関・複合スコアによる投資候補ランキングを表示 |
 | 前兆検知 | `/signals` | 急増テーマ TOP5・外部情報との一致度（前兆候補）を表示 |
 | 一覧 | `/list` | テーマ・論文・企業・大口投資家を一覧表示（タブ切り替え） |
 | テーマ詳細 | `/themes/:id` | 月次論文数推移グラフ・サプライチェーン・関連論文を表示 |
 | 登録 | `/input` | テーマ・論文・企業を登録するフォーム |
 | 一致度評価 | `/evaluation` | 前兆スコア vs 実株価変動の一致度（ウィンドウ別サマリー・銘柄別明細） |
 | 初期リサーチ | `/research-seeds` | 初期リサーチ（seed）テーマ一覧を表示 |
+
+> ログイン以外の画面は認証必須（`PrivateRoute`）です。
 
 ---
 
@@ -186,9 +201,15 @@ AI需要 → GPU memory bottleneck → HBM → SSD / NVMe → data center power 
 | themes | テーマ（前兆スコア・トレンドフラグ付き） |
 | papers | 論文（arXiv ID・要旨・キーワード） |
 | paper_monthly_counts | 月次論文数集計（前月比・前年比） |
+| patents | 特許（USPTO） |
+| patent_yearly_counts | 特許の年次出願件数集計 |
 | companies | 企業（恩恵度スコア・直接/間接分類） |
 | supply_chains | サプライチェーン関係 |
-| institutional_investors | 大口投資家（サンプルデータ） |
+| institutional_investors | 大口投資家（13F 由来の実データを seed） |
+| external_infos | 外部情報リンク |
+| alignment_scores | 前兆スコアと株価変動の一致度スコア |
+| stock_prices | 株価履歴（キャッシュ） |
+| research_seeds | 初期リサーチ（seed）テーマ |
 
 詳細は `backend/app/models.py` および `backend/app/schemas.py` を参照。
 
@@ -253,12 +274,15 @@ curl "http://localhost:8080/api/dashboard/signal-report?query=AI%20infrastructur
 
 ---
 
-## 株価・財務情報の取得（yfinance / APIキー不要）
+## 株価・財務情報の取得（同梱データ / APIキー不要）
 
-注目企業の株価・財務情報を [yfinance](https://pypi.org/project/yfinance/)（Yahoo Finance 非公式ラッパ）
-経由で取得できます。**外部 API キーは不要**です（J-Quants / Alpha Vantage / Finnhub のキーは使いません）。
+注目企業の株価・財務情報を返します。**外部 API キーは不要**で、**ランタイムでは外部ネットワーク取得を行いません**。
+サーバはリポジトリに同梱した `backend/data/stock-prices.json`（過去約10年・日次終値＋財務スナップショット）を
+読み込みます（SOT-941）。同梱データは開発時に `backend/scripts/collect_stock_data.py` で yfinance から一度
+収集してコミットしたものです。`yfinance` はこの収集スクリプト専用の開発用依存で、ランタイム依存には含まれません。
 日本株は数字の証券コードのみ指定すると自動で `.T` を付与します（例: `7203` → `7203.T`）。米国株はそのまま
-ティッカーを指定します（例: `AAPL`）。
+ティッカーを指定します（例: `AAPL`）。同梱データに該当ティッカーが無い場合も例外は発生せず、`error` を設定した
+同一形状の JSON を返します。
 
 取得結果は次の統一 JSON 形状で返ります:
 
@@ -325,8 +349,9 @@ curl "http://localhost:8080/api/dashboard/stock?ticker=7203"
 統一シグナルレポートの `top_companies[].market_data_available` が `true` になります（`Company.ticker`
 が設定されている場合）。
 
-> **MCP について**: 本機能は yfinance を直接利用するため MCP サーバや API キーの設定は不要です。
-> Claude Code からは上記 CLI を実行するだけで株価・財務情報を取得できます。
+> **MCP について**: 本機能は同梱 JSON を読むだけのため MCP サーバや API キーの設定は不要です。
+> Claude Code からは上記 CLI を実行するだけで株価・財務情報を取得できます。同梱データの再収集が必要な
+> 場合のみ `backend/scripts/collect_stock_data.py` を開発環境で実行してください。
 
 ---
 
