@@ -16,6 +16,7 @@ const StockPage = lazy(() => import('./pages/StockPage'))
 const PapersPage = lazy(() => import('./pages/PapersPage'))
 const PatentsPage = lazy(() => import('./pages/PatentsPage'))
 const InvestorsPage = lazy(() => import('./pages/InvestorsPage'))
+const InvestmentCandidatesPage = lazy(() => import('./pages/InvestmentCandidatesPage'))
 const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
 const ListPage = lazy(() => import('./pages/ListPage'))
 const DetailPage = lazy(() => import('./pages/DetailPage'))
@@ -54,6 +55,7 @@ const NAV_GROUPS: NavGroupDef[] = [
   { label: 'navgroup.market', items: [
     { to: '/stock', label: 'nav.stock' },
     { to: '/investors', label: 'nav.investors' },
+    { to: '/candidates', label: 'nav.candidates' },
     { to: '/evaluation', label: 'nav.evaluation' },
   ] },
   { label: 'navgroup.manage', items: [
@@ -202,6 +204,7 @@ function AppLayout() {
             <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
             <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
             <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
+            <Route path="/candidates" element={<PrivateRoute><InvestmentCandidatesPage /></PrivateRoute>} />
             <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
             <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
             <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
