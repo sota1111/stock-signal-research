@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
 import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
+import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
-import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -23,10 +24,26 @@ export default function DashboardPage() {
   // テーマ選択・表示年レンジはグローバルフィルタ(URL永続化)を参照する（SOT-997）。
   const { theme: selectedTheme, setTheme, fromYear, toYear, setYearRange } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
-  const { stockItems, stockQueries } = useTickerStocks(data?.notable_companies ?? [])
+  // 選択肢のユニバースは全テーマ（SOT-1088）。未取得時は trending_themes にフォールバック。
+  const { data: allThemes } = useAllThemes()
+
+  // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
+  const [category, setCategory] = useState('')
+  const [themeSearch, setThemeSearch] = useState('')
+  const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
+  // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
+  const [baseYear, setBaseYear] = useState<number | null>(null)
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
+  // 選択肢ユニバース（全テーマ）と、論文/時価総額カードを駆動する大カテゴリ。
+  const queryThemes = (allThemes && allThemes.length > 0 ? allThemes : data?.trending_themes) ?? []
+  const queryCategory = category || queryThemes.find(th => th.name === reportQuery)?.category || ''
+
+  // 時価総額上位10社は選択中の大カテゴリの企業に絞る（SOT-1081 要件⑤）。未選択時は全注目企業。
+  const scopedCompanies = filterCompaniesByCategory(data?.notable_companies ?? [], queryCategory, queryThemes)
+  const { stockItems, stockQueries } = useTickerStocks(scopedCompanies)
+
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
     queryFn: () => fetchSignalReport(reportQuery, PAPER_HISTORY_FROM_YEAR),
@@ -35,10 +52,10 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
-  // テーマ×年 引用数マトリクス（行=テーマ / 列=直近10年 / セル=引用数合計, SOT-944）
+  // テーマ×年 引用数マトリクス（行=テーマ / 列=2009〜現在 / セル=引用数合計, SOT-944 / SOT-1081 要件①）
   const { data: citationMatrix } = useQuery({
-    queryKey: ['theme-citation-matrix'],
-    queryFn: () => fetchThemeCitationMatrix(10),
+    queryKey: ['theme-citation-matrix', PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchThemeCitationMatrix(10, PAPER_HISTORY_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data,
@@ -54,12 +71,15 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
-  // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
-  const [category, setCategory] = useState('')
-  const [themeSearch, setThemeSearch] = useState('')
-  const [hiddenCards, setHiddenCards] = useState<Record<string, boolean>>({})
-  // クロス分析（指数）の基準年。null = 自動（両系列が正の最初の共通年）。SOT-1014
-  const [baseYear, setBaseYear] = useState<number | null>(null)
+  // 論文カードは大カテゴリ選択で駆動する（SOT-1081 要件③④）。選択中の大カテゴリ内の
+  // テーマごとの年別論文数を取得する（queryCategory は上で算出済み）。
+  const { data: categoryPaperCounts, isLoading: isCatPapersLoading, isFetching: isCatPapersFetching } = useQuery({
+    queryKey: ['category-paper-counts', queryCategory, PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchCategoryPaperCounts(queryCategory, PAPER_HISTORY_FROM_YEAR),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data && !!queryCategory,
+  })
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -116,10 +136,14 @@ export default function DashboardPage() {
   const effectiveBaseYear =
     baseYear != null && baseYearOptions.includes(baseYear) ? baseYear : (baseYearOptions[0] ?? null)
 
-  // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002）。
-  // 大カテゴリ = Theme.category。選択した大カテゴリ内のテーマだけを、検索文字でさらに絞り込む。
-  const themes = data.trending_themes
+  // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002 / SOT-1088）。
+  // 大カテゴリ = Theme.category。選択肢のユニバースは全テーマ（未取得時は trending_themes）。
+  const themes = allThemes && allThemes.length > 0 ? allThemes : data.trending_themes
   const categories = [...new Set(themes.map(th => th.category).filter(Boolean))].sort()
+  // theme_id → 大カテゴリ のマップ（引用数マトリクス・時価総額の大カテゴリ絞り込みで再利用, SOT-1089/1091）。
+  const categoryByThemeId = new Map<string, string>(
+    themes.filter(th => th.id && th.category).map(th => [th.id, th.category]),
+  )
   const currentThemeObj = themes.find(th => th.name === reportQuery)
   const effectiveCategory = category || currentThemeObj?.category || ''
   const themesInCategory = effectiveCategory
@@ -141,6 +165,25 @@ export default function DashboardPage() {
     const first = (cat ? themes.filter(th => th.category === cat) : themes)[0]
     if (first && first.name !== reportQuery) setTheme(first.name)
   }
+
+  // 引用数マトリクスは選択中の大カテゴリのテーマ行のみ表示する（SOT-1081 要件⑥）。
+  // 大カテゴリ未選択時は全テーマ。行を絞った上で列合計・総合計を再計算する。
+  const displayCitationMatrix = (() => {
+    if (!citationMatrix) return undefined
+    if (!effectiveCategory) return citationMatrix
+    const rows = citationMatrix.rows.filter(
+      r => r.theme_id != null && categoryByThemeId.get(r.theme_id) === effectiveCategory,
+    )
+    const columnTotals = citationMatrix.years.map((_, i) =>
+      rows.reduce((sum, r) => sum + (r.cells[i] ?? 0), 0),
+    )
+    return {
+      ...citationMatrix,
+      rows,
+      column_totals: columnTotals,
+      grand_total: columnTotals.reduce((a, b) => a + b, 0),
+    }
+  })()
 
   // カード表示ON/OFF（SOT-1002 / 提案5）。
   const CARDS: { id: string; label: string }[] = [
@@ -300,19 +343,29 @@ export default function DashboardPage() {
         </ChartCard>
         )}
 
-        {/* グラフ① 論文件数 */}
+        {/* グラフ① 論文件数（大カテゴリ駆動: その中のカテゴリ=テーマごとの折れ線, SOT-1081 要件③④） */}
         {isCardVisible('papers') && (
         <ChartCard
           title={t('chart.papers.title')}
-          subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}${
-            effStart != null && effEnd != null
-              ? ` / ${effStart}–${effEnd}`
-              : signalReport
-                ? ` / ${signalReport.period.from_year}–${signalReport.period.to_year}`
-                : ''
+          subtitle={`${t('dashboard.categoryLabel')}: ${effectiveCategory || t('dashboard.allCategories')}${
+            effStart != null && effEnd != null ? ` / ${effStart}–${effEnd}` : ''
           }`}
         >
-          {filteredPaperCounts.length > 0 ? (
+          {effectiveCategory ? (
+            categoryPaperCounts && categoryPaperCounts.series.length > 0 ? (
+              <CategoryPaperCountsChart data={categoryPaperCounts} fromYear={effStart} toYear={effEnd} />
+            ) : (isCatPapersLoading || isCatPapersFetching) && !categoryPaperCounts ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+                <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+                <p>{t('chart.papers.loading')}</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+                <p>{t('chart.papers.empty')}</p>
+                <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
+              </div>
+            )
+          ) : filteredPaperCounts.length > 0 ? (
             <PapersCountChart counts={filteredPaperCounts} />
           ) : isPapersLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
@@ -349,7 +402,7 @@ export default function DashboardPage() {
         {isCardVisible('marketCap') && (
         <ChartCard
           title={t('chart.topMarketCap.title', { n: TOP_N })}
-          subtitle={t('chart.topMarketCap.subtitle')}
+          subtitle={`${t('chart.topMarketCap.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
         >
           <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
         </ChartCard>
@@ -359,10 +412,10 @@ export default function DashboardPage() {
         {isCardVisible('matrix') && (
         <ChartCard
           title={t('chart.citationMatrix.title')}
-          subtitle={t('chart.citationMatrix.subtitle')}
+          subtitle={`${t('chart.citationMatrix.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
         >
-          {citationMatrix ? (
-            <ThemeCitationMatrix data={citationMatrix} />
+          {displayCitationMatrix ? (
+            <ThemeCitationMatrix data={displayCitationMatrix} />
           ) : (
             <p className="text-sm text-gray-400">{t('chart.citationMatrix.loading')}</p>
           )}

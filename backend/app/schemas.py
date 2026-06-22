@@ -417,6 +417,21 @@ class CategoryPaperAveragesResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
+# --- 大カテゴリ内 テーマ別 年次論文数（SOT-1081 要件③④） ---
+class CategoryPaperCountsSeries(BaseModel):
+    theme_id: Optional[str] = None
+    theme_name: str
+    total: int = 0
+    counts: List[int] = Field(default_factory=list)
+
+
+class CategoryPaperCountsResponse(BaseModel):
+    category: Optional[str] = None
+    years: List[int] = Field(default_factory=list)
+    series: List[CategoryPaperCountsSeries] = Field(default_factory=list)
+    generated_at: Optional[str] = None
+
+
 # --- 株価・財務取得（同梱データ / SOT-842, SOT-941） ---
 class StockPricePoint(BaseModel):
     date: str

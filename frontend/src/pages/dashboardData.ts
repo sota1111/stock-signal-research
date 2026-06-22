@@ -1,6 +1,6 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock } from '../api'
-import type { Company } from '../types'
+import { fetchDashboard, fetchStock, fetchThemes } from '../api'
+import type { Company, Theme } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
 import { toYearly, yearOf } from '../components/charts/chartUtils'
 
@@ -30,6 +30,41 @@ export function formatMarketCap(value?: number | null) {
 /** Shared dashboard data query (notable companies, trending themes, supply chain, keywords). */
 export function useDashboardQuery() {
   return useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+}
+
+/**
+ * 全テーマ一覧クエリ（SOT-1088）。
+ * ダッシュボードの大カテゴリ／テーマ選択肢は従来 `/dashboard/` の top30 `trending_themes`
+ * 由来で選択肢が不足していた。`/themes/` 全件を選択肢のユニバースに使い、全大カテゴリ・
+ * 全テーマを選べるようにする。`trending_themes` は既定の並び順/初期テーマ選択に使う。
+ */
+export function useAllThemes() {
+  return useQuery({ queryKey: ['themes-all'], queryFn: fetchThemes, staleTime: 1000 * 60 * 30 })
+}
+
+/**
+ * 注目企業を選択中の大カテゴリ（Theme.category）に絞り込む（SOT-1081 要件⑤）。
+ *
+ * 各 `Company.theme_ids`（theme_id 配列の JSON 文字列）を theme_id→category マップで大カテゴリに
+ * 解決し、いずれかが選択中の大カテゴリに一致する企業のみ残す。`category` が空（全カテゴリ）の
+ * 場合は全件をそのまま返す。
+ */
+export function filterCompaniesByCategory(companies: Company[], category: string, themes: Theme[]): Company[] {
+  if (!category) return companies
+  const categoryByThemeId = new Map<string, string>(
+    themes.filter(th => th.id && th.category).map(th => [th.id, th.category]),
+  )
+  return companies.filter(c => {
+    if (!c.theme_ids) return false
+    let ids: string[] = []
+    try {
+      const parsed = JSON.parse(c.theme_ids)
+      if (Array.isArray(parsed)) ids = parsed.map(String)
+    } catch {
+      ids = []
+    }
+    return ids.some(id => categoryByThemeId.get(id) === category)
+  })
 }
 
 /**
