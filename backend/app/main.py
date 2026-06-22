@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+import threading
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +36,20 @@ def _check_auth_config() -> None:
         logger.info("auth config OK")
 
 
+def _run_prod_seed() -> None:
+    try:
+        seed.seed_research_seeds_firestore()
+        # ダッシュボードのコアデータ(themes/companies/papers/supply_chains/月次件数/scores)も
+        # 本番Firestoreへ冪等投入する。投入しないとダッシュボードが空になる。
+        seed.seed_dashboard_data_firestore()
+        # 機関投資家(SEC EDGAR 13F 実データ)も本番Firestoreへ冪等投入する(SOT-965)。
+        seed.seed_investors_firestore()
+        # 特許(USPTO Patent Public Search 実データ)も本番Firestoreへ冪等投入する(SOT-960)。
+        seed.seed_patents_firestore()
+    except Exception as e:
+        logger.exception("Production Firestore seed failed in background: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _check_auth_config()
@@ -45,14 +60,7 @@ async def lifespan(app: FastAPI):
     else:
         # production: SQLiteは初期化しない。Firestore接続確認＋初期データ投入(冪等)。
         _check_firestore_connection()
-        seed.seed_research_seeds_firestore()
-        # ダッシュボードのコアデータ(themes/companies/papers/supply_chains/月次件数/scores)も
-        # 本番Firestoreへ冪等投入する。投入しないとダッシュボードが空になる。
-        seed.seed_dashboard_data_firestore()
-        # 機関投資家(SEC EDGAR 13F 実データ)も本番Firestoreへ冪等投入する(SOT-965)。
-        seed.seed_investors_firestore()
-        # 特許(USPTO Patent Public Search 実データ)も本番Firestoreへ冪等投入する(SOT-960)。
-        seed.seed_patents_firestore()
+        threading.Thread(target=_run_prod_seed, daemon=True).start()
     yield
 
 app = FastAPI(title="Stock Signal Research API", version="1.0.0", lifespan=lifespan)
