@@ -9,7 +9,7 @@ import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
-import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -23,6 +23,8 @@ export default function DashboardPage() {
   // テーマ選択・表示年レンジはグローバルフィルタ(URL永続化)を参照する（SOT-997）。
   const { theme: selectedTheme, setTheme, fromYear, toYear, setYearRange } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
+  // 選択肢のユニバースは全テーマ（SOT-1088）。未取得時は trending_themes にフォールバック。
+  const { data: allThemes } = useAllThemes()
   const { stockItems, stockQueries } = useTickerStocks(data?.notable_companies ?? [])
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
@@ -116,9 +118,9 @@ export default function DashboardPage() {
   const effectiveBaseYear =
     baseYear != null && baseYearOptions.includes(baseYear) ? baseYear : (baseYearOptions[0] ?? null)
 
-  // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002）。
-  // 大カテゴリ = Theme.category。選択した大カテゴリ内のテーマだけを、検索文字でさらに絞り込む。
-  const themes = data.trending_themes
+  // 大カテゴリ→カテゴリ(テーマ) の順次選択（SOT-1002 / SOT-1088）。
+  // 大カテゴリ = Theme.category。選択肢のユニバースは全テーマ（未取得時は trending_themes）。
+  const themes = allThemes && allThemes.length > 0 ? allThemes : data.trending_themes
   const categories = [...new Set(themes.map(th => th.category).filter(Boolean))].sort()
   const currentThemeObj = themes.find(th => th.name === reportQuery)
   const effectiveCategory = category || currentThemeObj?.category || ''

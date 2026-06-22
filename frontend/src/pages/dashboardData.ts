@@ -1,5 +1,5 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock } from '../api'
+import { fetchDashboard, fetchStock, fetchThemes } from '../api'
 import type { Company } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
 import { toYearly, yearOf } from '../components/charts/chartUtils'
@@ -30,6 +30,16 @@ export function formatMarketCap(value?: number | null) {
 /** Shared dashboard data query (notable companies, trending themes, supply chain, keywords). */
 export function useDashboardQuery() {
   return useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+}
+
+/**
+ * 全テーマ一覧クエリ（SOT-1088）。
+ * ダッシュボードの大カテゴリ／テーマ選択肢は従来 `/dashboard/` の top30 `trending_themes`
+ * 由来で選択肢が不足していた。`/themes/` 全件を選択肢のユニバースに使い、全大カテゴリ・
+ * 全テーマを選べるようにする。`trending_themes` は既定の並び順/初期テーマ選択に使う。
+ */
+export function useAllThemes() {
+  return useQuery({ queryKey: ['themes-all'], queryFn: fetchThemes, staleTime: 1000 * 60 * 30 })
 }
 
 /**
