@@ -376,3 +376,36 @@ export interface CategoryPaperAverages {
   categories: CategoryPaperAverageItem[]
   generated_at?: string
 }
+
+// カテゴリ別 真の歴史的時価総額（SOT-1056 / A-1 + B-3）
+export interface CategoryListItem {
+  theme_id: string
+  theme_name?: string | null
+  category?: string | null
+  company_count: number
+  has_market_cap: boolean
+}
+
+export interface CategoryListResponse {
+  categories: CategoryListItem[]
+}
+
+export interface CategoryMarketCapSeries {
+  key: string
+  name: string
+}
+
+export interface CategoryMarketCapPoint {
+  year: number
+  values: Record<string, number>
+}
+
+export interface CategoryMarketCap {
+  theme_id: string
+  theme_name?: string | null
+  currency: string
+  note: string
+  series: CategoryMarketCapSeries[]
+  years: number[]
+  points: CategoryMarketCapPoint[]
+}
