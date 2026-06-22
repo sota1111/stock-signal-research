@@ -1,51 +1,53 @@
 # Worker Report
 
 ## Summary
-Verification completed for SOT-995 `/login` 5 improvements. No code changes were required.
+SOT-1049 「平均グラフ追加」 verification completed. No product code changes were made.
 
-Quality gates passed:
-- `cd frontend && npm run lint` exited 0.
-- `cd frontend && npm run build` exited 0.
+The backend aggregate, dashboard endpoint import, frontend lint, and frontend production build all pass.
 
-Diff review:
-- `git -C /workspaces/stock-signal-research diff main...HEAD` produced no output in this worktree.
-- The working-tree diff for the listed frontend files was reviewed because the expected implementation files are currently modified but not present in `main...HEAD`.
+## Backend Verification
+- `python -m pytest -q` in `backend/`: 90 passed, 2 warnings.
+- Explicit sanity check for `aggregate_category_paper_averages` passed with synthetic data:
+  - category `AI` had 2 themes, including one theme with zero valid papers.
+  - category `AI` had 2 papers in 2024.
+  - average was `2 / 2 = 1.0`, confirming zero-paper themes are included in the denominator.
+  - unknown-theme papers and papers without parseable years were ignored.
+- `app.routers.dashboard` imported successfully and exposes `get_category_paper_averages`.
 
-Sanity checks:
-- `AuthContext` still uses cookie auth with `credentials: 'include'` for `/api/auth/me`, `/api/auth/session`, and `/api/auth/logout`.
-- `PrivateRoute` reads `loading` from auth context and renders `PageLoading` while the auth check is unresolved.
-- `PrivateRoute` preserves the attempted route in `state.from` when redirecting to `/login`.
-- `LoginPage` resolves the return target from `state.from` or `?redirect`, then redirects there on login success.
-- `LoginPage` also redirects already-authenticated users to the resolved target after auth loading completes.
-- New login i18n keys are present in both `ja` and `en`; `npm run build` confirmed `MessageKey` typing and exhaustive `AuthErrorCode` mapping.
+## Frontend Verification
+- `npm run lint` in `frontend/`: passed.
+- `npm run build` in `frontend/`: passed.
+  - Build runs `tsc -b && vite build`, so the TypeScript gate passed.
 
 ## Changed Files
-- `docs/ai/60_worker_codex_report.md` — updated verification report only.
+- `docs/ai/60_worker_codex_report.md` — replaced prior investigation note with this verification report.
 
 ## Commands Run
-- `cd frontend && npm run lint`
-- `cd frontend && npm run build`
 - `git status --short --branch`
-- `git diff -- frontend/src/contexts/authContextValue.ts frontend/src/contexts/AuthContext.tsx frontend/src/App.tsx frontend/src/pages/LoginPage.tsx frontend/src/api/index.ts frontend/src/i18n/messages.ts`
-- `git -C /workspaces/stock-signal-research diff main...HEAD --stat`
-- `git -C /workspaces/stock-signal-research diff main...HEAD --name-only`
-- `sed -n '1,240p' frontend/src/contexts/AuthContext.tsx`
-- `sed -n '1,260p' frontend/src/App.tsx`
-- `sed -n '1,320p' frontend/src/pages/LoginPage.tsx`
-- `sed -n '1,220p' frontend/src/api/index.ts`
-- `sed -n '1,260p' frontend/src/i18n/messages.ts`
+- `sed -n '1,220p' docs/ai/50_worker_gemini_report.md`
+- `sed -n '1,220p' docs/ai/60_worker_codex_report.md`
+- `python -m pytest -q`
+- `rg -n "aggregate_category_paper_averages|category-paper-averages|CategoryPaper" backend/app backend/tests`
+- `sed -n '1,260p' backend/app/services/signal_report.py`
+- `sed -n '248,380p' backend/app/services/signal_report.py`
+- `sed -n '1,220p' backend/app/routers/dashboard.py`
+- `sed -n '380,440p' backend/app/schemas.py`
+- Synthetic Python sanity script for `aggregate_category_paper_averages` and dashboard router import.
+- `npm run lint`
+- `npm run build`
 
 ## Acceptance Criteria
-- [x] lint exits 0
-- [x] build exits 0
-- [x] diff reviewed for unintended changes/regressions
-- [x] cookie auth sanity checked
-- [x] PrivateRoute loading wait sanity checked
-- [x] LoginPage redirect-back behavior sanity checked
+- [x] Backend test suite passed.
+- [x] Pure aggregate function sanity verified.
+- [x] Category averages use `papers / theme_count`.
+- [x] Zero-paper themes count in the denominator.
+- [x] New dashboard endpoint imports without error.
+- [x] Frontend lint passed.
+- [x] Frontend build/type gate passed.
 
 ## Risks
-- `frontend/src/api/index.ts` still contains the pre-existing `localStorage.auth_token` request interceptor while auth is cookie-based. This was not changed because the requested sanity check specifically targets `AuthContext` cookie auth and all verification gates passed.
-- The requested `main...HEAD` diff is empty in the current repository state, so review relied on the working-tree diff for the listed modified files.
+- No verification blocker found.
+- Existing backend test run still emits unrelated warnings for `python_multipart` pending deprecation and unknown `asyncio_mode` pytest config.
 
 ## Next Action
 READY_FOR_REVIEW

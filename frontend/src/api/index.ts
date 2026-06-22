@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -75,6 +75,16 @@ export const fetchThemeCitations = (topN = 100) =>
 
 export const fetchThemeCitationMatrix = (years = 10) =>
   api.get<ThemeCitationMatrix>('/dashboard/theme-citation-matrix', { params: { years } }).then(r => r.data)
+
+export const fetchCategoryPaperAverages = (fromYear?: number, toYear?: number) =>
+  api
+    .get<CategoryPaperAverages>('/dashboard/category-paper-averages', {
+      params: {
+        ...(fromYear != null ? { from_year: fromYear } : {}),
+        ...(toYear != null ? { to_year: toYear } : {}),
+      },
+    })
+    .then(r => r.data)
 
 export const fetchThemeExternalInfos = (themeId: string) =>
   api.get<ThemeExternalInfos>(`/themes/${themeId}/external-infos`).then(r => r.data)

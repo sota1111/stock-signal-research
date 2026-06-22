@@ -363,3 +363,16 @@ export interface ThemeCitationMatrix {
   grand_total: number
   generated_at?: string
 }
+
+export interface CategoryPaperAverageItem {
+  category: string
+  theme_count: number
+  averages: number[]
+  total_papers: number
+}
+
+export interface CategoryPaperAverages {
+  years: number[]
+  categories: CategoryPaperAverageItem[]
+  generated_at?: string
+}

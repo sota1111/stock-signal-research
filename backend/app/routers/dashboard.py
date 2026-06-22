@@ -11,6 +11,7 @@ from ..services.signal_report import (
     generate_signal_report,
     aggregate_theme_citations,
     aggregate_theme_citation_matrix,
+    aggregate_category_paper_averages,
 )
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
@@ -109,6 +110,26 @@ def get_theme_citation_matrix(
     papers = paper_repo.list_all()
     themes = theme_repo.list_all()
     return aggregate_theme_citation_matrix(papers=papers, themes=themes, years=years)
+
+
+@router.get("/category-paper-averages", response_model=schemas.CategoryPaperAveragesResponse)
+def get_category_paper_averages(
+    from_year: Optional[int] = Query(None, description="集計開始年（未指定で全論文の最小年）"),
+    to_year: Optional[int] = Query(None, description="集計終了年（未指定で全論文の最大年）"),
+):
+    """カテゴリグループ（Theme.category）別の「テーマあたり平均論文数」を年次で返す（SOT-1049）。
+
+    各カテゴリの年内論文数を、そのカテゴリに属するテーマ数（0件テーマも分母に含む）で割った
+    平均を年別に返す。テーマ数の多寡に依らず「論文数が増えたか」をカテゴリ間で比較できる。
+    外部APIキー不要。
+    """
+    paper_repo = get_paper_repository()
+    theme_repo = get_theme_repository()
+    papers = paper_repo.list_all()
+    themes = theme_repo.list_all()
+    return aggregate_category_paper_averages(
+        papers=papers, themes=themes, from_year=from_year, to_year=to_year
+    )
 
 
 @router.get("/", response_model=schemas.DashboardResponse)

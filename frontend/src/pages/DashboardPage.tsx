@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
+import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
@@ -43,6 +44,16 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // カテゴリグループ別 テーマあたり平均論文数（年次, SOT-1049）。
+  // 「単純に論文数が増えたか」をテーマ数の多寡に依らず比較するための全カテゴリ集計。
+  const { data: categoryAverages } = useQuery({
+    queryKey: ['category-paper-averages', PAPER_HISTORY_FROM_YEAR],
+    queryFn: () => fetchCategoryPaperAverages(PAPER_HISTORY_FROM_YEAR),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data,
+  })
+
   // 大カテゴリ選択・テーマ検索・カード表示ON/OFF の UI 状態（SOT-1002 / 提案B 3・5）。
   const [category, setCategory] = useState('')
   const [themeSearch, setThemeSearch] = useState('')
@@ -61,6 +72,7 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['backtest'] })
     queryClient.invalidateQueries({ queryKey: ['theme-citations'] })
     queryClient.invalidateQueries({ queryKey: ['theme-citation-matrix'] })
+    queryClient.invalidateQueries({ queryKey: ['category-paper-averages'] })
   }
 
   const paperCounts = signalReport?.paper_counts_by_year ?? []
@@ -127,6 +139,7 @@ export default function DashboardPage() {
   const CARDS: { id: string; label: string }[] = [
     { id: 'cross', label: t('chart.cross.title') },
     { id: 'papers', label: t('chart.papers.title') },
+    { id: 'categoryAvg', label: t('chart.categoryAvg.title') },
     { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
   ]
@@ -303,6 +316,23 @@ export default function DashboardPage() {
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <p>{t('chart.papers.empty')}</p>
               <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
+            </div>
+          )}
+        </ChartCard>
+        )}
+
+        {/* グラフ① -2 カテゴリグループ別 平均論文数（テーマあたり, SOT-1049） */}
+        {isCardVisible('categoryAvg') && (
+        <ChartCard
+          title={t('chart.categoryAvg.title')}
+          subtitle={t('chart.categoryAvg.subtitle')}
+        >
+          {categoryAverages ? (
+            <CategoryAvgPapersChart data={categoryAverages} fromYear={effStart} toYear={effEnd} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('chart.categoryAvg.loading')}</p>
             </div>
           )}
         </ChartCard>

@@ -404,6 +404,19 @@ class ThemeCitationMatrixResponse(BaseModel):
     generated_at: Optional[str] = None
 
 
+class CategoryPaperAverageItem(BaseModel):
+    category: str
+    theme_count: int = 0
+    averages: List[float] = Field(default_factory=list)
+    total_papers: int = 0
+
+
+class CategoryPaperAveragesResponse(BaseModel):
+    years: List[int] = Field(default_factory=list)
+    categories: List[CategoryPaperAverageItem] = Field(default_factory=list)
+    generated_at: Optional[str] = None
+
+
 # --- 株価・財務取得（同梱データ / SOT-842, SOT-941） ---
 class StockPricePoint(BaseModel):
     date: str

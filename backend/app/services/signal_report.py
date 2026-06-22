@@ -245,6 +245,90 @@ def aggregate_theme_citation_matrix(
     }
 
 
+def aggregate_category_paper_averages(
+    papers: List[Dict[str, Any]],
+    themes: List[Dict[str, Any]],
+    from_year: Optional[int] = None,
+    to_year: Optional[int] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """カテゴリグループ（Theme.category）ごとの「テーマあたり平均論文数」を年次で集計する純粋関数。
+
+    「単純に論文数が増えたか」をカテゴリ規模に依らず比較できるよう、各カテゴリの年内論文数を
+    そのカテゴリに属するテーマ数で割った平均（=テーマあたり論文数）を年別に返す（SOT-1049）。
+
+    論文は ``theme_id`` → テーマ → ``category`` で各カテゴリに割り当てる（決定的）。``theme_id``
+    が無い/未知テーマの論文、年が解釈できない論文は除外する。0件テーマもカテゴリのテーマ数
+    （=分母）に含めるため、テーマ数が多いだけのカテゴリが過大評価されない。
+
+    Args:
+        papers: 論文 dict のリスト（theme_id, published_at を想定）。
+        themes: テーマ dict のリスト（id, category を想定）。
+        from_year / to_year: 集計年範囲。未指定なら全論文の年の min/max。
+    """
+    now = now or datetime.now(timezone.utc)
+
+    # category -> テーマ数（分母）, theme_id -> category（論文の割り当て）
+    theme_count_by_category: Dict[str, int] = {}
+    category_by_theme_id: Dict[str, str] = {}
+    for theme in themes or []:
+        category = str(theme.get("category") or "").strip()
+        if not category:
+            continue
+        theme_count_by_category[category] = theme_count_by_category.get(category, 0) + 1
+        tid = theme.get("id")
+        if tid is not None:
+            category_by_theme_id[str(tid)] = category
+
+    # 論文を (category, year) にバケットしつつ、年範囲が未指定なら実データから min/max を求める。
+    counts: Dict[str, Dict[int, int]] = {}
+    observed_years: List[int] = []
+    for p in papers or []:
+        tid = p.get("theme_id")
+        if tid is None:
+            continue
+        category = category_by_theme_id.get(str(tid))
+        if category is None:
+            continue
+        year = _parse_year(p.get("published_at"))
+        if year is None:
+            continue
+        observed_years.append(year)
+        counts.setdefault(category, {}).setdefault(year, 0)
+        counts[category][year] += 1
+
+    if from_year is not None and to_year is not None and from_year > to_year:
+        from_year, to_year = to_year, from_year
+    resolved_from = from_year if from_year is not None else (min(observed_years) if observed_years else now.year)
+    resolved_to = to_year if to_year is not None else (max(observed_years) if observed_years else now.year)
+    year_columns = list(range(resolved_from, resolved_to + 1))
+
+    categories: List[Dict[str, Any]] = []
+    for category, theme_count in theme_count_by_category.items():
+        year_counts = counts.get(category, {})
+        total_papers = sum(
+            c for y, c in year_counts.items() if resolved_from <= y <= resolved_to
+        )
+        averages = [
+            round(year_counts.get(y, 0) / theme_count, 2) if theme_count else 0.0
+            for y in year_columns
+        ]
+        categories.append({
+            "category": category,
+            "theme_count": theme_count,
+            "averages": averages,
+            "total_papers": total_papers,
+        })
+
+    categories.sort(key=lambda c: c["total_papers"], reverse=True)
+
+    return {
+        "years": year_columns,
+        "categories": categories,
+        "generated_at": now.isoformat(),
+    }
+
+
 def generate_signal_report(
     query: str,
     papers: List[Dict[str, Any]],
