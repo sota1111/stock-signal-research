@@ -6,6 +6,7 @@ import ChartCard, { EmptyChart } from '../components/charts/ChartCard'
 import PatentCountsByYearBar from '../components/charts/PatentCountsByYearBar'
 import PatentsVsPapersComposed from '../components/charts/PatentsVsPapersComposed'
 import { PageLoading, PageEmpty } from '../components/AsyncState'
+import { GRAPH_FROM_YEAR } from './dashboardData'
 import { useI18n } from '../i18n/useI18n'
 
 const J_PLATPAT_URL = 'https://www.j-platpat.inpit.go.jp/'
@@ -40,8 +41,8 @@ export default function PatentsPage() {
   // 特許×論文 重ね合わせ用に、選択テーマ名から論文の年次件数を取得する（SOT-995 /patents-1）。
   const selectedThemeName = themes.find(th => th.id === selectedTheme)?.name ?? ''
   const { data: signalReport } = useQuery({
-    queryKey: ['signal-report', selectedThemeName],
-    queryFn: () => fetchSignalReport(selectedThemeName),
+    queryKey: ['signal-report', selectedThemeName, GRAPH_FROM_YEAR],
+    queryFn: () => fetchSignalReport(selectedThemeName, GRAPH_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!selectedThemeName,
@@ -57,6 +58,8 @@ export default function PatentsPage() {
     const byYear = new Map<string, number>()
     for (const row of yearly) {
       if (selectedTheme && row.theme_id !== selectedTheme) continue
+      // SOT-1069: 特許の年次トレンドも 2009 起点に揃える（2000–2008 を除外）。
+      if (Number(row.year) < GRAPH_FROM_YEAR) continue
       byYear.set(row.year, (byYear.get(row.year) ?? 0) + (row.count || 0))
     }
     return [...byYear.entries()]

@@ -2,12 +2,17 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { fetchDashboard, fetchStock } from '../api'
 import type { Company } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
-import { toYearly } from '../components/charts/chartUtils'
+import { toYearly, yearOf } from '../components/charts/chartUtils'
+
+// SOT-1069: 全グラフ・年セレクタの可視下限を 2009 年に統一する共有定数。
+// 実時価総額(SOT-1056)が2009起点であるのに合わせ、論文/特許/株価のグラフ起点もここに揃える。
+// 生データやバックエンドのコレクションは変更せず、UI/取得パラメータのフロアとしてのみ使う。
+export const GRAPH_FROM_YEAR = 2009
 
 const STOCK_STALE_TIME = 1000 * 60 * 30
-// SOT-992: 注目企業の株価を2000年(=約26年)から表示するため、取得年数を拡大する。
-// backend /api/dashboard/stock は years<=30 を受け付け、同梱データは2000年から保持。
-const STOCK_YEARS = 30
+// SOT-1069: 株価グラフは GRAPH_FROM_YEAR(2009) 起点で表示する。backend /api/dashboard/stock は
+// 相対 years(<=30) で受け取るため、2009 から現在までを覆う年数を動的に算出する（年が進んでもドリフトしない）。
+const STOCK_YEARS = Math.min(30, new Date().getFullYear() - GRAPH_FROM_YEAR + 1)
 
 export function formatPrice(value: number, currency?: string | null) {
   const symbol = currency === 'JPY' ? '¥' : currency === 'USD' ? '$' : ''
@@ -42,11 +47,16 @@ export function useTickerStocks(companies: Company[]) {
       retry: 1,
     })),
   })
-  const stockItems: StockItem[] = tickerCompanies.map((c, i) => ({
-    name: c.name,
-    ticker: c.ticker,
-    stock: stockQueries[i]?.data,
-  }))
+  // SOT-1069: 取得した日次終値を GRAPH_FROM_YEAR(2009) 以降に絞る。これにより本フック由来の
+  // 全グラフ（dashboard 時価総額・/stock 概観・/papers 株価オーバーレイ）が一括で2009起点になる。
+  const stockItems: StockItem[] = tickerCompanies.map((c, i) => {
+    const raw = stockQueries[i]?.data
+    const stock =
+      raw && !raw.error && Array.isArray(raw.prices)
+        ? { ...raw, prices: raw.prices.filter(p => yearOf(p.date) >= GRAPH_FROM_YEAR) }
+        : raw
+    return { name: c.name, ticker: c.ticker, stock }
+  })
   const primaryStock = stockItems.find(it => it.stock && !it.stock.error && it.stock.prices.length > 0)
   return { tickerCompanies, stockQueries, stockItems, primaryStock }
 }

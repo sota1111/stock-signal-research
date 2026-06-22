@@ -9,13 +9,13 @@ import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
-import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly } from './dashboardData'
+import { useDashboardQuery, useTickerStocks, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
-// 論文グラフ・年レンジセレクタの下限年（SOT-987: 2016年→2000年から選択可能にする）。
+// 論文グラフ・年レンジセレクタの下限年（SOT-987: 2016→2000 / SOT-1069: 全グラフを 2009 起点に統一）。
 // バックエンドの既定「直近10年」窓ではなく、この年から論文を取得して選択肢を広げる。
-const PAPER_HISTORY_FROM_YEAR = 2000
+const PAPER_HISTORY_FROM_YEAR = GRAPH_FROM_YEAR
 
 export default function DashboardPage() {
   const { t, lang } = useI18n()
