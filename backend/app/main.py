@@ -119,5 +119,5 @@ async def serve_spa(full_path: str):
     """Serve React SPA for all non-API routes."""
     index_path = os.path.join(_dist_dir, "index.html") if os.path.isdir(_dist_dir) else None
     if index_path and os.path.isfile(index_path):
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
     return {"error": "Frontend not built", "path": full_path}
