@@ -80,9 +80,9 @@ function AppLayout() {
           <div className="max-w-7xl mx-auto px-4 py-3">
             {/* Title row: title stays on a single line */}
             <div className="flex items-center justify-between gap-4">
-              <span className="flex items-center gap-2 font-bold text-lg tracking-tight whitespace-nowrap">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-indigo-500 text-sm font-extrabold text-white">S</span>
-                Stock Signal Research
+              <span className="flex min-w-0 items-center gap-2 font-bold text-lg tracking-tight whitespace-nowrap">
+                <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-indigo-500 text-sm font-extrabold text-white">S</span>
+                <span className="truncate">Stock Signal Research</span>
               </span>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <LanguageToggle />
