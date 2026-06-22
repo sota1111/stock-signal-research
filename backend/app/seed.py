@@ -501,16 +501,16 @@ def _legacy_synthetic_paper_ids(theme_names, from_year: int = _DECADE_FROM_YEAR 
 # 注目テーマ(30件表示)用のテーマ定義。先頭7件はサプライチェーン/月次トレンドが名前参照
 # しているため温存し、AIインフラ・半導体・ロボティクス・電力等のテーマを追加して30件にする。
 _DASHBOARD_THEMES = [
-    {"name": "SSD / NVMe", "category": "Storage", "precursor_score": 72.0, "is_trending": True},
+    {"name": "SSD / NVMe", "category": "Semiconductor", "precursor_score": 72.0, "is_trending": True},
     {"name": "GPU memory bottleneck", "category": "AI Infrastructure", "precursor_score": 85.0, "is_trending": True},
-    {"name": "HBM", "category": "Memory", "precursor_score": 78.0, "is_trending": True},
+    {"name": "HBM", "category": "Semiconductor", "precursor_score": 78.0, "is_trending": True},
     {"name": "KV cache offloading", "category": "AI Infrastructure", "precursor_score": 65.0, "is_trending": False},
     {"name": "I/O bottleneck", "category": "AI Infrastructure", "precursor_score": 58.0, "is_trending": False},
-    {"name": "data center power", "category": "Infrastructure", "precursor_score": 70.0, "is_trending": True},
-    {"name": "robotics foundation model", "category": "Robotics", "precursor_score": 62.0, "is_trending": False},
-    {"name": "CXL memory pooling", "category": "Memory", "precursor_score": 68.0, "is_trending": True},
-    {"name": "optical interconnect", "category": "Infrastructure", "precursor_score": 60.0, "is_trending": False},
-    {"name": "liquid cooling", "category": "Infrastructure", "precursor_score": 64.0, "is_trending": True},
+    {"name": "data center power", "category": "AI Infrastructure", "precursor_score": 70.0, "is_trending": True},
+    {"name": "robotics foundation model", "category": "Robotics & Automation", "precursor_score": 62.0, "is_trending": False},
+    {"name": "CXL memory pooling", "category": "Semiconductor", "precursor_score": 68.0, "is_trending": True},
+    {"name": "optical interconnect", "category": "AI Infrastructure", "precursor_score": 60.0, "is_trending": False},
+    {"name": "liquid cooling", "category": "AI Infrastructure", "precursor_score": 64.0, "is_trending": True},
     {"name": "chiplet packaging", "category": "Semiconductor", "precursor_score": 71.0, "is_trending": True},
     {"name": "advanced packaging CoWoS", "category": "Semiconductor", "precursor_score": 75.0, "is_trending": True},
     {"name": "EUV lithography", "category": "Semiconductor", "precursor_score": 69.0, "is_trending": False},
@@ -526,11 +526,11 @@ _DASHBOARD_THEMES = [
     {"name": "power semiconductor GaN SiC", "category": "Semiconductor", "precursor_score": 67.0, "is_trending": True},
     {"name": "solid-state battery", "category": "Energy", "precursor_score": 52.0, "is_trending": False},
     {"name": "grid storage", "category": "Energy", "precursor_score": 50.0, "is_trending": False},
-    {"name": "humanoid robotics", "category": "Robotics", "precursor_score": 64.0, "is_trending": True},
-    {"name": "autonomous driving perception", "category": "Robotics", "precursor_score": 58.0, "is_trending": False},
-    {"name": "SmartNIC DPU", "category": "Infrastructure", "precursor_score": 62.0, "is_trending": False},
-    {"name": "NVMe-oF disaggregation", "category": "Storage", "precursor_score": 56.0, "is_trending": False},
-    {"name": "flash controller", "category": "Storage", "precursor_score": 54.0, "is_trending": False},
+    {"name": "humanoid robotics", "category": "Robotics & Automation", "precursor_score": 64.0, "is_trending": True},
+    {"name": "autonomous driving perception", "category": "Robotics & Automation", "precursor_score": 58.0, "is_trending": False},
+    {"name": "SmartNIC DPU", "category": "AI Infrastructure", "precursor_score": 62.0, "is_trending": False},
+    {"name": "NVMe-oF disaggregation", "category": "Semiconductor", "precursor_score": 56.0, "is_trending": False},
+    {"name": "flash controller", "category": "Semiconductor", "precursor_score": 54.0, "is_trending": False},
 ]
 
 # SOT-992: テーマ別の注目企業ユニバース。各社の `themes` は _DASHBOARD_THEMES の name と一致させる。

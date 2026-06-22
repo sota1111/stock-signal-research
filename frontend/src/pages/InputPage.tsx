@@ -70,7 +70,7 @@ export default function InputPage() {
           <div>
             <label className={labelClass}>{t('input.label.category')} *</label>
             <select className={inputClass} value={themeForm.category} onChange={e => setThemeForm(f => ({ ...f, category: e.target.value }))}>
-              {['AI Infrastructure', 'Storage', 'Memory', 'Infrastructure', 'Robotics', 'Other'].map(c => <option key={c}>{c}</option>)}
+              {['AI Infrastructure', 'Semiconductor', 'Robotics & Automation', 'Energy', 'Other'].map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
