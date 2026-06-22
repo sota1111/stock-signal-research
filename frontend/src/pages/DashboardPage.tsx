@@ -22,7 +22,7 @@ export default function DashboardPage() {
   // テーマ選択・表示年レンジはグローバルフィルタ(URL永続化)を参照する（SOT-997）。
   const { theme: selectedTheme, setTheme, fromYear, toYear, setYearRange } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
-  const { stockItems } = useTickerStocks(data?.notable_companies ?? [])
+  const { stockItems, stockQueries } = useTickerStocks(data?.notable_companies ?? [])
 
   // テーマ選択（選択でグラフが切り替わる）。未選択時は注目テーマの先頭。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const isPapersLoading = (isReportLoading || isReportFetching) && !signalReport
   const TOP_N = 10
   const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
+  const isMarketCapLoading = stockQueries.some(q => q.isLoading || q.isFetching) && marketCapYearly.length === 0
   const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
 
   // 表示年レンジ: 論文件数・時価総額の年の和集合を選択可能ドメインとする
@@ -240,7 +241,7 @@ export default function DashboardPage() {
           title={t('chart.cross.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
         >
-          {isPapersLoading ? (
+          {isPapersLoading || isMarketCapLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.papers.loading')}</p>
