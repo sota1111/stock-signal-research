@@ -14,6 +14,21 @@ export function PageLoading({ message }: { message?: string }) {
   )
 }
 
+// チャート形状のスケルトン（SOT-1019 / 提案5）。テキストスピナーの代わりに、
+// チャートカードの読み込み中をバー＋軸のシルエットで示す。`.skeleton` は index.css 定義。
+export function ChartSkeleton({ height = 220 }: { height?: number }) {
+  return (
+    <div className="w-full" role="status" aria-live="polite" aria-busy="true">
+      <div className="flex items-end gap-2" style={{ height }}>
+        {[60, 85, 45, 95, 70, 55, 80, 40].map((h, i) => (
+          <div key={i} className="skeleton flex-1" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <div className="skeleton mt-3 h-3 w-1/3" />
+    </div>
+  )
+}
+
 export function PageError({ message, onRetry }: { message?: string; onRetry?: () => void }) {
   const { t } = useI18n()
   return (
