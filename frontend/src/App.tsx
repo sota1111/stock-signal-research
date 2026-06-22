@@ -8,6 +8,7 @@ import { useI18n } from './i18n/useI18n'
 import type { MessageKey } from './i18n/messages'
 import LanguageToggle from './components/LanguageToggle'
 import { PageLoading } from './components/AsyncState'
+import RouteErrorBoundary from './components/RouteErrorBoundary'
 
 // ページコンポーネントは React.lazy で動的 import し、ルート単位でチャンク分割する（SOT-1000 / 提案A-5）。
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -137,24 +138,26 @@ function AppLayout() {
         </nav>
       )}
       <main className="w-full max-w-7xl mx-auto px-4 py-6 flex-1 nums">
-        <Suspense fallback={<PageLoading />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-            <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
-            <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
-            <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
-            <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
-            <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
-            <Route path="/candidates" element={<PrivateRoute><InvestmentCandidatesPage /></PrivateRoute>} />
-            <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
-            <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
-            <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
-            <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
-            <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
-            <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
-          </Routes>
-        </Suspense>
+        <RouteErrorBoundary key={location.pathname}>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+              <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
+              <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
+              <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
+              <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
+              <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
+              <Route path="/candidates" element={<PrivateRoute><InvestmentCandidatesPage /></PrivateRoute>} />
+              <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
+              <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
+              <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
+              <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
+              <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
+              <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
+            </Routes>
+          </Suspense>
+        </RouteErrorBoundary>
       </main>
       {isAuthenticated && (
         <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
