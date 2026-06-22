@@ -35,85 +35,32 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// ナビゲーションを4グループに階層化する（SOT-998 / 提案A-1）。
+// ナビゲーションはグループ化せず、全項目をフラットなリストで表示する（SOT-1067）。
 // /login と /themes/:id はルートだがナビには出さない。
 type NavItem = { to: string; label: MessageKey; end?: boolean }
-type NavGroupDef = { label: MessageKey; items: NavItem[] }
 
 // ナビ順序（SOT-1001 / SOT-995 提案B）:
 // dashboard → signals（ダッシュボード隣）→ themes（3番目相当）… → status（最後尾）。
-const NAV_GROUPS: NavGroupDef[] = [
-  { label: 'navgroup.overview', items: [
-    { to: '/', label: 'nav.dashboard', end: true },
-    { to: '/signals', label: 'nav.signals' },
-    { to: '/list?tab=themes', label: 'nav.themes' },
-  ] },
-  { label: 'navgroup.research', items: [
-    { to: '/papers', label: 'nav.papers' },
-    { to: '/patents', label: 'nav.patents' },
-  ] },
-  { label: 'navgroup.market', items: [
-    { to: '/stock', label: 'nav.stock' },
-    { to: '/investors', label: 'nav.investors' },
-    { to: '/candidates', label: 'nav.candidates' },
-    { to: '/evaluation', label: 'nav.evaluation' },
-  ] },
-  { label: 'navgroup.manage', items: [
-    { to: '/list', label: 'nav.list' },
-    { to: '/input', label: 'nav.input' },
-    { to: '/research-seeds', label: 'nav.researchSeeds' },
-    { to: '/status', label: 'nav.status' },
-  ] },
+const NAV_ITEMS: NavItem[] = [
+  { to: '/', label: 'nav.dashboard', end: true },
+  { to: '/signals', label: 'nav.signals' },
+  { to: '/list?tab=themes', label: 'nav.themes' },
+  { to: '/papers', label: 'nav.papers' },
+  { to: '/patents', label: 'nav.patents' },
+  { to: '/stock', label: 'nav.stock' },
+  { to: '/investors', label: 'nav.investors' },
+  { to: '/candidates', label: 'nav.candidates' },
+  { to: '/evaluation', label: 'nav.evaluation' },
+  { to: '/list', label: 'nav.list' },
+  { to: '/input', label: 'nav.input' },
+  { to: '/research-seeds', label: 'nav.researchSeeds' },
+  { to: '/status', label: 'nav.status' },
 ]
 
-const dropdownLinkClass = ({ isActive }: { isActive: boolean }) =>
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   isActive
-    ? 'block px-4 py-2 text-sm text-white bg-white/10 font-semibold'
-    : 'block px-4 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white'
-
-function NavGroup({ group }: { group: NavGroupDef }) {
-  const { t } = useI18n()
-  const [open, setOpen] = useState(false)
-  const location = useLocation()
-  const groupActive = group.items.some(item =>
-    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
-  )
-
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onBlur={e => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false)
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-haspopup="true"
-        aria-expanded={open}
-        className={
-          groupActive
-            ? 'flex items-center gap-1 text-white font-semibold border-b-2 border-sky-400 pb-0.5'
-            : 'flex items-center gap-1 text-slate-300 hover:text-white transition-colors'
-        }
-      >
-        {t(group.label)}
-        <span aria-hidden className="text-xs">▾</span>
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 min-w-[12rem] overflow-hidden rounded-md border border-white/10 bg-slate-800 py-1 shadow-lg">
-          {group.items.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setOpen(false)} className={dropdownLinkClass}>
-              {t(item.label)}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+    ? 'text-white font-semibold border-b-2 border-sky-400 pb-0.5'
+    : 'text-slate-300 hover:text-white transition-colors'
 
 function AppLayout() {
   const { isAuthenticated, logout } = useAuth()
@@ -158,36 +105,31 @@ function AppLayout() {
                 </button>
               </div>
             </div>
-            {/* Menu row (desktop/tablet): 4 grouped dropdowns. Hidden on mobile in favor of the drawer. */}
+            {/* Menu row (desktop/tablet): flat list of nav items (SOT-1067). Hidden on mobile in favor of the drawer. */}
             <div className="hidden sm:flex flex-wrap items-center gap-3 sm:gap-6 pt-3">
-              {NAV_GROUPS.map(group => (
-                <NavGroup key={group.label} group={group} />
+              {NAV_ITEMS.map(item => (
+                <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
+                  {t(item.label)}
+                </NavLink>
               ))}
             </div>
-            {/* Mobile drawer: all groups/items as a vertical list (SOT-1020 / 提案3). */}
+            {/* Mobile drawer: all items as a flat vertical list (SOT-1067). */}
             {mobileOpen && (
-              <div id="mobile-nav-drawer" className="sm:hidden pt-3 space-y-3">
-                {NAV_GROUPS.map(group => (
-                  <div key={group.label}>
-                    <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t(group.label)}</p>
-                    <div className="flex flex-col">
-                      {group.items.map(item => (
-                        <NavLink
-                          key={item.to}
-                          to={item.to}
-                          end={item.end}
-                          onClick={() => setMobileOpenRoute(null)}
-                          className={({ isActive }) =>
-                            isActive
-                              ? 'rounded px-3 py-2 text-sm font-semibold text-white bg-white/10'
-                              : 'rounded px-3 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white'
-                          }
-                        >
-                          {t(item.label)}
-                        </NavLink>
-                      ))}
-                    </div>
-                  </div>
+              <div id="mobile-nav-drawer" className="sm:hidden pt-3 flex flex-col">
+                {NAV_ITEMS.map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setMobileOpenRoute(null)}
+                    className={({ isActive }) =>
+                      isActive
+                        ? 'rounded px-3 py-2 text-sm font-semibold text-white bg-white/10'
+                        : 'rounded px-3 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white'
+                    }
+                  >
+                    {t(item.label)}
+                  </NavLink>
                 ))}
               </div>
             )}
