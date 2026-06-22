@@ -1,38 +1,44 @@
 # Worker Report (Claude Code Fallback)
 
 ## Fallback Disclosure (audit)
-Gemini worker was NON-RESPONSIVE — `scripts/ai/run_gemini.sh` exited 75 (CLI crash: `IneligibleTierError`
-free-tier unsupported; GEMINI_DISABLED=1 also set). Per the Worker Non-Response Fallback Policy, Claude
-Code performed this implementation directly. All quality gates apply unchanged.
+- Non-responsive worker: **Gemini CLI**.
+- Detected failure mode: `scripts/ai/run_gemini.sh` exited with non-response code **75**
+  (`GEMINI_DISABLED=1` set in `.env`; the CLI also returned `IneligibleTierError` /
+  `UNSUPPORTED_CLIENT`, i.e. crash exit 1).
+- Action taken: **Claude Code performed this implementation directly** under the Worker
+  Non-Response Fallback Policy. Verification was delegated normally to Codex CLI (see
+  `docs/ai/60_worker_codex_report.md`).
 
 ## Summary
-SOT-995 提案B「/login」5改善を実装:
-- B-1 失敗理由の明確化: `AuthContext.login` を HTTP ステータス分類（401→INVALID_CREDENTIALS / 403→FORBIDDEN_EMAIL / 429→TOO_MANY_ATTEMPTS / 5xx→SERVER_ERROR / fetch例外→NETWORK_ERROR）し `AuthError(code)` を throw。`LoginPage` でコード→i18n文言にマップ。
-- B-2 パスワード表示トグル＋バリデーション: show/hide トグル、メール形式・必須のクライアント検証＋フィールドエラー表示（`noValidate`）。
-- B-3 ログイン保持＋元ページ復帰: `AuthProvider` に `loading` 状態を追加し、`PrivateRoute` は認証チェック中はリダイレクトせず `PageLoading` を表示、未認証確定時のみ `state.from` 付きで `/login` へ。`LoginPage` はログイン成功/既認証時に元ページ（`state.from` または `?redirect`）へ遷移。`api/index.ts` の401リダイレクトに現在パスを付与。
-- B-4 言語トグル: 既存（`<LanguageToggle variant="light" />`）。動作確認のみ、変更なし。
-- B-5 簡易ヒーロー: ツール説明（タグライン＋説明＋特徴3点）を左カラムに追加（md以上で表示）。文言は i18n ja/en。
+SOT-1049「平均グラフ追加」implemented. Added a Dashboard chart showing, per category
+group (Theme.category), the average papers-per-theme by year — so users can tell whether
+paper volume is broadly growing regardless of how many themes a category has.
 
 ## Changed Files
-- `frontend/src/contexts/authContextValue.ts` — `AuthError`/`AuthErrorCode` 追加、`loading` を型に追加
-- `frontend/src/contexts/AuthContext.tsx` — `loading` 状態、login のステータス分類
-- `frontend/src/App.tsx` — `PrivateRoute` の loading 待ち + `state.from` 保持
-- `frontend/src/pages/LoginPage.tsx` — エラーコードマップ / パスワードトグル / 検証 / ヒーロー / 元ページ復帰
-- `frontend/src/api/index.ts` — 401 リダイレクトに現在パス付与
-- `frontend/src/i18n/messages.ts` — login 関連キーを ja/en に追加
+- `backend/app/services/signal_report.py` — pure fn `aggregate_category_paper_averages`
+  (category averages = papers-in-category-year ÷ themes-in-category; 0-paper themes count
+  in the denominator; unknown theme_id / unparseable year excluded).
+- `backend/app/schemas.py` — `CategoryPaperAverageItem`, `CategoryPaperAveragesResponse`.
+- `backend/app/routers/dashboard.py` — `GET /dashboard/category-paper-averages?from_year=&to_year=`.
+- `frontend/src/types/index.ts` — `CategoryPaperAverageItem`, `CategoryPaperAverages`.
+- `frontend/src/api/index.ts` — `fetchCategoryPaperAverages(fromYear?, toYear?)`.
+- `frontend/src/components/charts/CategoryAvgPapersChart.tsx` — new multi-line chart (1 line/category).
+- `frontend/src/pages/DashboardPage.tsx` — new card `categoryAvg` (toggle + query + ChartCard),
+  placed just after the 論文件数 chart; filters by the dashboard year range.
+- `frontend/src/i18n/messages.ts` — `chart.categoryAvg.title/subtitle/loading/empty` (ja + en).
 
 ## Commands Run
-（検証は Codex に委譲: lint / build）
+- (implementation by Claude Code fallback; verification commands in Codex report)
 
 ## Acceptance Criteria
-- [x] B-1 失敗理由の分類表示
-- [x] B-2 パスワード表示トグル＋入力バリデーション
-- [x] B-3 ログイン保持＋元ページ復帰
-- [x] B-4 言語トグル（既存）
-- [x] B-5 簡易ヒーロー
+- [x] カテゴリグループ別の平均論文数グラフをダッシュボードに追加した。
+- [x] グラフ位置を判断して追加（既存「論文件数」カードの直後 / 表示ON/OFFトグル対応）。
+- [x] テーマ数の多寡に依らない比較（平均 = 論文数 ÷ テーマ数、0件テーマも分母）。
 
 ## Risks
-- 認証コントラクト（Cookieベース）は不変。`api/index.ts` の `localStorage.auth_token` 系は既存挙動を維持。
+- Category labels come from actual `Theme.category` values; the SOT-994 universe currently
+  has 12 category labels (not the documented 10 domains). The chart groups by real category,
+  which is the correct deterministic behavior.
 
 ## Next Action
-NEEDS_DEBUG
+READY_FOR_REVIEW
