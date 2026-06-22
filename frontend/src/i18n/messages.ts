@@ -20,11 +20,6 @@ export const messages = {
     // mobile drawer (SOT-1020 / 提案3)
     'nav.menu': 'メニュー',
     'nav.closeMenu': 'メニューを閉じる',
-    // nav groups (SOT-998)
-    'navgroup.overview': '概要',
-    'navgroup.research': 'リサーチ根拠',
-    'navgroup.market': 'マーケット',
-    'navgroup.manage': '管理',
     // 投資候補（SOT-1035: リードラグ分析 + 複合スコアランキング）
     'candidates.title': '投資候補',
     'candidates.subtitle': 'リードラグ分析と複合スコアで投資候補を絞り込む',
@@ -473,11 +468,6 @@ export const messages = {
     // mobile drawer (SOT-1020 / proposal 3)
     'nav.menu': 'Menu',
     'nav.closeMenu': 'Close menu',
-    // nav groups (SOT-998)
-    'navgroup.overview': 'Overview',
-    'navgroup.research': 'Research',
-    'navgroup.market': 'Market',
-    'navgroup.manage': 'Manage',
     // Investment candidates (SOT-1035: lead-lag analysis + composite score ranking)
     'candidates.title': 'Investment Candidates',
     'candidates.subtitle': 'Narrow down candidates with lead-lag analysis and a composite score',
