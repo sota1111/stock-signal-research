@@ -123,9 +123,11 @@ function AppLayout() {
   const mobileOpen = mobileOpenRoute === currentRoute
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
+      {/* Thin global accent bar (SOT-1019 / proposal 5): a single brand hairline above the nav. */}
+      {isAuthenticated && <div className="h-0.5 bg-brand sticky top-0 z-20" aria-hidden />}
       {isAuthenticated && (
-        <nav className="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md sticky top-0 z-20">
+        <nav className="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md sticky top-0.5 z-20">
           <div className="max-w-7xl mx-auto px-4 py-3">
             {/* Title row: title stays on a single line */}
             <div className="flex items-center justify-between gap-4">
@@ -190,7 +192,7 @@ function AppLayout() {
           </div>
         </nav>
       )}
-      <main className="w-full max-w-7xl mx-auto px-4 py-6 flex-1">
+      <main className="w-full max-w-7xl mx-auto px-4 py-6 flex-1 nums">
         <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
