@@ -215,6 +215,32 @@ AI需要 → GPU memory bottleneck → HBM → SSD / NVMe → data center power 
 
 ---
 
+## 収集データ一覧（ローカル収集アーティファクト）
+
+ローカルで収集して `backend/data/` 配下にコミット済みのデータ群です。起動時に `backend/app/seed.py` が
+これらの JSON を読み込み DB（local: SQLite / production: Firestore）へ投入、または実行時にサービス層が
+直接読み込みます。各収集スクリプトは `backend/scripts/` にあります。
+
+| データ | 収集元（ソース） | 件数・年範囲 | 保存先ファイル | 収集スクリプト |
+|--------|------------------|--------------|----------------|----------------|
+| 論文 (Papers) | arXiv（被引用数は Semantic Scholar で付与） | 9,560 件 / 100 テーマ / 2000–2026 | `backend/data/collected-papers.json` | `collect_dashboard_papers.py` |
+| 特許 (Patents) | USPTO Patent Public Search (PPUBS) | 2,292 件 / 29 テーマ＋年次集計 30 テーマ / 2000–2026 | `backend/data/collected-patents.json` | `collect_dashboard_patents.py` |
+| 大口投資家 / 13F | SEC EDGAR Form 13F-HR | 212 行 / 5 社（Vanguard, BlackRock, State Street, Geode, FMR）× NVDA/AMD/MU/TSM / 2016–2026 | `backend/data/collected-investors.json` | `collect_investor_data.py` |
+| 株価 (Stock Prices) | yfinance（オフライン収集 → 実行時読込） | 242 ティッカー（231 が価格系列、11 は価格なし） / 2000-01-03〜2026-06-19 | `backend/data/stock-prices.json` | `collect_stock_data.py`（個別: `fetch_stock_data.py`） |
+| 時価総額履歴 (Market Cap History) | SEC EDGAR XBRL 発行済株式数 × 年末終値 | 米国上場 237 ティッカー中 199 をカバー / 2009 年以降 | `backend/data/market-cap-history.json` | `collect_market_cap_history.py` |
+| テーマ/企業ユニバース (SOT-994) | ローカル定義（30→100 テーマ拡張） | 追加 70 テーマ / 10 カテゴリ、ユニーク企業 228（221 がティッカー付き） | `backend/data/sot994_universe.json` | `seed.py`・上記収集スクリプトが参照 |
+| 初期リサーチ seed | 手動キュレーション（初期仮説） | 11 件（NVDA/AMD/TSM/TSLA/8035.T 等） | `backend/data/initial-research-seeds.json` | `seed.py` が `research_seeds` へ投入 |
+
+補足:
+
+- **論文** は `papers` テーブルへ投入されます。
+- **特許** は `patents` と `patent_yearly_counts` へ投入されます。特許カバレッジは 30 ベーステーマで、100 テーマ全部ではありません。
+- **株価** はダッシュボードの株価 API が `stock-prices.json` を直接読み込みます（実行時リーダー `backend/app/services/market_data.py`）。なお SQLite の `stock_prices` テーブルに seed されるのは合成ランダムウォークデータで、この収集アーティファクトとは別物です。
+- **時価総額履歴** は米国上場のみで、XBRL 提供開始の制約により 2009 年以降をカバーします（非米国ティッカーは未カバー。実行時リーダー `backend/app/services/market_cap_history.py`）。
+- **月次論文数**（3 テーマ・直近 120 ヶ月）と**サプライチェーン 6 エッジ**は `seed.py` がコード内で生成する合成/手動 seed であり、上記のローカル収集 JSON とは別物です。
+
+---
+
 ## 投資前兆ダッシュボード用 統一シグナルレポート JSON
 
 ダッシュボードで利用する統一シグナルレポート JSON を、既存 DB（local: SQLite / production: Firestore）の
