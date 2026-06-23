@@ -9,7 +9,7 @@ import ValuationScatter from '../components/charts/ValuationScatter'
 import SignalBacktestTable from '../components/charts/SignalBacktestTable'
 import CategoryMarketCapChart from '../components/charts/CategoryMarketCapChart'
 import FinancialFundamentalsChart from '../components/charts/FinancialFundamentalsChart'
-import { useDashboardQuery, useTickerStocks } from './dashboardData'
+import { useDashboardQuery, useTickerStocks, useAllThemes, filterCompaniesByCategory } from './dashboardData'
 import { StockEvalCard, DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -18,7 +18,15 @@ const CATEGORY_STALE_TIME = 1000 * 60 * 30
 export default function StockPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
-  const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(data?.notable_companies ?? [])
+
+  // === 概観グラフ(A1〜A4)の大カテゴリ絞り込み（SOT-1149）===
+  // 注目企業を選択した大カテゴリ(Theme.category)に属する企業のみへ絞り、A1〜A4 を見やすくする。
+  // 選択肢のユニバースは全テーマ（未取得時は trending_themes）。空選択=全カテゴリ(全件)。
+  const { data: allThemes } = useAllThemes()
+  const [overviewCategory, setOverviewCategory] = useState<string>('')
+  const overviewThemes = allThemes && allThemes.length > 0 ? allThemes : data?.trending_themes ?? []
+  const scopedCompanies = filterCompaniesByCategory(data?.notable_companies ?? [], overviewCategory, overviewThemes)
+  const { tickerCompanies, stockQueries, stockItems } = useTickerStocks(scopedCompanies)
 
   // === カテゴリ別 時価総額推移（SOT-1056 / A-1 + B-3）===
   const { data: categories } = useQuery({
@@ -84,6 +92,9 @@ export default function StockPage() {
   ]
   const isGraphVisible = (id: string) => !hiddenGraphs[id]
   const toggleGraph = (id: string) => setHiddenGraphs(h => ({ ...h, [id]: !h[id] }))
+
+  // 概観グラフの大カテゴリ選択肢（Theme.category, SOT-1149）。先頭に「全カテゴリ」を置く。
+  const overviewCategories = [...new Set(overviewThemes.map(th => th.category).filter(Boolean))].sort()
 
   return (
     <div className="space-y-8">
@@ -193,6 +204,24 @@ export default function StockPage() {
           {tickerCompanies.length > 0 && (
             <span className="text-xs text-muted-foreground">{t('stock.coverage', { ok: loadedCount, total: tickerCompanies.length })}</span>
           )}
+        </div>
+        {/* 大カテゴリ選択: A1〜A4 を選択カテゴリの企業のみに絞る（SOT-1149） */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="stock-overview-category" className="shrink-0 text-sm text-muted-foreground">
+            {t('dashboard.categoryLabel')}
+          </label>
+          <select
+            id="stock-overview-category"
+            value={overviewCategory}
+            onChange={e => setOverviewCategory(e.target.value)}
+            className="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-sky-400 focus:ring-1 focus:ring-sky-400 max-w-[20rem]"
+          >
+            <option value="">{t('dashboard.allCategories')}</option>
+            {overviewCategories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">{t('stock.overview.companyCount', { n: tickerCompanies.length })}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="shrink-0 text-sm text-muted-foreground">{t('stock.graphsLabel')}</span>
