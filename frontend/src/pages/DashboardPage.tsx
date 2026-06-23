@@ -16,9 +16,10 @@ import SmartMoneyFlowBar from '../components/charts/SmartMoneyFlowBar'
 import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
 import EvidenceTimeline from '../components/charts/EvidenceTimeline'
+import RadarSignalChart from '../components/charts/RadarSignalChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
-import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, useThemePatentCounts, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, buildRadarAxes, latestRnd, parseThemeIds, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -149,6 +150,12 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // G7 レーダー（SOT-1126 子5）。コホート=選択中の大カテゴリ内テーマ。特許件数はレーダー表示時のみ取得。
+  const radarVisible = !hiddenCards['radar']
+  const cohortThemes = queryCategory ? queryThemes.filter(th => th.category === queryCategory) : queryThemes
+  const cohortThemeIds = cohortThemes.map(th => th.id).filter(Boolean) as string[]
+  const { byThemeId: patentsByThemeId } = useThemePatentCounts(cohortThemeIds, { enabled: !!data && radarVisible })
+
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
 
@@ -267,6 +274,57 @@ export default function DashboardPage() {
   }
   const scNodes = [...scNodeMap.values()]
 
+  // === G7 多面シグナル レーダー（SOT-1126 子5） ===
+  // 5軸の theme_id 別 生値を集め、コホート(選択カテゴリ内テーマ)で軸別 max-scaling して 0–100 にする。
+  // 論文: カテゴリ内テーマ別総数。
+  const papersByThemeId = new Map<string, number>()
+  for (const s of categoryPaperCounts?.series ?? []) {
+    if (s.theme_id) papersByThemeId.set(s.theme_id, s.total)
+  }
+  // エビデンス: 最新エビデンスのテーマ別件数。
+  const evidenceByThemeId = new Map<string, number>()
+  for (const ev of externalInfos ?? []) {
+    if (ev.theme_id) evidenceByThemeId.set(ev.theme_id, (evidenceByThemeId.get(ev.theme_id) ?? 0) + 1)
+  }
+  // 財務(R&D): scoped 企業の最新 R&D を theme_ids に按分して合算。
+  const rndByTicker = new Map<string, number>()
+  for (const fi of fundamentalsItems) {
+    const r = latestRnd(fi.data)
+    if (r != null) rndByTicker.set(fi.ticker, r)
+  }
+  // 企業キー(ticker / name)→ theme_ids。13F の按分にも使う。
+  const companyThemeIdsByKey = new Map<string, string[]>()
+  const rndByThemeId = new Map<string, number>()
+  for (const c of scopedCompanies) {
+    const ids = parseThemeIds(c.theme_ids)
+    if (c.ticker) companyThemeIdsByKey.set(c.ticker, ids)
+    companyThemeIdsByKey.set(c.name, ids)
+    if (ids.length === 0) continue
+    const rnd = c.ticker ? rndByTicker.get(c.ticker) : undefined
+    if (rnd != null) for (const id of ids) rndByThemeId.set(id, (rndByThemeId.get(id) ?? 0) + rnd)
+  }
+  // 13F: 最新四半期Δ(絶対値)を企業→テーマに按分。
+  const flowByThemeId = new Map<string, number>()
+  for (const inv of latestInvestorByPair.values()) {
+    if (inv.quarter_delta == null || inv.quarter_delta === 0) continue
+    const ids =
+      (inv.ticker ? companyThemeIdsByKey.get(inv.ticker) : undefined) ??
+      (inv.company_name ? companyThemeIdsByKey.get(inv.company_name) : undefined) ??
+      []
+    for (const id of ids) flowByThemeId.set(id, (flowByThemeId.get(id) ?? 0) + Math.abs(inv.quarter_delta))
+  }
+  const radarAxes = buildRadarAxes(
+    [
+      { label: t('chart.radar.axis.papers'), byThemeId: papersByThemeId },
+      { label: t('chart.radar.axis.patents'), byThemeId: patentsByThemeId },
+      { label: t('chart.radar.axis.smartMoney'), byThemeId: flowByThemeId },
+      { label: t('chart.radar.axis.financials'), byThemeId: rndByThemeId },
+      { label: t('chart.radar.axis.evidence'), byThemeId: evidenceByThemeId },
+    ],
+    cohortThemeIds,
+    selectedThemeId,
+  )
+
   // クロス分析（指数）の基準年セレクタ（SOT-1014）。
   // 基準にできるのは「論文件数・時価総額がともに正」の年だけなので、その年だけを選択肢にする。
   const filteredPaperPos = new Set(filteredPaperCounts.filter(c => c.count > 0).map(c => c.year))
@@ -327,6 +385,7 @@ export default function DashboardPage() {
 
   // カード表示ON/OFF（SOT-1002 / 提案5）。
   const CARDS: { id: string; label: string }[] = [
+    { id: 'radar', label: t('chart.radar.title') },
     { id: 'cross', label: t('chart.cross.title') },
     { id: 'papers', label: t('chart.papers.title') },
     { id: 'research', label: t('chart.research.title') },
@@ -470,6 +529,17 @@ export default function DashboardPage() {
               ))}
             </select>
           </div>
+        )}
+
+        {/* G7 テーマ多面シグナル レーダー（ヘッダ直下に昇格, SOT-1126 子5） */}
+        {isCardVisible('radar') && (
+        <ChartCard
+          title={t('chart.radar.title')}
+          subtitle={`${t('chart.radar.subtitle')} / ${reportQuery}`}
+          actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.allThemes')} note={t('chart.radar.note')} />}
+        >
+          <RadarSignalChart data={radarAxes} />
+        </ChartCard>
         )}
 
         {/* グラフ③ クロス分析（論文 × 時価総額） */}

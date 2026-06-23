@@ -1,5 +1,5 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock, fetchThemes, fetchFinancialFundamentals } from '../api'
+import { fetchDashboard, fetchStock, fetchThemes, fetchFinancialFundamentals, fetchPatentYearly } from '../api'
 import type { Company, Theme, FinancialFundamentals } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
 import { toYearly, yearOf, pctReturn } from '../components/charts/chartUtils'
@@ -340,4 +340,85 @@ export function buildRnDIntensityPoints(
     })
   }
   return out
+}
+
+/** ある銘柄の財務時系列から「最新年の R&D 費用」を取り出す（無ければ null）。G7 レーダーの財務軸で利用。 */
+export function latestRnd(data?: FinancialFundamentals): number | null {
+  const points = data?.points
+  if (!points || points.length === 0) return null
+  const sorted = [...points].sort((a, b) => b.year - a.year)
+  for (const p of sorted) {
+    const v = p.values ?? {}
+    if (typeof v.rnd === 'number') return v.rnd
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// 特許（テーマ別件数）— G7 多面シグナル レーダーの特許軸（SOT-1126 子5）
+// ---------------------------------------------------------------------------
+
+const PATENT_STALE_TIME = 1000 * 60 * 30
+const RADAR_COHORT_MAX = 15
+
+/**
+ * テーマ群の特許件数を per-theme で取得し theme_id→件数 の Map にする。
+ * レーダーのカテゴリ内 max-scaling に使う（コホートは選択中の大カテゴリのテーマ）。
+ */
+export function useThemePatentCounts(themeIds: string[], options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true
+  const ids = themeIds.slice(0, RADAR_COHORT_MAX)
+  const queries = useQueries({
+    queries: ids.map(id => ({
+      queryKey: ['patent-yearly', id],
+      queryFn: () => fetchPatentYearly(id),
+      staleTime: PATENT_STALE_TIME,
+      retry: 1,
+      enabled,
+    })),
+  })
+  const byThemeId = new Map<string, number>()
+  ids.forEach((id, i) => {
+    const rows = queries[i]?.data
+    if (rows) byThemeId.set(id, rows.reduce((s, r) => s + (r.count ?? 0), 0))
+  })
+  return { byThemeId, queries }
+}
+
+export interface RadarMetric {
+  label: string
+  byThemeId: Map<string, number>
+}
+
+export interface RadarAxisPoint {
+  axis: string
+  value: number
+}
+
+/**
+ * G7: 各シグナルをコホート（選択カテゴリ内テーマ）で max-scaling して 0–100 に正規化し、
+ * 選択テーマの 5 軸レーダー点を返す。1 軸が支配しないよう軸ごとに独立正規化する。
+ */
+export function buildRadarAxes(
+  metrics: RadarMetric[],
+  cohortThemeIds: string[],
+  selectedThemeId: string,
+): RadarAxisPoint[] {
+  return metrics.map(m => {
+    let max = 0
+    for (const id of cohortThemeIds) max = Math.max(max, m.byThemeId.get(id) ?? 0)
+    const v = m.byThemeId.get(selectedThemeId) ?? 0
+    return { axis: m.label, value: max > 0 ? Math.round((v / max) * 100) : 0 }
+  })
+}
+
+/** 企業の theme_ids（JSON 文字列）を string[] にパースする。G7 の企業→テーマ按分で利用。 */
+export function parseThemeIds(raw?: string): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map(String) : []
+  } catch {
+    return []
+  }
 }
