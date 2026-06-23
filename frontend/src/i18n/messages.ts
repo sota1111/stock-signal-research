@@ -269,6 +269,7 @@ export const messages = {
     'investors.trend.empty': '保有推移を表示できるデータがありません（複数期の報告が必要です）。',
     'investors.concentration.title': '機関保有の集中度（企業別・最新）',
     'investors.concentration.subtitle': '最新報告での機関投資家の保有比率合計。合計が高いほど機関保有が集中しています。',
+    'investors.concentration.others': 'その他',
     'investors.relation.title': '投資家 → 企業 関係',
     'investors.relation.subtitle': '各投資家が最新報告で保有する企業の一覧。',
     // signal detection page
@@ -825,6 +826,7 @@ export const messages = {
     'investors.trend.empty': 'No data to show a holdings trend (multiple reporting periods are required).',
     'investors.concentration.title': 'Institutional holding concentration (by company, latest)',
     'investors.concentration.subtitle': 'Total institutional ownership in the latest report. Higher totals mean more concentrated institutional holding.',
+    'investors.concentration.others': 'Others',
     'investors.relation.title': 'Investor → company relationships',
     'investors.relation.subtitle': 'Companies held by each investor in the latest report.',
     // signal detection page

@@ -5,6 +5,7 @@ import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
 import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
+import HoldingsConcentrationPie from '../components/charts/HoldingsConcentrationPie'
 import { useDashboardQuery } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
@@ -62,7 +63,6 @@ export default function InvestorsPage() {
   const concentrationMap = new Map<string, number>()
   for (const inv of latestRows) concentrationMap.set(companyKey(inv), (concentrationMap.get(companyKey(inv)) ?? 0) + inv.ownership_pct)
   const concentration = [...concentrationMap.entries()].map(([company, total]) => ({ company, total })).sort((a, b) => b.total - a.total)
-  const maxConcentration = concentration.reduce((m, c) => Math.max(m, c.total), 0)
 
   // 投資家 → 企業 関係（最新報告, /investors-2）
   const relationMap = new Map<string, string[]>()
@@ -199,26 +199,9 @@ export default function InvestorsPage() {
       {/* 保有集中度（企業別・最新） SOT-995 /investors-4 */}
       {concentration.length > 0 && (
         <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-700">{t('investors.concentration.title')}</h2>
-            <p className="text-sm text-gray-500">{t('investors.concentration.subtitle')}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <ul className="space-y-2">
-              {concentration.map(c => (
-                <li key={c.company} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-gray-700" title={c.company}>{c.company}</span>
-                  <span className="flex-1 min-w-0">
-                    <span
-                      className="block h-3 rounded bg-emerald-400"
-                      style={{ width: maxConcentration > 0 ? `${Math.max(6, (c.total / maxConcentration) * 100)}%` : '6%' }}
-                    />
-                  </span>
-                  <span className="w-16 shrink-0 text-right text-xs text-gray-500">{c.total.toFixed(2)}%</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ChartCard title={t('investors.concentration.title')} subtitle={t('investors.concentration.subtitle')}>
+            <HoldingsConcentrationPie data={concentration} />
+          </ChartCard>
         </section>
       )}
 

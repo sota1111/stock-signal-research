@@ -1,48 +1,29 @@
-# Worker Report (Claude Code Fallback) — SOT-1128
-
-## Fallback Disclosure (audit)
-- Worker non-responsive: **Gemini** — `scripts/ai/run_gemini.sh` exited **75**
-  (`IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals`).
-- Worker non-responsive: **Codex** — `scripts/ai/run_codex.sh` exited **75** (usage-limit cooldown until
-  epoch 1782609660). Used for the task check; Claude Code performed it directly.
-- Per the Worker Non-Response Fallback Policy, Claude Code performed both the implementation (Gemini's
-  role) and verification (Codex's role) directly for SOT-1128.
+# Worker Report
 
 ## Summary
-Fixed the dashboard cross-analysis (クロス分析: 論文件数 × 上位N社時価総額) card not rendering for categories /
-themes that have no companies with market-cap data (e.g. user-registered「エネルギー」/「リチウムイオン
-バッテリー」). The cross-analysis market-cap series now falls back to ALL notable companies' top-N market cap
-when the category-scoped set yields no market-cap data, while the dedicated「上位N社時価総額」card stays
-category-scoped (SOT-1081 ⑤). The global fallback fetch is only enabled when the scoped market cap is empty,
-so normal categories / the all-categories view keep SOT-1081's reduced-fetch behavior with no added fetches.
+SOT-1134: Converted the 保有集中度（企業別・最新）section of the investor page from custom
+horizontal bars to a recharts pie chart of ownership share by company.
+
+NOTE: Gemini CLI was non-responsive (IneligibleTierError / UNSUPPORTED_CLIENT, run_gemini.sh exit 75)
+and Codex CLI was in usage-limit cooldown (exit 75). Per the Worker Non-Response Fallback Policy,
+Claude Code performed this implementation directly.
 
 ## Changed Files
-- `frontend/src/pages/dashboardData.ts` — `useTickerStocks(companies, options?)` gains an optional
-  `enabled` flag, passed to each `useQueries` query so the fallback fetch can be conditionally disabled.
-- `frontend/src/pages/DashboardPage.tsx` — compute `scopedMarketCapYearly` + `scopedSettled`; add a
-  `needGlobalMarketCap`-gated global `useTickerStocks` (placed before the loading guard to keep hook count
-  stable); `crossMarketCapYearly = scoped || global`; alias the cross series to `marketCapYearly`; extend
-  `isMarketCapLoading` / `isCrossLoading` to cover the fallback fetch. Top10 card keeps scoped `stockItems`.
+- `frontend/src/components/charts/HoldingsConcentrationPie.tsx` — new recharts pie chart; top-8 companies + その他/Others aggregate; % tooltip/labels; SERIES_COLORS palette; EmptyChart fallback.
+- `frontend/src/pages/InvestorsPage.tsx` — import + render HoldingsConcentrationPie inside a ChartCard; removed old bar markup and now-unused `maxConcentration`; dropped duplicate section header (ChartCard carries title/subtitle).
+- `frontend/src/i18n/messages.ts` — added `investors.concentration.others` (ja その他 / en Others).
 
 ## Commands Run
-- `npm run lint` → exit 0
-- `npx tsc --noEmit` → exit 0
-- `npm run build` → exit 0 (DashboardPage chunk built)
-- (frontend has no unit/e2e test runner; build = type gate per project convention)
+<see Codex verification report 60_worker_codex_report.md — quality gate run under fallback>
 
 ## Acceptance Criteria
-- [x] 時価総額企業の居ない大カテゴリ/テーマでもクロス分析グラフが（論文があれば）描画される
-      （scoped 時価総額が空のとき全注目企業 top-N へフォールバック）
-- [x] 通常カテゴリ・全カテゴリ選択時は挙動不変・追加 fetch 無し（`needGlobalMarketCap` ゲート）
-- [x] 上位N社時価総額カードは従来通りカテゴリ絞り込み（scoped `stockItems`）
-- [x] lint / typecheck / build pass
+- [x] 保有集中度 section renders a recharts pie chart of ownership share by company
+- [x] top-8 + その他/Others aggregation for many-company legibility
+- [x] tooltip/legend show company + share %
+- [x] no unrelated changes (other sections untouched)
 
 ## Risks
-- Could not reproduce the exact user DB locally (their「エネルギー」/「リチウムイオンバッテリー」are
-  user-registered Japanese themes not in the seed). Fix targets the general empty-scoped-market-cap case,
-  which is the reported failure mode; verified against the seed's behavior and the type/build gate.
-- When the fallback is active, the cross uses the global market top-N (e.g. mega-caps) paired with the
-  selected theme's papers — intentional macro context; the cross subtitle still shows the selected theme.
+- Slight ambiguity over which "graph" the issue meant; concentration (composition) is the only one that maps to a pie. Noted in Linear/PR for human redirect.
 
 ## Next Action
 READY_FOR_REVIEW
