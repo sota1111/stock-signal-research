@@ -132,6 +132,14 @@ export const messages = {
     // G5 サプライチェーン依存関係（SOT-1126 子3）
     'chart.supplyChainPanel.title': 'サプライチェーン依存関係',
     'chart.supplyChainPanel.subtitle': '選択テーマ/カテゴリに連なる供給・依存関係（大カテゴリで色分け）',
+    // G6 最新エビデンス・タイムライン（SOT-1126 子4）
+    'chart.evidence.title': '最新エビデンス・タイムライン',
+    'chart.evidence.subtitle': '全テーマ横断の最新の動き（ニュース / IR / 決算 / SEC開示）を日付降順で表示',
+    'chart.evidence.empty': '最新エビデンスがありません。',
+    'chart.evidence.type.news': 'ニュース',
+    'chart.evidence.type.announcement': 'IR',
+    'chart.evidence.type.earnings': '決算',
+    'chart.evidence.type.filing': 'SEC開示',
     'provenance.measured': '実測',
     'provenance.approx': '近似',
     'provenance.uncollected': '未収集',
@@ -669,6 +677,14 @@ export const messages = {
     // G5 supply-chain dependencies (SOT-1126 child 3)
     'chart.supplyChainPanel.title': 'Supply-chain dependencies',
     'chart.supplyChainPanel.subtitle': 'Supply/dependency edges linked to the selected theme/category (colored by category)',
+    // G6 latest evidence timeline (SOT-1126 child 4)
+    'chart.evidence.title': 'Latest evidence timeline',
+    'chart.evidence.subtitle': 'Latest moves across all themes (news / IR / earnings / SEC filings), newest first',
+    'chart.evidence.empty': 'No recent evidence available.',
+    'chart.evidence.type.news': 'News',
+    'chart.evidence.type.announcement': 'IR',
+    'chart.evidence.type.earnings': 'Earnings',
+    'chart.evidence.type.filing': 'SEC filing',
     'provenance.measured': 'Measured',
     'provenance.approx': 'Approx.',
     'provenance.uncollected': 'Not collected',

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors, fetchSupplyChain } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors, fetchSupplyChain, fetchExternalInfos } from '../api'
 import type { SupplyChainGraphNode, SupplyChainGraphEdge } from '../types'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
@@ -15,6 +15,7 @@ import RnDIntensityScatter from '../components/charts/RnDIntensityScatter'
 import SmartMoneyFlowBar from '../components/charts/SmartMoneyFlowBar'
 import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
 import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
+import EvidenceTimeline from '../components/charts/EvidenceTimeline'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
 import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, GRAPH_FROM_YEAR } from './dashboardData'
@@ -137,6 +138,14 @@ export default function DashboardPage() {
         queryCategory ? { category: queryCategory } : selectedThemeId ? { theme_id: selectedThemeId } : undefined,
       ),
     staleTime: 1000 * 60 * 10,
+    enabled: !!data,
+  })
+
+  // 最新エビデンス横断フィード（G6, SOT-1126 子4）。全テーマ横断の最新の動きを取得する。
+  const { data: externalInfos } = useQuery({
+    queryKey: ['external-infos', 'dashboard-latest'],
+    queryFn: () => fetchExternalInfos({ limit: 50 }),
+    staleTime: 1000 * 60 * 30,
     enabled: !!data,
   })
 
@@ -327,6 +336,7 @@ export default function DashboardPage() {
     { id: 'smartMoney', label: t('chart.smartMoney.title') },
     { id: 'holdings', label: t('chart.holdings.title') },
     { id: 'supplyChain', label: t('chart.supplyChainPanel.title') },
+    { id: 'evidence', label: t('chart.evidence.title') },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
   ]
   const isCardVisible = (id: string) => !hiddenCards[id]
@@ -614,6 +624,17 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
         >
           <SupplyChainGraphView nodes={scNodes} edges={scGraphEdges} />
+        </ChartCard>
+        )}
+
+        {/* G6 最新エビデンス・タイムライン（全テーマ横断, SOT-1126 子4） */}
+        {isCardVisible('evidence') && (
+        <ChartCard
+          title={t('chart.evidence.title')}
+          subtitle={t('chart.evidence.subtitle')}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
+        >
+          <EvidenceTimeline items={externalInfos ?? []} />
         </ChartCard>
         )}
 

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap, FinancialFundamentals, FundamentalsCompaniesResponse } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, ExternalInfo, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap, FinancialFundamentals, FundamentalsCompaniesResponse } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -128,6 +128,15 @@ export const fetchFinancialFundamentals = (ticker: string) =>
 
 export const fetchThemeExternalInfos = (themeId: string) =>
   api.get<ThemeExternalInfos>(`/themes/${themeId}/external-infos`).then(r => r.data)
+
+// 外部エビデンス横断一覧（GET /api/external-infos/, SOT-1123 / SOT-1126 子4 G6）
+export const fetchExternalInfos = (params?: { theme_id?: string; info_type?: string; limit?: number }) => {
+  const query: Record<string, string | number> = {}
+  if (params?.theme_id) query.theme_id = params.theme_id
+  if (params?.info_type) query.info_type = params.info_type
+  if (params?.limit != null) query.limit = params.limit
+  return api.get<ExternalInfo[]>('/external-infos/', { params: query }).then(r => r.data)
+}
 
 export const fetchThemeAlignment = (themeId: string) =>
   api.get<AlignmentScore>(`/themes/${themeId}/alignment`).then(r => r.data)
