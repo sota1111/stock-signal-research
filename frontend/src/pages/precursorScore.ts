@@ -87,3 +87,19 @@ export function computePrecursorBreakdown(series: PrecursorSeriesPoint[]): Precu
   const total = Math.min(momPoints + streakPoints, 100)
   return { total, momPoints, momPct, streakPoints, streakMonths, latestMonth: latest.year_month }
 }
+
+/**
+ * SOT-1161 (案C): the trailing strictly-increasing run length of the aggregated series.
+ * Unlike computePrecursorBreakdown's streak (capped at the last 3 months), this counts how many
+ * consecutive months at the end of the series kept rising vs the previous month — used as the
+ * momentum-scatter Y axis「連続増加月数」. Returns 0 for a series shorter than 2 points.
+ */
+export function trailingIncreasingMonths(series: PrecursorSeriesPoint[]): number {
+  if (!series || series.length < 2) return 0
+  let run = 0
+  for (let i = series.length - 1; i > 0; i--) {
+    if (series[i].count > series[i - 1].count) run++
+    else break
+  }
+  return run
+}
