@@ -86,7 +86,7 @@ function RouteErrorFallback() {
       <p className="text-sm text-muted-foreground mt-1">{t('error.routeBody')}</p>
       <button
         type="button"
-        onClick={() => window.location.reload()}
+        onClick={reloadBustingCache}
         className="mt-4 rounded-md border border-slate-300 bg-surface px-4 py-1.5 text-sm text-foreground hover:bg-surface-muted"
       >
         {t('error.reload')}
@@ -108,9 +108,14 @@ export default class RouteErrorBoundary extends Component<RouteErrorBoundaryProp
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Keep the error visible in development logs while replacing the blank route tree with recovery UI.
-    console.error('Route render failed', error, errorInfo)
+    // isStaleChunkError は判定ヒント（ログ用）に留める。SOT-1143: 復旧トリガはメッセージ一致ではなく
+    // 「このパスでまだ自動リロードしていない」かどうかにする。ブラウザ/ロケール差でメッセージが
+    // 一致しない stale-chunk でも確実に1回だけ最新 index.html を取りに行く。
+    console.error('Route render failed', error, errorInfo, { staleChunk: isStaleChunkError(error) })
 
-    if (!isStaleChunkError(error) || hasReloadedCurrentPath()) return
+    // ループ防止は hasReloadedCurrentPath() の「パス毎に1回だけ」ガードが担う。
+    // 真に決定的な描画エラーでも最大1回の cache-bust reload で済み、その後はフォールバックUIを出す。
+    if (hasReloadedCurrentPath()) return
 
     markCurrentPathReloaded()
     reloadBustingCache()
