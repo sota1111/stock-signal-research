@@ -18,6 +18,12 @@ export const messages = {
     'nav.evaluation': '一致度評価',
     'nav.researchSeeds': '初期リサーチ',
     'nav.supplyChain': 'サプライチェーン',
+    // テーマ・論文・特許 統一ページ（SOT-1145）
+    'nav.research': 'テーマ・論文・特許',
+    'research.title': 'テーマ・論文・特許',
+    'research.tab.themes': 'テーマ',
+    'research.tab.papers': '論文',
+    'research.tab.patents': '特許',
     // mobile drawer (SOT-1020 / 提案3)
     'nav.menu': 'メニュー',
     'nav.closeMenu': 'メニューを閉じる',
@@ -575,6 +581,12 @@ export const messages = {
     'nav.evaluation': 'Match Score',
     'nav.researchSeeds': 'Research Seeds',
     'nav.supplyChain': 'Supply Chain',
+    // Unified themes/papers/patents page (SOT-1145)
+    'nav.research': 'Themes · Papers · Patents',
+    'research.title': 'Themes, Papers & Patents',
+    'research.tab.themes': 'Themes',
+    'research.tab.papers': 'Papers',
+    'research.tab.patents': 'Patents',
     // mobile drawer (SOT-1020 / proposal 3)
     'nav.menu': 'Menu',
     'nav.closeMenu': 'Close menu',
