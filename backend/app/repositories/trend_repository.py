@@ -29,9 +29,12 @@ class SQLiteTrendRepository(TrendRepository):
         try:
             query = db.query(PaperMonthlyCount)
             if theme_id:
+                # 単一テーマ指定時はその月次トレンド系列を時系列(year_month 昇順)で返す。
                 query = query.filter(PaperMonthlyCount.theme_id == theme_id)
-
-            counts = query.order_by(PaperMonthlyCount.mom_change_pct.desc()).limit(limit).all()
+                counts = query.order_by(PaperMonthlyCount.year_month.asc()).limit(limit).all()
+            else:
+                # theme_id 未指定時は全テーマの「最も伸びている月」上位(mom降順)= top movers。
+                counts = query.order_by(PaperMonthlyCount.mom_change_pct.desc()).limit(limit).all()
             return [
                 {
                     "theme_id": c.theme_id,
@@ -89,9 +92,12 @@ class FirestoreTrendRepository(TrendRepository):
             query = db.collection("paper_monthly_counts")
 
             if theme_id:
+                # 単一テーマ指定時はその月次トレンド系列を時系列(year_month 昇順)で返す。
                 query = query.where("theme_id", "==", theme_id)
-
-            docs = query.order_by("mom_change_pct", direction=firestore.Query.DESCENDING).limit(limit).stream()
+                docs = query.order_by("year_month", direction=firestore.Query.ASCENDING).limit(limit).stream()
+            else:
+                # theme_id 未指定時は全テーマの top movers(mom降順)。
+                docs = query.order_by("mom_change_pct", direction=firestore.Query.DESCENDING).limit(limit).stream()
             return [
                 {
                     "theme_id": d.get("theme_id"),

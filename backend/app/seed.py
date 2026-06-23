@@ -2,6 +2,7 @@ from datetime import datetime as _datetime, timezone as _timezone
 
 from .database import SessionLocal
 from . import models
+from .aggregations import aggregate_paper_monthly_counts
 
 
 def run_seed():
@@ -69,28 +70,38 @@ def run_seed():
             )
             db.add(db_paper)
 
-        # 5. PaperMonthlyCount (10 years / 120 months per theme)
-        pm_data = [
-            {"theme": "GPU memory bottleneck", "keyword": "GPU memory",
-                "counts": _decade_monthly_counts(8, 180)},
-            {"theme": "HBM", "keyword": "HBM", "counts": _decade_monthly_counts(4, 150)},
-            {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": _decade_monthly_counts(15, 120)},
-        ]
-        for pm in pm_data:
-            prev_count = 0
-            for i, count in enumerate(pm["counts"]):
-                month = _month_str(_DECADE_FROM_YEAR, i)
-                mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
-                db_pm = models.PaperMonthlyCount(
-                    theme_id=themes[pm["theme"]].id,
-                    keyword=pm["keyword"],
-                    year_month=month,
-                    count=count,
-                    prev_month_count=prev_count,
-                    mom_change_pct=mom_change
-                )
-                db.add(db_pm)
-                prev_count = count
+        # 5. PaperMonthlyCount — SOT-1111(B): 実データがあれば全テーマを実論文から集計。
+        #    無ければ従来の3テーマ合成(10年/120ヶ月)にフォールバック。
+        if _DASHBOARD_MONTHLY_REAL:
+            for row in _DASHBOARD_MONTHLY_REAL:
+                theme = themes.get(row["theme"])
+                if theme is None:
+                    continue
+                db.add(models.PaperMonthlyCount(
+                    theme_id=theme.id,
+                    keyword=row["keyword"],
+                    year_month=row["year_month"],
+                    count=row["count"],
+                    prev_month_count=row["prev_month_count"],
+                    prev_year_count=row["prev_year_count"],
+                    mom_change_pct=row["mom_change_pct"],
+                    yoy_change_pct=row["yoy_change_pct"],
+                ))
+        else:
+            for pm in _DASHBOARD_MONTHLY_COUNTS:
+                prev_count = 0
+                for i, count in enumerate(pm["counts"]):
+                    month = _month_str(_DECADE_FROM_YEAR, i)
+                    mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
+                    db.add(models.PaperMonthlyCount(
+                        theme_id=themes[pm["theme"]].id,
+                        keyword=pm["keyword"],
+                        year_month=month,
+                        count=count,
+                        prev_month_count=prev_count,
+                        mom_change_pct=mom_change,
+                    ))
+                    prev_count = count
 
         # 6. Institutional Investors — 実データ(SEC EDGAR 13F)優先(SOT-965)。
         # collected-investors.json があれば過去約10年の主要機関投資家保有を投入。無ければ合成3件。
@@ -684,12 +695,21 @@ _USING_REAL_PAPERS = bool(_COLLECTED_PAPERS)
 _DASHBOARD_PAPERS = _COLLECTED_PAPERS or _decade_papers([t["name"] for t in _DASHBOARD_THEMES])
 
 # 10 years (120 months) of monthly counts per theme, rising over the decade.
+# 実データが無い場合(オフライン/テスト)のフォールバック合成データ(3テーマのみ)。
 _DASHBOARD_MONTHLY_COUNTS = [
     {"theme": "GPU memory bottleneck", "keyword": "GPU memory",
         "counts": _decade_monthly_counts(8, 180)},
     {"theme": "HBM", "keyword": "HBM", "counts": _decade_monthly_counts(4, 150)},
     {"theme": "SSD / NVMe", "keyword": "NVMe", "counts": _decade_monthly_counts(15, 120)},
 ]
+
+# SOT-1111(B): 実データ(collected-papers.json)があれば、全100テーマの月次トレンドを実論文の
+# 発行年月から決定的に再集計する(外部収集なし)。直近10年窓 [_DECADE_FROM_YEAR.._DECADE_TO_YEAR] に
+# 合わせる。実データが無い場合は空 → seed は従来の3テーマ合成(_DASHBOARD_MONTHLY_COUNTS)へフォールバック。
+_DASHBOARD_MONTHLY_REAL = (
+    aggregate_paper_monthly_counts(_DASHBOARD_PAPERS, _DECADE_FROM_YEAR, _DECADE_TO_YEAR)
+    if _USING_REAL_PAPERS else []
+)
 
 
 def seed_dashboard_data_firestore():
@@ -778,21 +798,48 @@ def seed_dashboard_data_firestore():
             if paper_repo.delete(pid):
                 deleted += 1
 
+        # Monthly counts — SOT-1111(B): 実データがあれば全テーマを実論文から集計して冪等 upsert。
         trend_repo = get_trend_repository()
-        for pm in _DASHBOARD_MONTHLY_COUNTS:
-            prev_count = 0
-            for i, count in enumerate(pm["counts"]):
-                month = _month_str(_DECADE_FROM_YEAR, i)
-                mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
+        if _DASHBOARD_MONTHLY_REAL:
+            # 旧3テーマ合成の月次doc(keyword=GPU memory/HBM/NVMe)が本番に残ると、同一テーマで
+            # keyword違いの系列が二重化する。実データ移行時は冪等に削除してから実データを投入する。
+            from firestore_client import delete_document
+            for pm in _DASHBOARD_MONTHLY_COUNTS:
+                tid = theme_ids.get(pm["theme"])
+                if not tid:
+                    continue
+                for i in range(len(pm["counts"])):
+                    month = _month_str(_DECADE_FROM_YEAR, i)
+                    delete_document("paper_monthly_counts", f"{tid}_{pm['keyword']}_{month}")
+            for row in _DASHBOARD_MONTHLY_REAL:
+                tid = theme_ids.get(row["theme"])
+                if not tid:
+                    continue
                 trend_repo.save_monthly_count({
-                    "theme_id": theme_ids[pm["theme"]],
-                    "keyword": pm["keyword"],
-                    "year_month": month,
-                    "count": count,
-                    "prev_month_count": prev_count,
-                    "mom_change_pct": mom_change,
+                    "theme_id": tid,
+                    "keyword": row["keyword"],
+                    "year_month": row["year_month"],
+                    "count": row["count"],
+                    "prev_month_count": row["prev_month_count"],
+                    "prev_year_count": row["prev_year_count"],
+                    "mom_change_pct": row["mom_change_pct"],
+                    "yoy_change_pct": row["yoy_change_pct"],
                 })
-                prev_count = count
+        else:
+            for pm in _DASHBOARD_MONTHLY_COUNTS:
+                prev_count = 0
+                for i, count in enumerate(pm["counts"]):
+                    month = _month_str(_DECADE_FROM_YEAR, i)
+                    mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
+                    trend_repo.save_monthly_count({
+                        "theme_id": theme_ids[pm["theme"]],
+                        "keyword": pm["keyword"],
+                        "year_month": month,
+                        "count": count,
+                        "prev_month_count": prev_count,
+                        "mom_change_pct": mom_change,
+                    })
+                    prev_count = count
 
         logger.info(
             "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers "
