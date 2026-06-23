@@ -114,7 +114,7 @@ class ExternalInfo(Base):
     __tablename__ = "external_infos"
     id = Column(String, primary_key=True, default=generate_uuid)
     info_id = Column(String, unique=True, index=True, nullable=False)
-    info_type = Column(String, nullable=False)  # "news" | "announcement" | "earnings"
+    info_type = Column(String, nullable=False)  # "news" | "announcement" | "earnings" | "filing"
     title = Column(String, nullable=False)
     url = Column(String)
     summary = Column(String)

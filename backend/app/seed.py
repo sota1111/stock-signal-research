@@ -993,6 +993,10 @@ def _compute_alignment(db, theme_id):
         models.ExternalInfo.theme_id == theme_id,
         models.ExternalInfo.info_type == "earnings"
     ).count()
+    F = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id,
+        models.ExternalInfo.info_type == "filing"
+    ).count()
 
     # Get latest mom_change_pct for the theme
     latest_pm = db.query(models.PaperMonthlyCount).filter(
@@ -1000,12 +1004,101 @@ def _compute_alignment(db, theme_id):
     ).order_by(models.PaperMonthlyCount.year_month.desc()).first()
     latest_mom = latest_pm.mom_change_pct if latest_pm else 0.0
 
-    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom)
+    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom, F=F)
+
+
+def _seed_external_evidence_from_file(db):
+    """構造化された実外部エビデンス(ニュース/IR/決算/SEC filing)を
+    backend/data/external-evidence.json から冪等に投入する。
+
+    USE_SAMPLE_DATA に依存せず常に読み込む(実データ)。テーマは name で名寄せする。
+    戻り値: 投入/既存で影響を受けたテーマ id の集合。"""
+    import os
+    import json
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "external-evidence.json")
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return set()
+    items = payload.get("items", []) if isinstance(payload, dict) else payload
+
+    theme_cache = {}
+
+    def resolve_theme_id(name):
+        if not name:
+            return None
+        if name in theme_cache:
+            return theme_cache[name]
+        t = db.query(models.Theme).filter(models.Theme.name.ilike(name)).first()
+        if not t:
+            t = db.query(models.Theme).filter(models.Theme.name.ilike(f"%{name}%")).first()
+        theme_cache[name] = t.id if t else None
+        return theme_cache[name]
+
+    affected = set()
+    for it in items:
+        info_id = it.get("info_id")
+        if not info_id:
+            continue
+        theme_id = resolve_theme_id(it.get("theme_name"))
+        existing = db.query(models.ExternalInfo).filter(
+            models.ExternalInfo.info_id == info_id
+        ).first()
+        if existing:
+            if existing.theme_id:
+                affected.add(existing.theme_id)
+            continue
+        db.add(models.ExternalInfo(
+            info_id=info_id,
+            info_type=it.get("info_type", "news"),
+            title=it.get("title", ""),
+            url=it.get("url"),
+            summary=it.get("summary"),
+            source_name=it.get("source_name"),
+            published_at=it.get("published_at"),
+            related_company=it.get("related_company"),
+            theme_id=theme_id,
+            relevance_score=it.get("relevance_score", 60.0),
+        ))
+        if theme_id:
+            affected.add(theme_id)
+    db.commit()
+    return affected
 
 
 def seed_external_infos(db):
     import os
+
+    # 1. 実外部エビデンス(ニュース/IR/決算/SEC filing)を常に読み込む(冪等)
+    affected_theme_ids = _seed_external_evidence_from_file(db)
+
+    # 2. レガシーのサンプルデータは USE_SAMPLE_DATA=true のときのみ追加投入する
     if os.getenv("USE_SAMPLE_DATA") != "true":
+        # 実データのみ。一致度を再計算してから全テーマ分の行を保証する。
+        for theme_id in affected_theme_ids:
+            stats = _compute_alignment(db, theme_id)
+            alignment = db.query(models.AlignmentScore).filter(
+                models.AlignmentScore.theme_id == theme_id
+            ).first()
+            if not alignment:
+                db.add(models.AlignmentScore(theme_id=theme_id, **stats))
+            else:
+                for k, v in stats.items():
+                    setattr(alignment, k, v)
+        db.commit()
+
+        all_themes = db.query(models.Theme).all()
+        for t in all_themes:
+            existing_as = db.query(models.AlignmentScore).filter(
+                models.AlignmentScore.theme_id == t.id
+            ).first()
+            if not existing_as:
+                stats = _compute_alignment(db, t.id)
+                db.add(models.AlignmentScore(theme_id=t.id, **stats))
+        db.commit()
         return
 
     sample_data = {
