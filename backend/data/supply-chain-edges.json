@@ -1,0 +1,102 @@
+{
+  "_meta": {
+    "issue": "SOT-1124",
+    "description": "100テーマ横断の構造化サプライチェーン edge。from -> to は供給/可能化/依存などの向きを持つ。relation_type は supplies|enables|depends_on|complements|competes。confidence は 0-1。テーマ名は seed.py の _DASHBOARD_THEMES(30) と backend/data/sot994_universe.json(70) の全100テーマのみを参照する。13大カテゴリすべてに跨る。",
+    "relation_types": ["supplies", "enables", "depends_on", "complements", "competes"],
+    "created_at": "2026-06-23"
+  },
+  "edges": [
+    {"from": "GPU memory bottleneck", "to": "HBM", "relation_type": "depends_on", "confidence": 0.92, "evidence": ["LLM学習でGPUメモリ帯域が律速 → HBM搭載量増加が需要を牽引"], "description": "GPU需要 → HBM需要", "order": 1},
+    {"from": "HBM", "to": "SSD / NVMe", "relation_type": "complements", "confidence": 0.78, "evidence": ["HBM容量制約のオフロード先として高速NVMeが拡張"], "description": "HBM拡張 → NVMe SSD需要増", "order": 2},
+    {"from": "SSD / NVMe", "to": "I/O bottleneck", "relation_type": "enables", "confidence": 0.7, "evidence": ["SSD普及でストレージI/Oがボトルネックとして顕在化"], "description": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
+    {"from": "I/O bottleneck", "to": "KV cache offloading", "relation_type": "enables", "confidence": 0.75, "evidence": ["I/O制約緩和のためKVキャッシュのオフロード技術が必要"], "description": "I/O制約 → KVキャッシュオフロード需要", "order": 4},
+    {"from": "GPU memory bottleneck", "to": "data center power", "relation_type": "depends_on", "confidence": 0.85, "evidence": ["GPU増設に伴いデータセンター電力需要が増大"], "description": "GPU増設 → データセンター電力需要", "order": 5},
+    {"from": "data center power", "to": "robotics foundation model", "relation_type": "enables", "confidence": 0.6, "evidence": ["大規模学習基盤の電力整備がロボティクス基盤モデル展開を支える"], "description": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
+
+    {"from": "EUV lithography", "to": "advanced packaging CoWoS", "relation_type": "enables", "confidence": 0.8, "evidence": ["微細プロセスと先端パッケージの組合せで高性能ダイを実現"], "description": "EUV微細化 → 先端パッケージ統合", "order": 7},
+    {"from": "advanced packaging CoWoS", "to": "HBM", "relation_type": "supplies", "confidence": 0.88, "evidence": ["CoWoSインターポーザがHBMとロジックの統合を供給"], "description": "CoWoS → HBM実装", "order": 8},
+    {"from": "chiplet packaging", "to": "AI accelerator ASIC", "relation_type": "enables", "confidence": 0.82, "evidence": ["チップレット分割で大規模AIアクセラレータの歩留まり改善"], "description": "チップレット → AIアクセラレータ", "order": 9},
+    {"from": "AI accelerator ASIC", "to": "LLM inference optimization", "relation_type": "enables", "confidence": 0.8, "evidence": ["推論専用ASICがLLM推論最適化の基盤"], "description": "ASIC → 推論最適化", "order": 10},
+    {"from": "silicon photonics", "to": "optical interconnect", "relation_type": "supplies", "confidence": 0.85, "evidence": ["シリコンフォトニクスが光インターコネクトの部材を供給"], "description": "シリコンフォトニクス → 光配線", "order": 11},
+    {"from": "power semiconductor GaN SiC", "to": "data center power", "relation_type": "supplies", "confidence": 0.77, "evidence": ["GaN/SiCパワー半導体が高効率電力変換を供給"], "description": "パワー半導体 → DC電力効率", "order": 12},
+    {"from": "CXL memory pooling", "to": "KV cache offloading", "relation_type": "enables", "confidence": 0.74, "evidence": ["CXLメモリプールがKVキャッシュのオフロード先を提供"], "description": "CXLプール → KVオフロード", "order": 13},
+    {"from": "flash controller", "to": "SSD / NVMe", "relation_type": "supplies", "confidence": 0.83, "evidence": ["フラッシュコントローラがNVMe SSDの中核部品"], "description": "コントローラ → SSD", "order": 14},
+    {"from": "NVMe-oF disaggregation", "to": "I/O bottleneck", "relation_type": "complements", "confidence": 0.66, "evidence": ["NVMe-oFによるストレージ分離がI/O制約の緩和策"], "description": "NVMe-oF → I/O緩和", "order": 15},
+    {"from": "neuromorphic computing", "to": "edge AI inference", "relation_type": "enables", "confidence": 0.6, "evidence": ["ニューロモルフィックが低電力エッジ推論を可能化"], "description": "ニューロモルフィック → エッジ推論", "order": 16},
+    {"from": "SmartNIC DPU", "to": "NVMe-oF disaggregation", "relation_type": "enables", "confidence": 0.7, "evidence": ["DPUがストレージ分離のオフロードを担う"], "description": "DPU → ストレージ分離", "order": 17},
+
+    {"from": "LLM inference optimization", "to": "retrieval augmented generation", "relation_type": "enables", "confidence": 0.72, "evidence": ["推論最適化がRAGの実用レイテンシを実現"], "description": "推論最適化 → RAG", "order": 18},
+    {"from": "retrieval augmented generation", "to": "vector database", "relation_type": "depends_on", "confidence": 0.86, "evidence": ["RAGは検索基盤としてベクタDBに依存"], "description": "RAG → ベクタDB", "order": 19},
+    {"from": "mixture of experts", "to": "GPU memory bottleneck", "relation_type": "depends_on", "confidence": 0.7, "evidence": ["MoE大規模化がGPUメモリ制約を強める"], "description": "MoE → GPUメモリ需要", "order": 20},
+    {"from": "quantization", "to": "edge AI inference", "relation_type": "enables", "confidence": 0.78, "evidence": ["量子化が省メモリなエッジ推論を可能化"], "description": "量子化 → エッジ推論", "order": 21},
+    {"from": "liquid cooling", "to": "data center power", "relation_type": "complements", "confidence": 0.68, "evidence": ["液冷が高密度DCの電力・熱効率を補完"], "description": "液冷 → DC効率", "order": 22},
+
+    {"from": "lithium-ion battery", "to": "grid storage", "relation_type": "supplies", "confidence": 0.84, "evidence": ["Li-ion電池が系統用蓄電の主要供給源"], "description": "Li-ion → 系統蓄電", "order": 23},
+    {"from": "solid-state battery", "to": "lithium-ion battery", "relation_type": "competes", "confidence": 0.65, "evidence": ["全固体電池が既存Li-ionを代替し得る競合技術"], "description": "全固体 vs Li-ion", "order": 24},
+    {"from": "solar photovoltaic", "to": "smart grid", "relation_type": "supplies", "confidence": 0.82, "evidence": ["太陽光の変動電源がスマートグリッド制御需要を生む"], "description": "太陽光 → スマートグリッド", "order": 25},
+    {"from": "wind power", "to": "smart grid", "relation_type": "supplies", "confidence": 0.8, "evidence": ["風力の変動電源が需給調整を必要とする"], "description": "風力 → スマートグリッド", "order": 26},
+    {"from": "grid storage", "to": "smart grid", "relation_type": "enables", "confidence": 0.79, "evidence": ["蓄電が再エネ変動を吸収しグリッド安定化"], "description": "蓄電 → グリッド安定", "order": 27},
+    {"from": "nuclear small modular reactor", "to": "data center power", "relation_type": "supplies", "confidence": 0.62, "evidence": ["SMRがデータセンター向け安定電源として注目"], "description": "SMR → DC電源", "order": 28},
+    {"from": "hydrogen fuel cell", "to": "data center power", "relation_type": "supplies", "confidence": 0.55, "evidence": ["水素燃料電池がバックアップ/常用電源候補"], "description": "燃料電池 → DC電源", "order": 29},
+    {"from": "green hydrogen electrolysis", "to": "hydrogen fuel cell", "relation_type": "supplies", "confidence": 0.72, "evidence": ["グリーン水素製造が燃料電池の燃料を供給"], "description": "水電解 → 水素供給", "order": 30},
+    {"from": "carbon capture storage", "to": "green hydrogen electrolysis", "relation_type": "complements", "confidence": 0.5, "evidence": ["CCSとグリーン水素が脱炭素で相互補完"], "description": "CCS ↔ グリーン水素", "order": 31},
+
+    {"from": "rare earth materials", "to": "wind power", "relation_type": "supplies", "confidence": 0.7, "evidence": ["希土類磁石が風力発電機の高効率化に必須"], "description": "希土類 → 風力磁石", "order": 32},
+    {"from": "battery recycling", "to": "lithium-ion battery", "relation_type": "supplies", "confidence": 0.68, "evidence": ["電池リサイクルがLi-ion原料を循環供給"], "description": "リサイクル → Li-ion原料", "order": 33},
+    {"from": "circular economy materials", "to": "battery recycling", "relation_type": "complements", "confidence": 0.55, "evidence": ["循環型材料設計がリサイクル効率を補完"], "description": "循環材料 ↔ リサイクル", "order": 34},
+    {"from": "graphene 2D materials", "to": "solid-state battery", "relation_type": "enables", "confidence": 0.5, "evidence": ["グラフェン電極が全固体電池の性能向上に寄与"], "description": "グラフェン → 全固体電池", "order": 35},
+    {"from": "biodegradable plastics", "to": "circular economy materials", "relation_type": "complements", "confidence": 0.52, "evidence": ["生分解性プラが循環経済材料の一翼"], "description": "生分解プラ ↔ 循環経済", "order": 36},
+    {"from": "metamaterials photonics", "to": "silicon photonics", "relation_type": "enables", "confidence": 0.5, "evidence": ["メタマテリアルが光デバイスの新機能を可能化"], "description": "メタマテリアル → フォトニクス", "order": 37},
+
+    {"from": "robotics foundation model", "to": "humanoid robotics", "relation_type": "enables", "confidence": 0.7, "evidence": ["基盤モデルがヒューマノイドの汎用制御を可能化"], "description": "基盤モデル → ヒューマノイド", "order": 38},
+    {"from": "autonomous driving perception", "to": "autonomous delivery", "relation_type": "enables", "confidence": 0.72, "evidence": ["自動運転認識が自律配送を支える"], "description": "自動運転認識 → 自律配送", "order": 39},
+    {"from": "warehouse automation robotics", "to": "supply chain optimization", "relation_type": "enables", "confidence": 0.75, "evidence": ["倉庫自動化がサプライチェーン最適化の実装基盤"], "description": "倉庫自動化 → SCM最適化", "order": 40},
+    {"from": "digital twin infrastructure", "to": "construction tech BIM", "relation_type": "enables", "confidence": 0.68, "evidence": ["デジタルツインが建設BIMの運用を高度化"], "description": "デジタルツイン → BIM", "order": 41},
+    {"from": "drone inspection", "to": "disaster early warning", "relation_type": "supplies", "confidence": 0.6, "evidence": ["ドローン点検データが災害早期警戒に供給される"], "description": "ドローン点検 → 災害警戒", "order": 42},
+    {"from": "humanoid robotics", "to": "surgical robotics", "relation_type": "complements", "confidence": 0.45, "evidence": ["ヒューマノイド制御技術が外科ロボに波及"], "description": "ヒューマノイド ↔ 外科ロボ", "order": 43},
+
+    {"from": "surgical robotics", "to": "medical imaging AI", "relation_type": "depends_on", "confidence": 0.7, "evidence": ["術中ナビは画像AIに依存"], "description": "外科ロボ → 画像AI", "order": 44},
+    {"from": "single cell genomics", "to": "genomic diagnostics", "relation_type": "supplies", "confidence": 0.72, "evidence": ["単一細胞ゲノムがゲノム診断のデータを供給"], "description": "単一細胞 → ゲノム診断", "order": 45},
+    {"from": "wearable health monitoring", "to": "continuous glucose monitoring", "relation_type": "complements", "confidence": 0.6, "evidence": ["ウェアラブルとCGMが連続健康モニタで補完"], "description": "ウェアラブル ↔ CGM", "order": 46},
+    {"from": "telemedicine platforms", "to": "digital therapeutics", "relation_type": "complements", "confidence": 0.58, "evidence": ["遠隔医療とDTxが治療提供で補完"], "description": "遠隔医療 ↔ DTx", "order": 47},
+
+    {"from": "AI drug discovery", "to": "protein structure prediction", "relation_type": "depends_on", "confidence": 0.8, "evidence": ["AI創薬は構造予測に強く依存"], "description": "AI創薬 → 構造予測", "order": 48},
+    {"from": "mRNA therapeutics", "to": "AI drug discovery", "relation_type": "complements", "confidence": 0.55, "evidence": ["mRNA設計とAI創薬が相互補完"], "description": "mRNA ↔ AI創薬", "order": 49},
+    {"from": "gene editing CRISPR", "to": "cell therapy CAR-T", "relation_type": "enables", "confidence": 0.7, "evidence": ["CRISPR編集がCAR-T細胞治療を高度化"], "description": "CRISPR → CAR-T", "order": 50},
+
+    {"from": "digital payments infrastructure", "to": "open banking API", "relation_type": "enables", "confidence": 0.75, "evidence": ["決済基盤がオープンバンキングAPIを実装基盤として支える"], "description": "決済基盤 → オープンAPI", "order": 51},
+    {"from": "open banking API", "to": "robo-advisory wealth management", "relation_type": "enables", "confidence": 0.65, "evidence": ["口座連携APIがロボアドの資産集約を可能化"], "description": "オープンAPI → ロボアド", "order": 52},
+    {"from": "blockchain settlement", "to": "central bank digital currency", "relation_type": "enables", "confidence": 0.62, "evidence": ["分散台帳決済がCBDC基盤の技術候補"], "description": "ブロックチェーン決済 → CBDC", "order": 53},
+    {"from": "fraud detection finance", "to": "algorithmic trading systems", "relation_type": "complements", "confidence": 0.5, "evidence": ["不正検知とアルゴ取引が監視で補完"], "description": "不正検知 ↔ アルゴ取引", "order": 54},
+
+    {"from": "identity access management", "to": "zero trust security", "relation_type": "supplies", "confidence": 0.78, "evidence": ["IAMがゼロトラストの認証基盤を供給"], "description": "IAM → ゼロトラスト", "order": 55},
+    {"from": "zero trust security", "to": "secure access SASE", "relation_type": "enables", "confidence": 0.76, "evidence": ["ゼロトラストがSASEの設計原則"], "description": "ゼロトラスト → SASE", "order": 56},
+    {"from": "endpoint detection response", "to": "threat intelligence", "relation_type": "supplies", "confidence": 0.7, "evidence": ["EDRテレメトリが脅威インテリジェンスに供給"], "description": "EDR → 脅威インテリ", "order": 57},
+    {"from": "post-quantum cryptography", "to": "blockchain settlement", "relation_type": "enables", "confidence": 0.5, "evidence": ["PQCが将来の台帳決済の耐量子性を担保"], "description": "PQC → 耐量子決済", "order": 58},
+    {"from": "privacy preserving computation", "to": "fraud detection finance", "relation_type": "enables", "confidence": 0.55, "evidence": ["秘密計算が金融横断の不正検知を可能化"], "description": "秘密計算 → 不正検知", "order": 59},
+
+    {"from": "superconducting qubits", "to": "quantum computing hardware", "relation_type": "supplies", "confidence": 0.72, "evidence": ["超伝導量子ビットが量子計算HWの主要方式"], "description": "超伝導qubit → 量子HW", "order": 60},
+    {"from": "trapped ion qubits", "to": "quantum computing hardware", "relation_type": "supplies", "confidence": 0.68, "evidence": ["イオントラップが量子計算HWの主要方式"], "description": "イオンqubit → 量子HW", "order": 61},
+    {"from": "quantum computing hardware", "to": "quantum error correction", "relation_type": "depends_on", "confidence": 0.82, "evidence": ["実用量子計算は誤り訂正に依存"], "description": "量子HW → 誤り訂正", "order": 62},
+    {"from": "quantum error correction", "to": "quantum algorithms", "relation_type": "enables", "confidence": 0.7, "evidence": ["論理量子ビットが実用アルゴリズムを可能化"], "description": "誤り訂正 → 量子アルゴ", "order": 63},
+    {"from": "quantum computing hardware", "to": "post-quantum cryptography", "relation_type": "enables", "confidence": 0.6, "evidence": ["量子計算の進展がPQC需要を喚起"], "description": "量子HW → PQC需要", "order": 64},
+    {"from": "quantum communication QKD", "to": "secure access SASE", "relation_type": "complements", "confidence": 0.42, "evidence": ["QKDが将来の安全な接続を補完"], "description": "QKD ↔ 安全接続", "order": 65},
+    {"from": "quantum sensing metrology", "to": "space situational awareness", "relation_type": "supplies", "confidence": 0.4, "evidence": ["量子センシングが宇宙状況把握の精度に寄与"], "description": "量子センシング → 宇宙監視", "order": 66},
+
+    {"from": "reusable launch vehicle", "to": "satellite constellation LEO", "relation_type": "enables", "confidence": 0.85, "evidence": ["再使用ロケットがLEOコンステ展開コストを低減"], "description": "再使用ロケット → LEOコンステ", "order": 67},
+    {"from": "satellite constellation LEO", "to": "satellite communications", "relation_type": "supplies", "confidence": 0.83, "evidence": ["LEOコンステが衛星通信容量を供給"], "description": "LEOコンステ → 衛星通信", "order": 68},
+    {"from": "satellite constellation LEO", "to": "earth observation remote sensing", "relation_type": "supplies", "confidence": 0.8, "evidence": ["LEO群が地球観測の高頻度データを供給"], "description": "LEOコンステ → 地球観測", "order": 69},
+    {"from": "earth observation remote sensing", "to": "crop monitoring remote sensing", "relation_type": "supplies", "confidence": 0.75, "evidence": ["衛星観測が作物リモセンの基盤データを供給"], "description": "地球観測 → 作物リモセン", "order": 70},
+    {"from": "earth observation remote sensing", "to": "disaster early warning", "relation_type": "supplies", "confidence": 0.74, "evidence": ["観測データが災害早期警戒に供給される"], "description": "地球観測 → 災害警戒", "order": 71},
+    {"from": "GNSS positioning navigation", "to": "autonomous driving perception", "relation_type": "supplies", "confidence": 0.7, "evidence": ["GNSS測位が自動運転の自己位置推定に供給"], "description": "GNSS → 自動運転測位", "order": 72},
+    {"from": "in-space manufacturing", "to": "satellite constellation LEO", "relation_type": "complements", "confidence": 0.4, "evidence": ["軌道上製造が衛星製造を将来補完"], "description": "軌道上製造 ↔ 衛星", "order": 73},
+    {"from": "satellite communications", "to": "telemedicine platforms", "relation_type": "enables", "confidence": 0.5, "evidence": ["衛星通信が遠隔地の遠隔医療を可能化"], "description": "衛星通信 → 遠隔医療", "order": 74},
+
+    {"from": "agricultural biotech seeds", "to": "precision agriculture", "relation_type": "supplies", "confidence": 0.62, "evidence": ["バイオ種子が精密農業の収量基盤を供給"], "description": "バイオ種子 → 精密農業", "order": 75},
+    {"from": "precision agriculture", "to": "crop monitoring remote sensing", "relation_type": "depends_on", "confidence": 0.72, "evidence": ["精密農業は作物リモセンに依存"], "description": "精密農業 → 作物リモセン", "order": 76},
+    {"from": "crop monitoring remote sensing", "to": "food safety traceability", "relation_type": "complements", "confidence": 0.5, "evidence": ["生育監視と食品トレーサビリティが補完"], "description": "作物監視 ↔ トレーサビリティ", "order": 77},
+    {"from": "vertical farming", "to": "alternative protein", "relation_type": "complements", "confidence": 0.48, "evidence": ["垂直農法と代替タンパクが食料供給で補完"], "description": "垂直農法 ↔ 代替タンパク", "order": 78},
+    {"from": "aquaculture technology", "to": "alternative protein", "relation_type": "supplies", "confidence": 0.5, "evidence": ["養殖技術が代替タンパク原料を供給"], "description": "養殖 → 代替タンパク", "order": 79},
+    {"from": "food safety traceability", "to": "blockchain settlement", "relation_type": "depends_on", "confidence": 0.45, "evidence": ["トレーサビリティが分散台帳の改ざん耐性を活用"], "description": "トレーサビリティ → ブロックチェーン", "order": 80}
+  ]
+}

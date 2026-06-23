@@ -228,6 +228,8 @@ def get_dashboard():
         res_item = schemas.SupplyChainResponse.model_validate(item)
         res_item.from_theme_name = from_theme["name"] if from_theme else None
         res_item.to_theme_name = to_theme["name"] if to_theme else None
+        res_item.from_category = from_theme.get("category") if from_theme else None
+        res_item.to_category = to_theme.get("category") if to_theme else None
         supply_chain_highlights.append(res_item)
 
     # alignment_highlights

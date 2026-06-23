@@ -96,6 +96,11 @@ class SupplyChain(Base):
     relationship = Column(String, nullable=False)
     description = Column(String)
     order = Column(Integer, default=0)
+    # SOT-1124: 構造化サプライチェーン edge のメタ情報
+    relation_type = Column(String, default="depends_on")
+    confidence = Column(Float, default=0.5)
+    evidence = Column(String)  # JSON string (list of evidence strings)
+    created_at = Column(String)  # ISO date
 
 
 class InstitutionalInvestor(Base):

@@ -53,7 +53,13 @@ export const fetchCompanies = () => api.get<Company[]>('/companies/').then(r => 
 export const createCompany = (data: { name: string; ticker?: string; description: string; benefit_score: number; benefit_type: string }) =>
   api.post<Company>('/companies/', data).then(r => r.data)
 
-export const fetchSupplyChain = () => api.get<SupplyChainItem[]>('/supply-chain/').then(r => r.data)
+export const fetchSupplyChain = (filters?: { category?: string; theme_id?: string; company_id?: string }) => {
+  const params: Record<string, string> = {}
+  if (filters?.category) params.category = filters.category
+  if (filters?.theme_id) params.theme_id = filters.theme_id
+  if (filters?.company_id) params.company_id = filters.company_id
+  return api.get<SupplyChainItem[]>('/supply-chain/', { params }).then(r => r.data)
+}
 export const fetchInvestors = () => api.get<InstitutionalInvestor[]>('/investors/').then(r => r.data)
 export const fetchDashboard = () => api.get<DashboardData>('/dashboard/').then(r => r.data)
 
