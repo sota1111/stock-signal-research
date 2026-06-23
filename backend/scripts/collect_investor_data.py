@@ -46,14 +46,56 @@ MANAGERS = [
     ("0000315066", "FMR (Fidelity)"),
 ]
 
-# 追跡対象企業: CUSIP -> 企業情報。company_name は seed.py の Company.name と一致させる。
-# sec_cik は発行体の SEC CIK(発行済株式数から保有比率を概算するため)。
-TARGET_COMPANIES = {
-    "67066G104": {"name": "NVIDIA", "ticker": "NVDA", "sec_cik": "0001045810"},
-    "007903107": {"name": "AMD", "ticker": "AMD", "sec_cik": "0000002488"},
-    "595112103": {"name": "Micron", "ticker": "MU", "sec_cik": "0000723125"},
-    "874039100": {"name": "TSMC", "ticker": "TSM", "sec_cik": "0001046179"},
-}
+# 追跡対象企業(SOT-1120: 主要テーマ銘柄へ拡大)。name は seed.py の Company.name と一致させる。
+# 13F のCUSIPは再法人化等で変わりうるため、CUSIP一致 **または** nameOfIssuer のキーワード一致で
+# 名寄せする(name_kw は小文字・正規化後の部分一致)。sec_cik は発行体CIK(発行済株式数→保有比率の概算)。
+# cusip/ticker は出力の代表値として用いる。米国13Fに現れない海外現地上場(韓国/日本)は対象外。
+TARGET_COMPANIES = [
+    {"name": "NVIDIA", "ticker": "NVDA", "cusips": ["67066G104"], "name_kw": "nvidia", "sec_cik": "0001045810"},
+    {"name": "AMD", "ticker": "AMD", "cusips": ["007903107"], "name_kw": "advanced micro", "sec_cik": "0000002488"},
+    {"name": "Micron", "ticker": "MU", "cusips": ["595112103"], "name_kw": "micron", "sec_cik": "0000723125"},
+    {"name": "TSMC", "ticker": "TSM", "cusips": ["874039100"], "name_kw": "taiwan semiconduct", "sec_cik": "0001046179"},
+    {"name": "Intel", "ticker": "INTC", "cusips": ["458140100"], "name_kw": "intel corp", "sec_cik": "0000050863"},
+    {"name": "Broadcom", "ticker": "AVGO", "cusips": ["11135F101"], "name_kw": "broadcom", "sec_cik": "0001730168"},
+    {"name": "Qualcomm", "ticker": "QCOM", "cusips": ["747525103"], "name_kw": "qualcomm", "sec_cik": "0000804328"},
+    {"name": "Texas Instruments", "ticker": "TXN", "cusips": ["882508104"], "name_kw": "texas instrument", "sec_cik": "0000097476"},
+    {"name": "Applied Materials", "ticker": "AMAT", "cusips": ["038222105"], "name_kw": "applied material", "sec_cik": "0000006951"},
+    {"name": "Lam Research", "ticker": "LRCX", "cusips": ["512807108"], "name_kw": "lam research", "sec_cik": "0000707549"},
+    {"name": "KLA", "ticker": "KLAC", "cusips": ["482480100"], "name_kw": "kla corp", "sec_cik": "0000319201"},
+    {"name": "Marvell", "ticker": "MRVL", "cusips": ["573874104"], "name_kw": "marvell", "sec_cik": "0001835632"},
+    {"name": "ON Semiconductor", "ticker": "ON", "cusips": ["682189105"], "name_kw": "on semiconductor", "sec_cik": "0001097864"},
+    {"name": "Western Digital", "ticker": "WDC", "cusips": ["958102105"], "name_kw": "western digital", "sec_cik": "0000106040"},
+    {"name": "Arista Networks", "ticker": "ANET", "cusips": ["040413106"], "name_kw": "arista", "sec_cik": "0001596532"},
+    {"name": "Vertiv", "ticker": "VRT", "cusips": ["92537N108"], "name_kw": "vertiv", "sec_cik": "0001674101"},
+    {"name": "Tesla", "ticker": "TSLA", "cusips": ["88160R101"], "name_kw": "tesla", "sec_cik": "0001318605"},
+    {"name": "ASML", "ticker": "ASML", "cusips": ["N07059210"], "name_kw": "asml", "sec_cik": "0000937966"},
+    {"name": "STMicroelectronics", "ticker": "STM", "cusips": ["861012102"], "name_kw": "stmicro", "sec_cik": "0000932787"},
+    {"name": "Arm Holdings", "ticker": "ARM", "cusips": ["042068205"], "name_kw": "arm holdings", "sec_cik": "0001973239"},
+    {"name": "Super Micro Computer", "ticker": "SMCI", "cusips": ["86800U104"], "name_kw": "super micro", "sec_cik": "0001375365"},
+]
+
+
+def _normalize_name(name: str) -> str:
+    """nameOfIssuer を比較用に正規化(小文字化・余分な空白圧縮)。"""
+    return " ".join((name or "").lower().split())
+
+
+def match_company(cusip: str, issuer_name: str, targets=None) -> str | None:
+    """13F の1明細(cusip + nameOfIssuer)を対象企業に名寄せし、企業名(=company key)を返す。
+    CUSIP一致を優先し、無ければ nameOfIssuer のキーワード部分一致で判定する。該当なしは None。"""
+    if targets is None:
+        targets = TARGET_COMPANIES
+    cusip = (cusip or "").strip().upper()
+    norm = _normalize_name(issuer_name)
+    for c in targets:
+        if cusip and cusip in {x.upper() for x in c.get("cusips", [])}:
+            return c["name"]
+    for c in targets:
+        kw = c.get("name_kw")
+        if kw and kw in norm:
+            return c["name"]
+    return None
+
 
 _INFOTABLE_NS_LOCAL = "infoTable"  # 名前空間は localname で判定する
 
@@ -144,9 +186,20 @@ def find_info_table_url(cik: str, accession: str) -> str | None:
     return f"https://www.sec.gov/Archives/edgar/data/{cik_int}/{acc_nodash}/{name}"
 
 
-def parse_holdings(info_table_url: str, target_cusips: set[str]) -> dict[str, dict]:
-    """情報テーブルXMLをストリーム解析し、対象CUSIPの (shares, value) を合算して返す。"""
-    agg: dict[str, dict] = {c: {"shares": 0, "value": 0} for c in target_cusips}
+def parse_holdings(info_table_url: str, targets=None) -> dict[str, dict]:
+    """情報テーブルXMLをストリーム解析し、対象企業ごとに (shares, value) を合算して返す。
+
+    SOT-1120: 明細を CUSIP **または** nameOfIssuer キーワードで対象企業に名寄せし、企業名
+    (=company key)単位で集約する。値は {company_name: {shares, value, cusip}}。`targets` は
+    対象企業定義のリスト(既定は TARGET_COMPANIES)。後方互換のため CUSIP の集合を渡しても、
+    その CUSIP を name_kw 無しの最小定義として扱う。"""
+    if targets is None:
+        targets = TARGET_COMPANIES
+    elif isinstance(targets, (set, frozenset)):
+        # 後方互換: CUSIP集合を {name=cusip, cusips=[cusip]} として扱う。
+        targets = [{"name": c, "cusips": [c], "name_kw": None} for c in targets]
+
+    agg: dict[str, dict] = {}
     resp = _request(info_table_url)
     try:
         cur = {}
@@ -154,16 +207,21 @@ def parse_holdings(info_table_url: str, target_cusips: set[str]) -> dict[str, di
             tag = elem.tag.split("}")[-1]
             if tag == "cusip":
                 cur["cusip"] = (elem.text or "").strip().upper()
+            elif tag == "nameOfIssuer":
+                cur["name"] = (elem.text or "").strip()
             elif tag == "value":
                 cur["value"] = (elem.text or "0").strip()
             elif tag == "sshPrnamt":
                 cur["shares"] = (elem.text or "0").strip()
             elif tag == _INFOTABLE_NS_LOCAL:
-                cusip = cur.get("cusip", "")
-                if cusip in agg:
+                company = match_company(cur.get("cusip", ""), cur.get("name", ""), targets)
+                if company is not None:
+                    bucket = agg.setdefault(company, {"shares": 0, "value": 0, "cusip": cur.get("cusip", "")})
                     try:
-                        agg[cusip]["shares"] += int(float(cur.get("shares", "0")))
-                        agg[cusip]["value"] += int(float(cur.get("value", "0")))
+                        bucket["shares"] += int(float(cur.get("shares", "0")))
+                        bucket["value"] += int(float(cur.get("value", "0")))
+                        if cur.get("cusip"):
+                            bucket["cusip"] = cur["cusip"]
                     except (ValueError, TypeError):
                         pass
                 cur = {}
@@ -207,15 +265,34 @@ def nearest_shares_outstanding(series: list[tuple[str, float]], report_date: str
 
 # --- メイン -----------------------------------------------------------------
 
-def collect() -> list[dict]:
-    target_cusips = set(TARGET_COMPANIES.keys())
-    # 企業ごとの発行済株式数時系列(保有比率の概算に使用)
-    so_series = {}
-    for cusip, info in TARGET_COMPANIES.items():
-        print(f"  発行済株式数を取得: {info['name']}", flush=True)
-        so_series[cusip] = shares_outstanding_series(info["sec_cik"])
+def compute_period_changes(points: list[dict]) -> None:
+    """同一(投資家×企業)の四半期時系列に前期比を付与する(純粋関数, ネットワーク非依存)。
 
-    # (manager, cusip) -> 時系列 [{report_date, shares, value}]
+    `points` は `{report_date, shares, ...}` のリスト。report_date昇順にソートしたうえで各要素へ:
+      - `change_pct`: 前期比の保有株数の%変化(前期が無い/0なら0.0)
+      - `quarter_delta`: 前期比の保有株数の符号付き整数差分(前期が無ければ0)
+    を in-place で追加する。SOT-1120。"""
+    points.sort(key=lambda x: x["report_date"])
+    prev_shares = None
+    for p in points:
+        shares = p["shares"]
+        if prev_shares is None:
+            p["change_pct"] = 0.0
+            p["quarter_delta"] = 0
+        else:
+            p["quarter_delta"] = int(shares - prev_shares)
+            p["change_pct"] = round((shares - prev_shares) / prev_shares * 100, 2) if prev_shares > 0 else 0.0
+        prev_shares = shares
+
+
+def collect() -> list[dict]:
+    # 企業ごとの発行済株式数時系列(保有比率の概算に使用)。company name をキーにする。
+    so_series: dict[str, list[tuple[str, float]]] = {}
+    info_by_name = {c["name"]: c for c in TARGET_COMPANIES}
+    for c in TARGET_COMPANIES:
+        print(f"  発行済株式数を取得: {c['name']}", flush=True)
+        so_series[c["name"]] = shares_outstanding_series(c["sec_cik"])
+
     rows: list[dict] = []
     for cik, manager_name in MANAGERS:
         print(f"[{manager_name}] CIK {cik} の 13F を収集中...", flush=True)
@@ -226,54 +303,51 @@ def collect() -> list[dict]:
             continue
         selected = select_annual(filings, YEARS_BACK)
         print(f"  対象 filing 数: {len(selected)} (全13F-HR {len(filings)})", flush=True)
-        # manager 内で cusip ごとに時系列を蓄積し、後で前回比を計算
-        series: dict[str, list[dict]] = {c: [] for c in target_cusips}
+        # manager 内で company name ごとに時系列を蓄積し、後で前回比/四半期deltaを計算
+        series: dict[str, list[dict]] = {c["name"]: [] for c in TARGET_COMPANIES}
         for f in selected:
             try:
                 url = find_info_table_url(cik, f["accession"])
                 if not url:
                     continue
-                holdings = parse_holdings(url, target_cusips)
+                holdings = parse_holdings(url, TARGET_COMPANIES)
             except Exception as e:  # noqa: BLE001
                 print(f"  ! {f['report_date']} 解析失敗: {e}", flush=True)
                 continue
             rd = f["report_date"]
             # 2023-01-01 より前の期は value が千ドル単位 → ドルへ正規化
             value_mult = 1000 if rd < "2023-01-01" else 1
-            for cusip, agg in holdings.items():
-                series[cusip].append(
+            for company_name, agg in holdings.items():
+                series[company_name].append(
                     {
                         "report_date": rd,
                         "shares": agg["shares"],
                         "value": agg["value"] * value_mult,
+                        "cusip": agg.get("cusip"),
                     }
                 )
-        # 前回比(change_pct)・保有比率(ownership_pct)を付与して row 化
-        for cusip, pts in series.items():
-            pts.sort(key=lambda x: x["report_date"])
-            info = TARGET_COMPANIES[cusip]
-            prev_shares = None
+        # 前回比(change_pct)・四半期delta・保有比率(ownership_pct)を付与して row 化
+        for company_name, pts in series.items():
+            compute_period_changes(pts)
+            info = info_by_name[company_name]
             for p in pts:
                 shares = p["shares"]
                 value = p["value"]
-                change_pct = 0.0
-                if prev_shares and prev_shares > 0:
-                    change_pct = round((shares - prev_shares) / prev_shares * 100, 2)
-                prev_shares = shares
-                so = nearest_shares_outstanding(so_series.get(cusip, []), p["report_date"])
+                so = nearest_shares_outstanding(so_series.get(company_name, []), p["report_date"])
                 ownership_pct = round(shares / so * 100, 4) if so else 0.0
                 rows.append(
                     {
                         "investor_name": manager_name,
                         "company_name": info["name"],
                         "ticker": info["ticker"],
-                        "cusip": cusip,
+                        "cusip": p.get("cusip") or (info["cusips"][0] if info.get("cusips") else None),
                         "report_date": p["report_date"],
                         "report_type": "13F",
                         "shares": shares,
                         "value_usd": value,
                         "ownership_pct": ownership_pct,
-                        "change_pct": change_pct,
+                        "change_pct": p["change_pct"],
+                        "quarter_delta": p["quarter_delta"],
                         "notes": f"保有 {shares:,}株 / 評価額 ${value:,.0f}",
                     }
                 )

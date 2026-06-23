@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap, FinancialFundamentals, FundamentalsCompaniesResponse } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -53,7 +53,13 @@ export const fetchCompanies = () => api.get<Company[]>('/companies/').then(r => 
 export const createCompany = (data: { name: string; ticker?: string; description: string; benefit_score: number; benefit_type: string }) =>
   api.post<Company>('/companies/', data).then(r => r.data)
 
-export const fetchSupplyChain = () => api.get<SupplyChainItem[]>('/supply-chain/').then(r => r.data)
+export const fetchSupplyChain = (filters?: { category?: string; theme_id?: string; company_id?: string }) => {
+  const params: Record<string, string> = {}
+  if (filters?.category) params.category = filters.category
+  if (filters?.theme_id) params.theme_id = filters.theme_id
+  if (filters?.company_id) params.company_id = filters.company_id
+  return api.get<SupplyChainItem[]>('/supply-chain/', { params }).then(r => r.data)
+}
 export const fetchInvestors = () => api.get<InstitutionalInvestor[]>('/investors/').then(r => r.data)
 export const fetchDashboard = () => api.get<DashboardData>('/dashboard/').then(r => r.data)
 
@@ -109,6 +115,15 @@ export const fetchCategories = () =>
 export const fetchCategoryMarketCap = (themeId: string, topN = 10) =>
   api
     .get<CategoryMarketCap>('/dashboard/category-market-cap', { params: { theme_id: themeId, top_n: topN } })
+    .then(r => r.data)
+
+// 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL）
+export const fetchFundamentalsCompanies = () =>
+  api.get<FundamentalsCompaniesResponse>('/dashboard/fundamentals-companies').then(r => r.data)
+
+export const fetchFinancialFundamentals = (ticker: string) =>
+  api
+    .get<FinancialFundamentals>('/dashboard/financial-fundamentals', { params: { ticker } })
     .then(r => r.data)
 
 export const fetchThemeExternalInfos = (themeId: string) =>

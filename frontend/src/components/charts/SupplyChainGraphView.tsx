@@ -3,13 +3,18 @@ import { SERIES_COLORS } from './chartUtils'
 import type { SupplyChainGraphNode, SupplyChainGraphEdge } from '../../types'
 import { useI18n } from '../../i18n/useI18n'
 
-/** C2: サプライチェーン連鎖を円形レイアウトのノード/エッジ図で描画（recharts非依存の軽量SVG）。 */
+/** C2: サプライチェーン連鎖を円形レイアウトのノード/エッジ図で描画（recharts非依存の軽量SVG）。
+ * SOT-1124: 任意で edge クリック（onEdgeClick）に対応し、根拠/関係タイプ表示パネルと連携できる。 */
 export default function SupplyChainGraphView({
   nodes,
   edges,
+  onEdgeClick,
+  selectedEdgeIndex,
 }: {
   nodes: SupplyChainGraphNode[]
   edges: SupplyChainGraphEdge[]
+  onEdgeClick?: (index: number) => void
+  selectedEdgeIndex?: number
 }) {
   const { t } = useI18n()
   if (!nodes || nodes.length === 0) return <EmptyChart message={t('chart.empty.supplyChain')} />
@@ -45,11 +50,24 @@ export default function SupplyChainGraphView({
           if (!a || !b) return null
           const mx = (a.x + b.x) / 2
           const my = (a.y + b.y) / 2
+          const selected = selectedEdgeIndex === i
           return (
-            <g key={i}>
-              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#cbd5e1" strokeWidth={1.5} markerEnd="url(#sc-arrow)" />
+            <g
+              key={i}
+              onClick={onEdgeClick ? () => onEdgeClick(i) : undefined}
+              style={onEdgeClick ? { cursor: 'pointer' } : undefined}
+            >
+              <line
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke={selected ? '#2563eb' : '#cbd5e1'}
+                strokeWidth={selected ? 3 : 1.5}
+                markerEnd="url(#sc-arrow)"
+              />
               {e.relation && (
-                <text x={mx} y={my - 2} textAnchor="middle" fontSize={9} fill="#64748b">
+                <text x={mx} y={my - 2} textAnchor="middle" fontSize={9} fill={selected ? '#1d4ed8' : '#64748b'}>
                   {e.relation}
                 </text>
               )}

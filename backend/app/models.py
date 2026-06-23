@@ -96,6 +96,11 @@ class SupplyChain(Base):
     relationship = Column(String, nullable=False)
     description = Column(String)
     order = Column(Integer, default=0)
+    # SOT-1124: 構造化サプライチェーン edge のメタ情報
+    relation_type = Column(String, default="depends_on")
+    confidence = Column(Float, default=0.5)
+    evidence = Column(String)  # JSON string (list of evidence strings)
+    created_at = Column(String)  # ISO date
 
 
 class InstitutionalInvestor(Base):
@@ -108,13 +113,19 @@ class InstitutionalInvestor(Base):
     report_date = Column(String)
     report_type = Column(String)
     notes = Column(String)
+    # SOT-1120: 13F の保有内訳を notes 文字列に潰さず独立カラムで保持する。
+    cusip = Column(String)
+    ticker = Column(String)
+    shares = Column(Integer)        # 保有株数
+    value_usd = Column(Float)       # 評価額(USD)
+    quarter_delta = Column(Integer)  # 前期(四半期)比の保有株数の符号付き差分。初回は0。
 
 
 class ExternalInfo(Base):
     __tablename__ = "external_infos"
     id = Column(String, primary_key=True, default=generate_uuid)
     info_id = Column(String, unique=True, index=True, nullable=False)
-    info_type = Column(String, nullable=False)  # "news" | "announcement" | "earnings"
+    info_type = Column(String, nullable=False)  # "news" | "announcement" | "earnings" | "filing"
     title = Column(String, nullable=False)
     url = Column(String)
     summary = Column(String)

@@ -29,26 +29,22 @@ def run_seed():
             db.flush()
             companies[c["name"]] = db_company
 
-        # 3. Supply Chain
-        sc_data = [
-            {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
-            {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2},
-            {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
-            {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4},
-            {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5},
-            {
-                "from": "data center power",
-                "to": "robotics foundation model",
-                "rel": "電力インフラ整備 → ロボティクス基盤モデル展開",
-                "order": 6,
-            },
-        ]
-        for sc in sc_data:
+        # 3. Supply Chain — SOT-1124: 100テーマ横断の構造化 edge(JSON 由来)を投入する。
+        import json as _json_sc
+        for sc in _DASHBOARD_SUPPLY_CHAIN:
+            from_theme = themes.get(sc["from"])
+            to_theme = themes.get(sc["to"])
+            if from_theme is None or to_theme is None:
+                continue
             db_sc = models.SupplyChain(
-                from_theme_id=themes[sc["from"]].id,
-                to_theme_id=themes[sc["to"]].id,
+                from_theme_id=from_theme.id,
+                to_theme_id=to_theme.id,
                 relationship=sc["rel"],
-                order=sc["order"]
+                order=sc["order"],
+                relation_type=sc.get("relation_type", "depends_on"),
+                confidence=sc.get("confidence", 0.5),
+                evidence=_json_sc.dumps(sc.get("evidence", []), ensure_ascii=False),
+                created_at=sc.get("created_at"),
             )
             db.add(db_sc)
 
@@ -119,6 +115,11 @@ def run_seed():
                     report_date=rec.get("report_date"),
                     report_type=rec.get("report_type", "13F"),
                     notes=rec.get("notes"),
+                    cusip=rec.get("cusip"),
+                    ticker=rec.get("ticker"),
+                    shares=rec.get("shares"),
+                    value_usd=rec.get("value_usd"),
+                    quarter_delta=rec.get("quarter_delta"),
                 ))
         else:
             investors_data = [
@@ -677,14 +678,72 @@ def _company_row(c):
         "theme_ids": _json.dumps([f"theme-{_slug(t)}" for t in c.get("themes", [])]),
     }
 
-_DASHBOARD_SUPPLY_CHAIN = [
-    {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
-    {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2},
-    {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
-    {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4},
-    {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5},
-    {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
+# フォールバック(JSON が無い場合)用の従来6 edge。
+_DEFAULT_SUPPLY_CHAIN = [
+    {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1,
+     "relation_type": "depends_on", "confidence": 0.92, "evidence": []},
+    {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2,
+     "relation_type": "complements", "confidence": 0.78, "evidence": []},
+    {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3,
+     "relation_type": "enables", "confidence": 0.7, "evidence": []},
+    {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4,
+     "relation_type": "enables", "confidence": 0.75, "evidence": []},
+    {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5,
+     "relation_type": "depends_on", "confidence": 0.85, "evidence": []},
+    {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6,
+     "relation_type": "enables", "confidence": 0.6, "evidence": []},
 ]
+
+
+def _load_supply_chain_edges():
+    """SOT-1124: 100テーマ横断の構造化 supply chain edge を backend/data/supply-chain-edges.json から
+    読み込む。各 edge は from/to(テーマ名)/rel(説明)/order/relation_type/confidence/evidence を持つ。
+    ファイルが無い/不正な場合は従来の6 edge(_DEFAULT_SUPPLY_CHAIN)にフォールバックする。
+    未知テーマ参照などの不正 edge は検証して除外する(seed が壊れないようにする)。"""
+    import json as _json
+    import os as _os
+    from .services.supply_chain_validation import validate_supply_chain_edges
+
+    path = _os.path.join(_os.path.dirname(__file__), "..", "data", "supply-chain-edges.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+    except (OSError, ValueError):
+        return list(_DEFAULT_SUPPLY_CHAIN)
+
+    raw = data.get("edges", [])
+    if not raw:
+        return list(_DEFAULT_SUPPLY_CHAIN)
+
+    valid_names = {t["name"] for t in _DASHBOARD_THEMES}
+    errors = validate_supply_chain_edges(raw, valid_names)
+    if errors:
+        # 不正 edge があってもログに残し、妥当な edge だけを採用する。
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "supply-chain-edges.json validation: %d issue(s): %s", len(errors), errors[:5]
+        )
+
+    edges = []
+    for e in raw:
+        frm = e.get("from") or e.get("from_theme")
+        to = e.get("to") or e.get("to_theme")
+        if frm not in valid_names or to not in valid_names or frm == to:
+            continue
+        edges.append({
+            "from": frm,
+            "to": to,
+            "rel": e.get("description") or e.get("rel") or "",
+            "order": int(e.get("order", 0)),
+            "relation_type": e.get("relation_type", "depends_on"),
+            "confidence": float(e.get("confidence", 0.5)),
+            "evidence": list(e.get("evidence", [])),
+            "created_at": e.get("created_at") or data.get("_meta", {}).get("created_at"),
+        })
+    return edges or list(_DEFAULT_SUPPLY_CHAIN)
+
+
+_DASHBOARD_SUPPLY_CHAIN = _load_supply_chain_edges()
 
 # Papers — 実データ優先(SOT-909)。collected-papers.json に arXiv/Semantic Scholar 由来の
 # 実在論文(実タイトル・実発行年・実引用数・実リンク)があればそれを使い、無ければ従来の
@@ -745,15 +804,21 @@ def seed_dashboard_data_firestore():
         for c in _DASHBOARD_COMPANIES:
             company_repo.save({"id": f"company-{_slug(c['name'])}", **_company_row(c)})
 
-        # 4. Supply chain
+        # 4. Supply chain — SOT-1124: 100テーマ横断の構造化 edge を投入する。
         sc_repo = get_supply_chain_repository()
         for sc in _DASHBOARD_SUPPLY_CHAIN:
+            if sc["from"] not in theme_ids or sc["to"] not in theme_ids:
+                continue
             sc_repo.save({
                 "id": f"supply-chain-{_slug(sc['from'])}-{_slug(sc['to'])}",
                 "from_theme_id": theme_ids[sc["from"]],
                 "to_theme_id": theme_ids[sc["to"]],
                 "relationship": sc["rel"],
                 "order": sc["order"],
+                "relation_type": sc.get("relation_type", "depends_on"),
+                "confidence": sc.get("confidence", 0.5),
+                "evidence": list(sc.get("evidence", [])),
+                "created_at": sc.get("created_at"),
             })
 
         # 6. Scores (alignment_highlights uses score>=30)
@@ -883,6 +948,11 @@ def seed_investors_firestore():
                 "report_date": rec.get("report_date"),
                 "report_type": rec.get("report_type", "13F"),
                 "notes": rec.get("notes"),
+                "cusip": rec.get("cusip"),
+                "ticker": rec.get("ticker"),
+                "shares": rec.get("shares"),
+                "value_usd": rec.get("value_usd"),
+                "quarter_delta": rec.get("quarter_delta"),
             }
             if repo.save(data):
                 seeded += 1
@@ -993,6 +1063,10 @@ def _compute_alignment(db, theme_id):
         models.ExternalInfo.theme_id == theme_id,
         models.ExternalInfo.info_type == "earnings"
     ).count()
+    F = db.query(models.ExternalInfo).filter(
+        models.ExternalInfo.theme_id == theme_id,
+        models.ExternalInfo.info_type == "filing"
+    ).count()
 
     # Get latest mom_change_pct for the theme
     latest_pm = db.query(models.PaperMonthlyCount).filter(
@@ -1000,12 +1074,101 @@ def _compute_alignment(db, theme_id):
     ).order_by(models.PaperMonthlyCount.year_month.desc()).first()
     latest_mom = latest_pm.mom_change_pct if latest_pm else 0.0
 
-    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom)
+    return calculate_alignment_score(N, A, E, latest_mom_change_pct=latest_mom, F=F)
+
+
+def _seed_external_evidence_from_file(db):
+    """構造化された実外部エビデンス(ニュース/IR/決算/SEC filing)を
+    backend/data/external-evidence.json から冪等に投入する。
+
+    USE_SAMPLE_DATA に依存せず常に読み込む(実データ)。テーマは name で名寄せする。
+    戻り値: 投入/既存で影響を受けたテーマ id の集合。"""
+    import os
+    import json
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "external-evidence.json")
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return set()
+    items = payload.get("items", []) if isinstance(payload, dict) else payload
+
+    theme_cache = {}
+
+    def resolve_theme_id(name):
+        if not name:
+            return None
+        if name in theme_cache:
+            return theme_cache[name]
+        t = db.query(models.Theme).filter(models.Theme.name.ilike(name)).first()
+        if not t:
+            t = db.query(models.Theme).filter(models.Theme.name.ilike(f"%{name}%")).first()
+        theme_cache[name] = t.id if t else None
+        return theme_cache[name]
+
+    affected = set()
+    for it in items:
+        info_id = it.get("info_id")
+        if not info_id:
+            continue
+        theme_id = resolve_theme_id(it.get("theme_name"))
+        existing = db.query(models.ExternalInfo).filter(
+            models.ExternalInfo.info_id == info_id
+        ).first()
+        if existing:
+            if existing.theme_id:
+                affected.add(existing.theme_id)
+            continue
+        db.add(models.ExternalInfo(
+            info_id=info_id,
+            info_type=it.get("info_type", "news"),
+            title=it.get("title", ""),
+            url=it.get("url"),
+            summary=it.get("summary"),
+            source_name=it.get("source_name"),
+            published_at=it.get("published_at"),
+            related_company=it.get("related_company"),
+            theme_id=theme_id,
+            relevance_score=it.get("relevance_score", 60.0),
+        ))
+        if theme_id:
+            affected.add(theme_id)
+    db.commit()
+    return affected
 
 
 def seed_external_infos(db):
     import os
+
+    # 1. 実外部エビデンス(ニュース/IR/決算/SEC filing)を常に読み込む(冪等)
+    affected_theme_ids = _seed_external_evidence_from_file(db)
+
+    # 2. レガシーのサンプルデータは USE_SAMPLE_DATA=true のときのみ追加投入する
     if os.getenv("USE_SAMPLE_DATA") != "true":
+        # 実データのみ。一致度を再計算してから全テーマ分の行を保証する。
+        for theme_id in affected_theme_ids:
+            stats = _compute_alignment(db, theme_id)
+            alignment = db.query(models.AlignmentScore).filter(
+                models.AlignmentScore.theme_id == theme_id
+            ).first()
+            if not alignment:
+                db.add(models.AlignmentScore(theme_id=theme_id, **stats))
+            else:
+                for k, v in stats.items():
+                    setattr(alignment, k, v)
+        db.commit()
+
+        all_themes = db.query(models.Theme).all()
+        for t in all_themes:
+            existing_as = db.query(models.AlignmentScore).filter(
+                models.AlignmentScore.theme_id == t.id
+            ).first()
+            if not existing_as:
+                stats = _compute_alignment(db, t.id)
+                db.add(models.AlignmentScore(theme_id=t.id, **stats))
+        db.commit()
         return
 
     sample_data = {

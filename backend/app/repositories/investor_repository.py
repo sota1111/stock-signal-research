@@ -38,6 +38,11 @@ class SQLiteInvestorRepository(InvestorRepository):
                     "report_date": i.report_date,
                     "report_type": i.report_type,
                     "notes": i.notes,
+                    "cusip": i.cusip,
+                    "ticker": i.ticker,
+                    "shares": i.shares,
+                    "value_usd": i.value_usd,
+                    "quarter_delta": i.quarter_delta,
                 }
                 for i in investors
             ]
@@ -86,6 +91,11 @@ class FirestoreInvestorRepository(InvestorRepository):
                     "report_date": d.get("report_date"),
                     "report_type": d.get("report_type"),
                     "notes": d.get("notes"),
+                    "cusip": d.get("cusip"),
+                    "ticker": d.get("ticker"),
+                    "shares": d.get("shares"),
+                    "value_usd": d.get("value_usd"),
+                    "quarter_delta": d.get("quarter_delta"),
                 }
                 for doc in docs if (d := doc.to_dict())
             ]

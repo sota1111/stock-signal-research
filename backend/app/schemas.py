@@ -123,6 +123,11 @@ class SupplyChainBase(BaseModel):
     relationship: str
     description: Optional[str] = None
     order: int = 0
+    # SOT-1124: 構造化 edge メタ情報
+    relation_type: str = "depends_on"
+    confidence: float = 0.5
+    evidence: List[str] = Field(default_factory=list)
+    created_at: Optional[str] = None
 
 
 class SupplyChainCreate(SupplyChainBase):
@@ -133,6 +138,8 @@ class SupplyChainResponse(SupplyChainBase):
     id: str
     from_theme_name: Optional[str] = None
     to_theme_name: Optional[str] = None
+    from_category: Optional[str] = None
+    to_category: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -144,6 +151,12 @@ class InstitutionalInvestorBase(BaseModel):
     report_date: str
     report_type: str
     notes: Optional[str] = None
+    # SOT-1120: 13F の保有内訳を独立フィールドで公開する。
+    cusip: Optional[str] = None
+    ticker: Optional[str] = None
+    shares: Optional[int] = None
+    value_usd: Optional[float] = None
+    quarter_delta: Optional[int] = None
 
 
 class InstitutionalInvestorCreate(InstitutionalInvestorBase):
@@ -197,6 +210,7 @@ class ThemeExternalInfosResponse(BaseModel):
     news: List[ExternalInfoResponse]
     announcements: List[ExternalInfoResponse]
     earnings: List[ExternalInfoResponse]
+    filings: List[ExternalInfoResponse] = []
 
 
 class HighAlignmentHighlightResponse(BaseModel):
@@ -471,6 +485,9 @@ class StockDataResponse(BaseModel):
 class CategoryMarketCapSeries(BaseModel):
     key: str  # ティッカー
     name: str
+    currency: Optional[str] = None  # 上場通貨 (USD/KRW/JPY)
+    exchange: Optional[str] = None  # 上場市場 (US/KRX/TSE)
+    provenance: Optional[str] = None  # real(SEC実測) / approx(非米国USD換算近似)
 
 
 class CategoryMarketCapPoint(BaseModel):
@@ -498,6 +515,38 @@ class CategoryListItem(BaseModel):
 
 class CategoryListResponse(BaseModel):
     categories: List[CategoryListItem] = Field(default_factory=list)
+
+
+# --- 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL） ---
+class FinancialFundamentalsSeries(BaseModel):
+    key: str  # 指標キー（revenue/gross_profit/rnd/capex）
+    concept: Optional[str] = None  # 採用された XBRL concept（フォールバック解決結果）
+
+
+class FinancialFundamentalsPoint(BaseModel):
+    year: int
+    values: dict = Field(default_factory=dict)  # {metricKey: value}
+
+
+class FinancialFundamentalsResponse(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    currency: str = "USD"
+    note: str = ""
+    series: List[FinancialFundamentalsSeries] = Field(default_factory=list)
+    years: List[int] = Field(default_factory=list)
+    points: List[FinancialFundamentalsPoint] = Field(default_factory=list)
+
+
+class FundamentalsCompanyItem(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    metric_count: int = 0
+    has_data: bool = False
+
+
+class FundamentalsCompaniesResponse(BaseModel):
+    companies: List[FundamentalsCompanyItem] = Field(default_factory=list)
 
 
 # --- 株価シグナル バックテスト（SOT-881） ---

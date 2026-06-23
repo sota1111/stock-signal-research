@@ -24,6 +24,7 @@ const DetailPage = lazy(() => import('./pages/DetailPage'))
 const InputPage = lazy(() => import('./pages/InputPage'))
 const EvaluationPage = lazy(() => import('./pages/EvaluationPage'))
 const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
+const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ type NavItem = { to: string; label: MessageKey; end?: boolean }
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', end: true },
   { to: '/signals', label: 'nav.signals' },
+  { to: '/supply-chain', label: 'nav.supplyChain' },
   { to: '/list?tab=themes', label: 'nav.themes' },
   { to: '/papers', label: 'nav.papers' },
   { to: '/patents', label: 'nav.patents' },
@@ -155,6 +157,7 @@ function AppLayout() {
               <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
               <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
               <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
+              <Route path="/supply-chain" element={<PrivateRoute><SupplyChainPage /></PrivateRoute>} />
             </Routes>
           </Suspense>
         </RouteErrorBoundary>

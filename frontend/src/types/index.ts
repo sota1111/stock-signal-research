@@ -74,6 +74,13 @@ export interface SupplyChainItem {
   order: number
   from_theme_name?: string
   to_theme_name?: string
+  // SOT-1124: 構造化 edge メタ情報
+  relation_type: string
+  confidence: number
+  evidence: string[]
+  created_at?: string | null
+  from_category?: string | null
+  to_category?: string | null
 }
 
 export interface InstitutionalInvestor {
@@ -86,6 +93,12 @@ export interface InstitutionalInvestor {
   report_type: string
   notes?: string
   company_name?: string | null
+  // SOT-1120: 13F の保有内訳を独立フィールドで保持。
+  cusip?: string
+  ticker?: string
+  shares?: number
+  value_usd?: number
+  quarter_delta?: number
 }
 
 export interface DashboardData {
@@ -102,7 +115,7 @@ export interface DashboardData {
 export interface ExternalInfo {
   id: string
   info_id: string
-  info_type: 'news' | 'announcement' | 'earnings'
+  info_type: 'news' | 'announcement' | 'earnings' | 'filing'
   title: string
   url?: string
   summary?: string
@@ -130,6 +143,7 @@ export interface ThemeExternalInfos {
   news: ExternalInfo[]
   announcements: ExternalInfo[]
   earnings: ExternalInfo[]
+  filings: ExternalInfo[]
 }
 
 export interface AlignmentHighlight {
@@ -408,6 +422,9 @@ export interface CategoryListResponse {
 export interface CategoryMarketCapSeries {
   key: string
   name: string
+  currency?: string
+  exchange?: string
+  provenance?: string
 }
 
 export interface CategoryMarketCapPoint {
@@ -423,4 +440,36 @@ export interface CategoryMarketCap {
   series: CategoryMarketCapSeries[]
   years: number[]
   points: CategoryMarketCapPoint[]
+}
+
+// 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL）
+export interface FinancialFundamentalsSeries {
+  key: string
+  concept?: string | null
+}
+
+export interface FinancialFundamentalsPoint {
+  year: number
+  values: Record<string, number>
+}
+
+export interface FinancialFundamentals {
+  ticker: string
+  name?: string | null
+  currency: string
+  note: string
+  series: FinancialFundamentalsSeries[]
+  years: number[]
+  points: FinancialFundamentalsPoint[]
+}
+
+export interface FundamentalsCompanyItem {
+  ticker: string
+  name?: string | null
+  metric_count: number
+  has_data: boolean
+}
+
+export interface FundamentalsCompaniesResponse {
+  companies: FundamentalsCompanyItem[]
 }

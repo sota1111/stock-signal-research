@@ -39,13 +39,75 @@ INFO_TABLE_XML = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 def test_parse_holdings_aggregates_and_filters(monkeypatch):
     monkeypatch.setattr(ci, "_request", lambda url: io.BytesIO(INFO_TABLE_XML))
-    targets = {"67066G104", "595112103"}  # NVDA + MU
+    targets = {"67066G104", "595112103"}  # NVDA + MU (CUSIP-set, backward-compatible)
     agg = ci.parse_holdings("http://example/info.xml", targets)
 
     # NVDA: two rows summed; non-target CUSIP excluded; MU absent -> dropped (zero).
     assert set(agg.keys()) == {"67066G104"}
     assert agg["67066G104"]["shares"] == 15
     assert agg["67066G104"]["value"] == 1500
+
+
+# SOT-1120: a holding whose CUSIP is NOT in the target list must still match by issuer name.
+NAME_MATCH_XML = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns1:informationTable xmlns:ns1="http://www.sec.gov/edgar/document/thirteenf/informationtable">
+  <ns1:infoTable>
+    <ns1:nameOfIssuer>BROADCOM INC</ns1:nameOfIssuer>
+    <ns1:cusip>000000000</ns1:cusip>
+    <ns1:value>200</ns1:value>
+    <ns1:shrsOrPrnAmt><ns1:sshPrnamt>20</ns1:sshPrnamt><ns1:sshPrnamtType>SH</ns1:sshPrnamtType></ns1:shrsOrPrnAmt>
+  </ns1:infoTable>
+  <ns1:infoTable>
+    <ns1:nameOfIssuer>UNRELATED HOLDINGS CORP</ns1:nameOfIssuer>
+    <ns1:cusip>111111111</ns1:cusip>
+    <ns1:value>99</ns1:value>
+    <ns1:shrsOrPrnAmt><ns1:sshPrnamt>9</ns1:sshPrnamt><ns1:sshPrnamtType>SH</ns1:sshPrnamtType></ns1:shrsOrPrnAmt>
+  </ns1:infoTable>
+</ns1:informationTable>
+"""
+
+
+def test_parse_holdings_matches_by_issuer_name(monkeypatch):
+    monkeypatch.setattr(ci, "_request", lambda url: io.BytesIO(NAME_MATCH_XML))
+    targets = [
+        {"name": "Broadcom", "ticker": "AVGO", "cusips": ["11135F101"], "name_kw": "broadcom"},
+    ]
+    agg = ci.parse_holdings("http://example/info.xml", targets)
+
+    # Matched by nameOfIssuer keyword despite a non-listed CUSIP; unrelated row dropped.
+    assert set(agg.keys()) == {"Broadcom"}
+    assert agg["Broadcom"]["shares"] == 20
+    assert agg["Broadcom"]["value"] == 200
+
+
+def test_match_company_prefers_cusip_then_name():
+    targets = [
+        {"name": "NVIDIA", "cusips": ["67066G104"], "name_kw": "nvidia"},
+        {"name": "AMD", "cusips": ["007903107"], "name_kw": "advanced micro"},
+    ]
+    assert ci.match_company("67066G104", "WHATEVER", targets) == "NVIDIA"
+    assert ci.match_company("999999999", "Advanced Micro Devices Inc", targets) == "AMD"
+    assert ci.match_company("999999999", "Some Other Co", targets) is None
+
+
+def test_compute_period_changes_quarter_delta_and_pct():
+    points = [
+        {"report_date": "2022-12-31", "shares": 100},
+        {"report_date": "2021-12-31", "shares": 80},   # out of order on purpose
+        {"report_date": "2023-12-31", "shares": 90},
+    ]
+    ci.compute_period_changes(points)
+
+    # Sorted ascending; first period has zero delta/change.
+    assert [p["report_date"] for p in points] == ["2021-12-31", "2022-12-31", "2023-12-31"]
+    assert points[0]["quarter_delta"] == 0
+    assert points[0]["change_pct"] == 0.0
+    # 80 -> 100 : +20 shares, +25%
+    assert points[1]["quarter_delta"] == 20
+    assert points[1]["change_pct"] == 25.0
+    # 100 -> 90 : -10 shares, -10%
+    assert points[2]["quarter_delta"] == -10
+    assert points[2]["change_pct"] == -10.0
 
 
 def test_select_annual_picks_year_end_and_latest():
