@@ -511,6 +511,38 @@ class CategoryListResponse(BaseModel):
     categories: List[CategoryListItem] = Field(default_factory=list)
 
 
+# --- 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL） ---
+class FinancialFundamentalsSeries(BaseModel):
+    key: str  # 指標キー（revenue/gross_profit/rnd/capex）
+    concept: Optional[str] = None  # 採用された XBRL concept（フォールバック解決結果）
+
+
+class FinancialFundamentalsPoint(BaseModel):
+    year: int
+    values: dict = Field(default_factory=dict)  # {metricKey: value}
+
+
+class FinancialFundamentalsResponse(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    currency: str = "USD"
+    note: str = ""
+    series: List[FinancialFundamentalsSeries] = Field(default_factory=list)
+    years: List[int] = Field(default_factory=list)
+    points: List[FinancialFundamentalsPoint] = Field(default_factory=list)
+
+
+class FundamentalsCompanyItem(BaseModel):
+    ticker: str
+    name: Optional[str] = None
+    metric_count: int = 0
+    has_data: bool = False
+
+
+class FundamentalsCompaniesResponse(BaseModel):
+    companies: List[FundamentalsCompanyItem] = Field(default_factory=list)
+
+
 # --- 株価シグナル バックテスト（SOT-881） ---
 class BacktestWindowResult(BaseModel):
     window_days: int

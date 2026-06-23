@@ -435,3 +435,35 @@ export interface CategoryMarketCap {
   years: number[]
   points: CategoryMarketCapPoint[]
 }
+
+// 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL）
+export interface FinancialFundamentalsSeries {
+  key: string
+  concept?: string | null
+}
+
+export interface FinancialFundamentalsPoint {
+  year: number
+  values: Record<string, number>
+}
+
+export interface FinancialFundamentals {
+  ticker: string
+  name?: string | null
+  currency: string
+  note: string
+  series: FinancialFundamentalsSeries[]
+  years: number[]
+  points: FinancialFundamentalsPoint[]
+}
+
+export interface FundamentalsCompanyItem {
+  ticker: string
+  name?: string | null
+  metric_count: number
+  has_data: boolean
+}
+
+export interface FundamentalsCompaniesResponse {
+  companies: FundamentalsCompanyItem[]
+}

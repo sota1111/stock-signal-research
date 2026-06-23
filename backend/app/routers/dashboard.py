@@ -17,6 +17,10 @@ from ..services.signal_report import (
 from ..services.market_data import fetch_stock_data
 from ..services.backtest import backtest_signals
 from ..services.market_cap_history import build_category_market_cap, list_categories
+from ..services.financial_fundamentals import (
+    build_company_fundamentals,
+    list_fundamentals_companies,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -183,6 +187,28 @@ def get_category_market_cap(
     theme_repo = get_theme_repository()
     company_repo = get_company_repository()
     return build_category_market_cap(theme_id, theme_repo, company_repo, top_n=top_n)
+
+
+@router.get("/fundamentals-companies", response_model=schemas.FundamentalsCompaniesResponse)
+def get_fundamentals_companies():
+    """財務ファンダメンタルズ時系列データを持つ企業一覧を返す（SOT-1121 / 候補D）。
+
+    フロントの企業セレクタ用。`has_data=True` の企業のみチャートを描画できる。
+    `backend/data/financial-fundamentals.json`（SEC EDGAR XBRL 由来）に基づく。
+    """
+    return {"companies": list_fundamentals_companies()}
+
+
+@router.get("/financial-fundamentals", response_model=schemas.FinancialFundamentalsResponse)
+def get_financial_fundamentals(
+    ticker: str = Query(..., description="対象ティッカー（米国上場）"),
+):
+    """指定銘柄の財務ファンダメンタルズ年次時系列（売上/粗利/R&D/capex）を返す（SOT-1121 / 候補D）。
+
+    `backend/data/financial-fundamentals.json`（SEC EDGAR XBRL companyconcept 由来。concept差異は
+    フォールバックで解決）に基づく。データが無い銘柄は空系列を返す（例外は投げない）。
+    """
+    return build_company_fundamentals(ticker)
 
 
 @router.get("/", response_model=schemas.DashboardResponse)
