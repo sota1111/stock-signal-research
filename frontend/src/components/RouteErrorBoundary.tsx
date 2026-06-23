@@ -82,12 +82,12 @@ function RouteErrorFallback() {
   return (
     <div className="mx-auto max-w-md text-center py-16">
       <div className="text-3xl mb-2" aria-hidden>⚠️</div>
-      <p className="font-semibold text-slate-700">{t('error.routeTitle')}</p>
-      <p className="text-sm text-slate-400 mt-1">{t('error.routeBody')}</p>
+      <p className="font-semibold text-foreground">{t('error.routeTitle')}</p>
+      <p className="text-sm text-muted-foreground mt-1">{t('error.routeBody')}</p>
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="mt-4 rounded-md border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+        className="mt-4 rounded-md border border-slate-300 bg-surface px-4 py-1.5 text-sm text-foreground hover:bg-surface-muted"
       >
         {t('error.reload')}
       </button>

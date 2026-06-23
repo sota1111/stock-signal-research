@@ -95,7 +95,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-surface-muted flex items-center justify-center px-4 py-10">
       <div className="absolute top-4 right-4">
         <LanguageToggle variant="light" />
       </div>
@@ -104,13 +104,13 @@ export default function LoginPage() {
         <div className="hidden md:flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-lg font-extrabold text-white">S</span>
-            <span className="text-lg font-bold text-slate-800">Stock Signal Research</span>
+            <span className="text-lg font-bold text-foreground">Stock Signal Research</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 leading-snug">{t('login.hero.tagline')}</h2>
-          <p className="text-slate-600">{t('login.hero.desc')}</p>
+          <h2 className="text-2xl font-extrabold text-foreground leading-snug">{t('login.hero.tagline')}</h2>
+          <p className="text-muted-foreground">{t('login.hero.desc')}</p>
           <ul className="space-y-2">
             {(['login.hero.feature1', 'login.hero.feature2', 'login.hero.feature3'] as const).map(key => (
-              <li key={key} className="flex items-start gap-2 text-sm text-slate-700">
+              <li key={key} className="flex items-start gap-2 text-sm text-foreground">
                 <span className="mt-0.5 text-sky-500">✓</span>
                 <span>{t(key)}</span>
               </li>
@@ -118,17 +118,17 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8 w-full max-w-sm mx-auto">
+        <div className="bg-surface rounded-2xl border border-border shadow-lg p-8 w-full max-w-sm mx-auto">
           <div className="flex flex-col items-center mb-6">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-lg font-extrabold text-white mb-3 md:hidden">S</span>
-            <h1 className="text-xl font-bold text-slate-800 text-center">
+            <h1 className="text-xl font-bold text-foreground text-center">
               Stock Signal Research
             </h1>
-            <p className="text-sm text-slate-500 mt-1">{t('login.subtitle')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('login.subtitle')}</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 {t('login.email')}
               </label>
               <input
@@ -142,7 +142,7 @@ export default function LoginPage() {
               {emailError && <p className="text-red-600 text-xs mt-1">{emailError}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 {t('login.password')}
               </label>
               <div className="relative">
@@ -157,7 +157,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
                   aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                  className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-slate-500 hover:text-slate-700"
+                  className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 </button>

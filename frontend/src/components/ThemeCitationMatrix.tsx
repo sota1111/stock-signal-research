@@ -21,7 +21,7 @@ export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatri
   const { t } = useI18n()
   if (!data || data.rows.length === 0 || data.years.length === 0) {
     return (
-      <p className="text-sm text-gray-400">{t('citations.noData')}</p>
+      <p className="text-sm text-muted-foreground">{t('citations.noData')}</p>
     )
   }
 
@@ -32,22 +32,22 @@ export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatri
       <table className="min-w-full border-collapse text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left font-semibold text-gray-600">
+            <th className="sticky left-0 z-10 bg-surface px-2 py-1.5 text-left font-semibold text-muted-foreground">
               {t('matrix.theme')}
             </th>
             {data.years.map(y => (
-              <th key={y} className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">
+              <th key={y} className="px-2 py-1.5 text-right font-semibold text-muted-foreground whitespace-nowrap">
                 {y}
               </th>
             ))}
-            <th className="px-2 py-1.5 text-right font-semibold text-gray-700 whitespace-nowrap">{t('matrix.total')}</th>
+            <th className="px-2 py-1.5 text-right font-semibold text-foreground whitespace-nowrap">{t('matrix.total')}</th>
           </tr>
         </thead>
         <tbody>
           {data.rows.map(row => (
             <tr key={row.theme_id ?? row.theme_name} className="border-t border-gray-100">
               <td
-                className="sticky left-0 z-10 bg-white px-2 py-1 text-left text-gray-700 max-w-[10rem] truncate"
+                className="sticky left-0 z-10 bg-surface px-2 py-1 text-left text-foreground max-w-[10rem] truncate"
                 title={row.theme_name}
               >
                 {row.theme_name}
@@ -60,19 +60,19 @@ export default function ThemeCitationMatrix({ data }: { data: ThemeCitationMatri
                   {c > 0 ? c.toLocaleString() : '-'}
                 </td>
               ))}
-              <td className="px-2 py-1 text-right font-semibold text-gray-800 tabular-nums whitespace-nowrap">
+              <td className="px-2 py-1 text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                 {row.total.toLocaleString()}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-gray-200">
-            <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left font-semibold text-gray-700">
+          <tr className="border-t-2 border-border">
+            <td className="sticky left-0 z-10 bg-surface px-2 py-1.5 text-left font-semibold text-foreground">
               {t('matrix.total')}
             </td>
             {data.column_totals.map((c, i) => (
-              <td key={data.years[i]} className="px-2 py-1.5 text-right font-semibold text-gray-600 tabular-nums">
+              <td key={data.years[i]} className="px-2 py-1.5 text-right font-semibold text-muted-foreground tabular-nums">
                 {c.toLocaleString()}
               </td>
             ))}

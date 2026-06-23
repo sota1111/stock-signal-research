@@ -47,22 +47,22 @@ export default function InputPage() {
   const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes })
 
   const inputClass = "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1"
+  const labelClass = "block text-sm font-medium text-foreground mb-1"
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">{t('input.title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">{t('input.title')}</h1>
       <div className="flex gap-2 mb-6 border-b">
         {TABS.map(tb => (
           <button key={tb} onClick={() => setTab(tb)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             {t(TAB_LABEL_KEY[tb])}
           </button>
         ))}
       </div>
 
       {tab === 'テーマ登録' && (
-        <form onSubmit={e => { e.preventDefault(); themeMutation.mutate(themeForm) }} className="bg-white rounded-lg shadow p-6 space-y-4 max-w-lg">
+        <form onSubmit={e => { e.preventDefault(); themeMutation.mutate(themeForm) }} className="bg-surface rounded-lg shadow p-6 space-y-4 max-w-lg">
           <div>
             <label className={labelClass}>{t('input.label.themeName')} *</label>
             <input required className={inputClass} value={themeForm.name} onChange={e => setThemeForm(f => ({ ...f, name: e.target.value }))} />
@@ -86,7 +86,7 @@ export default function InputPage() {
       )}
 
       {tab === '論文登録' && (
-        <form onSubmit={e => { e.preventDefault(); paperMutation.mutate({ ...paperForm, paper_id: `manual-${Date.now()}` }) }} className="bg-white rounded-lg shadow p-6 space-y-4 max-w-lg">
+        <form onSubmit={e => { e.preventDefault(); paperMutation.mutate({ ...paperForm, paper_id: `manual-${Date.now()}` }) }} className="bg-surface rounded-lg shadow p-6 space-y-4 max-w-lg">
           <div>
             <label className={labelClass}>{t('input.label.title')} *</label>
             <input required className={inputClass} value={paperForm.title} onChange={e => setPaperForm(f => ({ ...f, title: e.target.value }))} />
@@ -125,7 +125,7 @@ export default function InputPage() {
       )}
 
       {tab === '企業登録' && (
-        <form onSubmit={e => { e.preventDefault(); companyMutation.mutate({ ...companyForm, ticker: companyForm.ticker || undefined }) }} className="bg-white rounded-lg shadow p-6 space-y-4 max-w-lg">
+        <form onSubmit={e => { e.preventDefault(); companyMutation.mutate({ ...companyForm, ticker: companyForm.ticker || undefined }) }} className="bg-surface rounded-lg shadow p-6 space-y-4 max-w-lg">
           <div>
             <label className={labelClass}>{t('input.label.companyName')} *</label>
             <input required className={inputClass} value={companyForm.name} onChange={e => setCompanyForm(f => ({ ...f, name: e.target.value }))} />

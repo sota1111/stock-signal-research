@@ -103,20 +103,20 @@ export default function PatentsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('patents.title')}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{t('patents.subtitle')}</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('patents.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('patents.subtitle')}</p>
       </div>
 
       {/* テーマ選択 */}
       <div className="flex items-center gap-2 min-w-0">
-        <label htmlFor="patents-theme-select" className="shrink-0 text-sm text-gray-600">
+        <label htmlFor="patents-theme-select" className="shrink-0 text-sm text-muted-foreground">
           {t('patents.themeLabel')}
         </label>
         <select
           id="patents-theme-select"
           value={selectedTheme}
           onChange={e => setThemeId(e.target.value)}
-          className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
+          className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
         >
           <option value="">{t('patents.allThemes')}</option>
           {sortedThemes.map(th => {
@@ -133,7 +133,7 @@ export default function PatentsPage() {
       </div>
 
       {/* 収集状態の凡例（SOT-1119: 100テーマ化に伴い 未収集/該当なし を区別） */}
-      <p className="-mt-4 text-xs text-gray-400">{t('patents.status.legend')}</p>
+      <p className="-mt-4 text-xs text-muted-foreground">{t('patents.status.legend')}</p>
 
       {/* テーマ未選択時の空状態ガイド（SOT-995 /patents-5） */}
       {!selectedTheme && (
@@ -167,14 +167,14 @@ export default function PatentsPage() {
             <ul className="space-y-2">
               {topAssignees.map(a => (
                 <li key={a.assignee} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-gray-700" title={a.assignee}>{a.assignee}</span>
+                  <span className="w-40 shrink-0 truncate text-sm text-foreground" title={a.assignee}>{a.assignee}</span>
                   <span className="flex-1 min-w-0">
                     <span
                       className="block h-3 rounded bg-violet-400"
                       style={{ width: maxAssignee > 0 ? `${Math.max(6, (a.count / maxAssignee) * 100)}%` : '6%' }}
                     />
                   </span>
-                  <span className="w-8 shrink-0 text-right text-xs text-gray-500">{a.count}</span>
+                  <span className="w-8 shrink-0 text-right text-xs text-muted-foreground">{a.count}</span>
                 </li>
               ))}
             </ul>
@@ -185,8 +185,8 @@ export default function PatentsPage() {
       {/* 特許リスト */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">{t('patents.list.title')}</h2>
-          <p className="text-sm text-gray-500">{t('patents.list.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-foreground">{t('patents.list.title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('patents.list.subtitle')}</p>
         </div>
         {isLoading ? (
           <PageLoading message={t('patents.loading')} />
@@ -200,17 +200,17 @@ export default function PatentsPage() {
                 href={p.url || googlePatentsUrl(p.patent_number || p.title)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white rounded-lg border border-slate-200 p-3 hover:border-sky-300 hover:shadow-sm"
+                className="block bg-surface rounded-lg border border-border p-3 hover:border-sky-300 hover:shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 font-medium text-sm text-gray-800">{p.title}</p>
-                  <span className="shrink-0 text-xs text-gray-400">{p.published_at}</span>
+                  <p className="min-w-0 font-medium text-sm text-foreground">{p.title}</p>
+                  <span className="shrink-0 text-xs text-muted-foreground">{p.published_at}</span>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {p.patent_number && <span className="text-sky-600">US{p.patent_number}</span>}
                   {p.assignee && <span className="truncate max-w-[60%]">{p.assignee}</span>}
-                  {p.theme_id && <span className="text-gray-400">{themeName(p.theme_id)}</span>}
-                  {p.cpc && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">{p.cpc}</span>}
+                  {p.theme_id && <span className="text-muted-foreground">{themeName(p.theme_id)}</span>}
+                  {p.cpc && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-muted-foreground">{p.cpc}</span>}
                 </div>
               </a>
             ))}
@@ -221,8 +221,8 @@ export default function PatentsPage() {
       {/* 外部検索(補助導線) */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">{t('patents.themeSearch.title')}</h2>
-          <p className="text-sm text-gray-500">{t('patents.themeSearch.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-foreground">{t('patents.themeSearch.title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('patents.themeSearch.subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <a href={googlePatentsUrl(themeName(selectedTheme) || 'AI semiconductor')} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline">

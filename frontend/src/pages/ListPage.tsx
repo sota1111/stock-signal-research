@@ -70,14 +70,14 @@ export default function ListPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">{t('list.title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">{t('list.title')}</h1>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b pb-2">
         <div className="flex gap-2">
           {TABS.map(tb => (
             <button
               key={tb}
               onClick={() => setTab(tb)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
               {t(TAB_LABEL_KEY[tb])}
             </button>
@@ -89,14 +89,14 @@ export default function ListPage() {
           onChange={e => setSearch(e.target.value)}
           placeholder={t('list.search')}
           aria-label={t('list.search')}
-          className="min-w-0 w-full sm:w-64 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="min-w-0 w-full sm:w-64 rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
         />
       </div>
 
       {tab === 'テーマ' && (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-surface-muted text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.themeName')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.category')}</th>
@@ -114,9 +114,9 @@ export default function ListPage() {
             </thead>
             <tbody>
               {visibleThemes.map(row => (
-                <tr key={row.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/themes/${row.id}`)}>
+                <tr key={row.id} className="border-t hover:bg-surface-muted cursor-pointer" onClick={() => navigate(`/themes/${row.id}`)}>
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.themeName')}>{row.name}</td>
-                  <td className="px-4 py-2 text-gray-500" data-label={t('list.col.category')}>{row.category}</td>
+                  <td className="px-4 py-2 text-muted-foreground" data-label={t('list.col.category')}>{row.category}</td>
                   <td className="px-4 py-2 text-right" data-label={t('list.col.precursorScore')}>
                     <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${row.precursor_score >= 70 ? 'bg-red-500' : row.precursor_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'}`}>
                       {row.precursor_score.toFixed(0)}
@@ -129,11 +129,11 @@ export default function ListPage() {
                           {alignmentMap.get(row.id)!.score.toFixed(0)}
                         </span>
                         {alignmentMap.get(row.id)!.confidence < 0.5 && (
-                          <span className="text-xs text-gray-400">{t('list.lowConfidence')}</span>
+                          <span className="text-xs text-muted-foreground">{t('list.lowConfidence')}</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">−</span>
+                      <span className="text-xs text-muted-foreground">−</span>
                     )}
                   </td>
                   <td className="px-4 py-2 text-center" data-label={t('list.col.trend')}>{row.is_trending ? '🔥' : ''}</td>
@@ -148,9 +148,9 @@ export default function ListPage() {
       )}
 
       {tab === '論文' && (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-surface-muted text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.title')}</th>
                 <th className="px-4 py-2 text-right whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
@@ -163,15 +163,15 @@ export default function ListPage() {
             </thead>
             <tbody>
               {visiblePapers.map(p => (
-                <tr key={p.id} className="border-t hover:bg-gray-50">
+                <tr key={p.id} className="border-t hover:bg-surface-muted">
                   <td className="px-4 py-2" data-label={t('list.col.title')}>
                     {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{p.title}</a> : p.title}
                   </td>
                   <td className="px-4 py-2 text-right font-medium whitespace-nowrap" data-label={t('list.col.citations')}>
                     {(p.citation_count ?? 0).toLocaleString()}
                   </td>
-                  <td className="px-4 py-2 text-gray-500 whitespace-nowrap" data-label={t('list.col.publishedAt')}>{p.published_at ?? '-'}</td>
-                  <td className="px-4 py-2 text-gray-500" data-label={t('list.col.source')}>{p.source}</td>
+                  <td className="px-4 py-2 text-muted-foreground whitespace-nowrap" data-label={t('list.col.publishedAt')}>{p.published_at ?? '-'}</td>
+                  <td className="px-4 py-2 text-muted-foreground" data-label={t('list.col.source')}>{p.source}</td>
                 </tr>
               ))}
             </tbody>
@@ -180,9 +180,9 @@ export default function ListPage() {
       )}
 
       {tab === '企業' && (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-surface-muted text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.companyName')}</th>
                 <th className="px-4 py-2 text-left">{t('list.col.ticker')}</th>
@@ -195,14 +195,14 @@ export default function ListPage() {
             </thead>
             <tbody>
               {visibleCompanies.map(c => (
-                <tr key={c.id} className="border-t hover:bg-gray-50">
+                <tr key={c.id} className="border-t hover:bg-surface-muted">
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.companyName')}>{c.name}</td>
-                  <td className="px-4 py-2 text-gray-500" data-label={t('list.col.ticker')}>{c.ticker ?? '-'}</td>
+                  <td className="px-4 py-2 text-muted-foreground" data-label={t('list.col.ticker')}>{c.ticker ?? '-'}</td>
                   <td className="px-4 py-2 text-right" data-label={t('list.col.benefitScore')}>
                     <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-800">{c.benefit_score.toFixed(0)}</span>
                   </td>
                   <td className="px-4 py-2 text-center" data-label={t('list.col.benefitType')}>
-                    <span className={`text-xs px-2 py-0.5 rounded ${c.benefit_type === 'direct' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded ${c.benefit_type === 'direct' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-muted-foreground'}`}>
                       {c.benefit_type === 'direct' ? t('benefit.directShort') : t('benefit.indirectShort')}
                     </span>
                   </td>
@@ -214,9 +214,9 @@ export default function ListPage() {
       )}
 
       {tab === '投資家' && (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-surface-muted text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left">{t('list.col.investorName')}</th>
                 <th className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 select-none"
@@ -230,14 +230,14 @@ export default function ListPage() {
             </thead>
             <tbody>
               {visibleInvestors.map(inv => (
-                <tr key={inv.id} className="border-t hover:bg-gray-50">
+                <tr key={inv.id} className="border-t hover:bg-surface-muted">
                   <td className="px-4 py-2 font-medium" data-label={t('list.col.investorName')}>{inv.investor_name}</td>
                   <td className="px-4 py-2 text-right" data-label={t('list.col.ownership')}>{inv.ownership_pct.toFixed(2)}%</td>
                   <td className={`px-4 py-2 text-right ${inv.change_pct >= 0 ? 'text-green-600' : 'text-red-600'}`} data-label={t('list.col.change')}>
                     {inv.change_pct >= 0 ? '+' : ''}{inv.change_pct.toFixed(2)}%
                   </td>
-                  <td className="px-4 py-2 text-gray-500" data-label={t('list.col.reportDate')}>{inv.report_date}</td>
-                  <td className="px-4 py-2 text-gray-500" data-label={t('list.col.reportType')}>{inv.report_type}</td>
+                  <td className="px-4 py-2 text-muted-foreground" data-label={t('list.col.reportDate')}>{inv.report_date}</td>
+                  <td className="px-4 py-2 text-muted-foreground" data-label={t('list.col.reportType')}>{inv.report_type}</td>
                 </tr>
               ))}
             </tbody>

@@ -75,7 +75,7 @@ function AppLayout() {
   const mobileOpen = mobileOpenRoute === currentRoute
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-surface-muted font-sans text-foreground flex flex-col">
       {/* Thin global accent bar (SOT-1019 / proposal 5): a single brand hairline above the nav. */}
       {isAuthenticated && <div className="h-0.5 bg-brand sticky top-0 z-20" aria-hidden />}
       {isAuthenticated && (
@@ -163,7 +163,7 @@ function AppLayout() {
         </RouteErrorBoundary>
       </main>
       {isAuthenticated && (
-        <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+        <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground">
           {t('footer.tagline')}
         </footer>
       )}

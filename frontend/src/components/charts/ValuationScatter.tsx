@@ -41,7 +41,7 @@ export default function ValuationScatter({ items }: { items: StockItem[] }) {
             if (!payload || payload.length === 0) return null
             const p = payload[0].payload as Point
             return (
-              <div className="bg-white border rounded shadow px-2 py-1 text-xs">
+              <div className="bg-surface border rounded shadow px-2 py-1 text-xs">
                 <p className="font-semibold">{p.name}</p>
                 <p>PER {p.pe.toFixed(1)}</p>
                 <p>{t('stock.marketCap')} {formatCompact(p.cap)}</p>

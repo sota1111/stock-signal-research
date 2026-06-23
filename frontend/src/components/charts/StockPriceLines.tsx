@@ -14,10 +14,10 @@ export default function StockPriceLines({ items }: { items: StockItem[] }) {
       {valid.map(item => {
         const data = toMonthly(item.stock.prices)
         return (
-          <div key={item.ticker} className="bg-white rounded-lg shadow p-3">
+          <div key={item.ticker} className="bg-surface rounded-lg shadow p-3">
             <div className="flex justify-between items-baseline mb-2">
-              <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-              <span className="text-xs text-gray-400">{item.ticker}</span>
+              <p className="text-sm font-semibold text-foreground">{item.name}</p>
+              <span className="text-xs text-muted-foreground">{item.ticker}</span>
             </div>
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

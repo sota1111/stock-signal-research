@@ -42,7 +42,7 @@ export default function RnDIntensityScatter({ points }: { points: RnDIntensityPo
             if (!payload || payload.length === 0) return null
             const p = payload[0].payload as RnDIntensityPoint
             return (
-              <div className="bg-white border rounded shadow px-2 py-1 text-xs">
+              <div className="bg-surface border rounded shadow px-2 py-1 text-xs">
                 <p className="font-semibold">{p.name}</p>
                 <p>{t('chart.rndScatter.x')} {p.rndRatio.toFixed(1)}%</p>
                 <p>{t('chart.rndScatter.y')} {p.growth.toFixed(1)}%</p>

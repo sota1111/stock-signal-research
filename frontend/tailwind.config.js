@@ -17,6 +17,11 @@ export default {
         down: 'var(--down)',
         surface: 'var(--surface)',
         'surface-muted': 'var(--surface-muted)',
+        // Foreground (text) + border tokens (SOT-1137) — swap with the theme so
+        // text contrast holds on both light and dark surfaces.
+        foreground: 'var(--foreground)',
+        'muted-foreground': 'var(--muted-foreground)',
+        border: 'var(--border)',
       },
       boxShadow: {
         card: 'var(--shadow-card)',
