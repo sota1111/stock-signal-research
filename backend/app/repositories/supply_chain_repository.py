@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import uuid
@@ -6,6 +7,26 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+
+def _decode_evidence(value: Any) -> List[str]:
+    """evidence は SQLite では JSON 文字列、Firestore では list で保持されうる。常に list[str] に正規化する。"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+        try:
+            decoded = json.loads(value)
+            if isinstance(decoded, list):
+                return [str(v) for v in decoded]
+            return [str(decoded)]
+        except (ValueError, TypeError):
+            return [value]
+    return []
 
 
 class SupplyChainRepository(ABC):
@@ -36,6 +57,10 @@ class SQLiteSupplyChainRepository(SupplyChainRepository):
                     "relationship": sc.relationship,
                     "description": sc.description,
                     "order": sc.order,
+                    "relation_type": sc.relation_type or "depends_on",
+                    "confidence": sc.confidence if sc.confidence is not None else 0.5,
+                    "evidence": _decode_evidence(sc.evidence),
+                    "created_at": sc.created_at,
                 }
                 for sc in scs
             ]
@@ -46,6 +71,10 @@ class SQLiteSupplyChainRepository(SupplyChainRepository):
         from app.models import SupplyChain
         db = self._session_factory()
         try:
+            sc_data = dict(sc_data)
+            # evidence は list で受け取り、SQLite には JSON 文字列で保存する
+            if isinstance(sc_data.get("evidence"), list):
+                sc_data["evidence"] = json.dumps(sc_data["evidence"], ensure_ascii=False)
             sc_id = sc_data.get("id")
             if sc_id:
                 existing = db.query(SupplyChain).filter(SupplyChain.id == sc_id).first()
@@ -82,6 +111,10 @@ class FirestoreSupplyChainRepository(SupplyChainRepository):
                     "relationship": d.get("relationship"),
                     "description": d.get("description"),
                     "order": d.get("order", 0),
+                    "relation_type": d.get("relation_type") or "depends_on",
+                    "confidence": d.get("confidence", 0.5),
+                    "evidence": _decode_evidence(d.get("evidence")),
+                    "created_at": d.get("created_at"),
                 }
                 for doc in docs if (d := doc.to_dict())
             ]

@@ -29,26 +29,22 @@ def run_seed():
             db.flush()
             companies[c["name"]] = db_company
 
-        # 3. Supply Chain
-        sc_data = [
-            {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
-            {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2},
-            {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
-            {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4},
-            {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5},
-            {
-                "from": "data center power",
-                "to": "robotics foundation model",
-                "rel": "電力インフラ整備 → ロボティクス基盤モデル展開",
-                "order": 6,
-            },
-        ]
-        for sc in sc_data:
+        # 3. Supply Chain — SOT-1124: 100テーマ横断の構造化 edge(JSON 由来)を投入する。
+        import json as _json_sc
+        for sc in _DASHBOARD_SUPPLY_CHAIN:
+            from_theme = themes.get(sc["from"])
+            to_theme = themes.get(sc["to"])
+            if from_theme is None or to_theme is None:
+                continue
             db_sc = models.SupplyChain(
-                from_theme_id=themes[sc["from"]].id,
-                to_theme_id=themes[sc["to"]].id,
+                from_theme_id=from_theme.id,
+                to_theme_id=to_theme.id,
                 relationship=sc["rel"],
-                order=sc["order"]
+                order=sc["order"],
+                relation_type=sc.get("relation_type", "depends_on"),
+                confidence=sc.get("confidence", 0.5),
+                evidence=_json_sc.dumps(sc.get("evidence", []), ensure_ascii=False),
+                created_at=sc.get("created_at"),
             )
             db.add(db_sc)
 
@@ -677,14 +673,72 @@ def _company_row(c):
         "theme_ids": _json.dumps([f"theme-{_slug(t)}" for t in c.get("themes", [])]),
     }
 
-_DASHBOARD_SUPPLY_CHAIN = [
-    {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1},
-    {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2},
-    {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3},
-    {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4},
-    {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5},
-    {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6},
+# フォールバック(JSON が無い場合)用の従来6 edge。
+_DEFAULT_SUPPLY_CHAIN = [
+    {"from": "GPU memory bottleneck", "to": "HBM", "rel": "GPU需要 → HBM需要", "order": 1,
+     "relation_type": "depends_on", "confidence": 0.92, "evidence": []},
+    {"from": "HBM", "to": "SSD / NVMe", "rel": "HBM拡張 → NVMe SSD需要増", "order": 2,
+     "relation_type": "complements", "confidence": 0.78, "evidence": []},
+    {"from": "SSD / NVMe", "to": "I/O bottleneck", "rel": "SSD普及 → I/Oボトルネック顕在化", "order": 3,
+     "relation_type": "enables", "confidence": 0.7, "evidence": []},
+    {"from": "I/O bottleneck", "to": "KV cache offloading", "rel": "I/O制約 → KVキャッシュオフロード技術需要", "order": 4,
+     "relation_type": "enables", "confidence": 0.75, "evidence": []},
+    {"from": "GPU memory bottleneck", "to": "data center power", "rel": "GPU増設 → データセンター電力需要", "order": 5,
+     "relation_type": "depends_on", "confidence": 0.85, "evidence": []},
+    {"from": "data center power", "to": "robotics foundation model", "rel": "電力インフラ整備 → ロボティクス基盤モデル展開", "order": 6,
+     "relation_type": "enables", "confidence": 0.6, "evidence": []},
 ]
+
+
+def _load_supply_chain_edges():
+    """SOT-1124: 100テーマ横断の構造化 supply chain edge を backend/data/supply-chain-edges.json から
+    読み込む。各 edge は from/to(テーマ名)/rel(説明)/order/relation_type/confidence/evidence を持つ。
+    ファイルが無い/不正な場合は従来の6 edge(_DEFAULT_SUPPLY_CHAIN)にフォールバックする。
+    未知テーマ参照などの不正 edge は検証して除外する(seed が壊れないようにする)。"""
+    import json as _json
+    import os as _os
+    from .services.supply_chain_validation import validate_supply_chain_edges
+
+    path = _os.path.join(_os.path.dirname(__file__), "..", "data", "supply-chain-edges.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+    except (OSError, ValueError):
+        return list(_DEFAULT_SUPPLY_CHAIN)
+
+    raw = data.get("edges", [])
+    if not raw:
+        return list(_DEFAULT_SUPPLY_CHAIN)
+
+    valid_names = {t["name"] for t in _DASHBOARD_THEMES}
+    errors = validate_supply_chain_edges(raw, valid_names)
+    if errors:
+        # 不正 edge があってもログに残し、妥当な edge だけを採用する。
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "supply-chain-edges.json validation: %d issue(s): %s", len(errors), errors[:5]
+        )
+
+    edges = []
+    for e in raw:
+        frm = e.get("from") or e.get("from_theme")
+        to = e.get("to") or e.get("to_theme")
+        if frm not in valid_names or to not in valid_names or frm == to:
+            continue
+        edges.append({
+            "from": frm,
+            "to": to,
+            "rel": e.get("description") or e.get("rel") or "",
+            "order": int(e.get("order", 0)),
+            "relation_type": e.get("relation_type", "depends_on"),
+            "confidence": float(e.get("confidence", 0.5)),
+            "evidence": list(e.get("evidence", [])),
+            "created_at": e.get("created_at") or data.get("_meta", {}).get("created_at"),
+        })
+    return edges or list(_DEFAULT_SUPPLY_CHAIN)
+
+
+_DASHBOARD_SUPPLY_CHAIN = _load_supply_chain_edges()
 
 # Papers — 実データ優先(SOT-909)。collected-papers.json に arXiv/Semantic Scholar 由来の
 # 実在論文(実タイトル・実発行年・実引用数・実リンク)があればそれを使い、無ければ従来の
@@ -745,15 +799,21 @@ def seed_dashboard_data_firestore():
         for c in _DASHBOARD_COMPANIES:
             company_repo.save({"id": f"company-{_slug(c['name'])}", **_company_row(c)})
 
-        # 4. Supply chain
+        # 4. Supply chain — SOT-1124: 100テーマ横断の構造化 edge を投入する。
         sc_repo = get_supply_chain_repository()
         for sc in _DASHBOARD_SUPPLY_CHAIN:
+            if sc["from"] not in theme_ids or sc["to"] not in theme_ids:
+                continue
             sc_repo.save({
                 "id": f"supply-chain-{_slug(sc['from'])}-{_slug(sc['to'])}",
                 "from_theme_id": theme_ids[sc["from"]],
                 "to_theme_id": theme_ids[sc["to"]],
                 "relationship": sc["rel"],
                 "order": sc["order"],
+                "relation_type": sc.get("relation_type", "depends_on"),
+                "confidence": sc.get("confidence", 0.5),
+                "evidence": list(sc.get("evidence", [])),
+                "created_at": sc.get("created_at"),
             })
 
         # 6. Scores (alignment_highlights uses score>=30)

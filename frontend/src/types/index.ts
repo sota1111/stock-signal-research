@@ -74,6 +74,13 @@ export interface SupplyChainItem {
   order: number
   from_theme_name?: string
   to_theme_name?: string
+  // SOT-1124: 構造化 edge メタ情報
+  relation_type: string
+  confidence: number
+  evidence: string[]
+  created_at?: string | null
+  from_category?: string | null
+  to_category?: string | null
 }
 
 export interface InstitutionalInvestor {

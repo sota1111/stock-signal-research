@@ -123,6 +123,11 @@ class SupplyChainBase(BaseModel):
     relationship: str
     description: Optional[str] = None
     order: int = 0
+    # SOT-1124: 構造化 edge メタ情報
+    relation_type: str = "depends_on"
+    confidence: float = 0.5
+    evidence: List[str] = Field(default_factory=list)
+    created_at: Optional[str] = None
 
 
 class SupplyChainCreate(SupplyChainBase):
@@ -133,6 +138,8 @@ class SupplyChainResponse(SupplyChainBase):
     id: str
     from_theme_name: Optional[str] = None
     to_theme_name: Optional[str] = None
+    from_category: Optional[str] = None
+    to_category: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
