@@ -102,7 +102,7 @@ export interface DashboardData {
 export interface ExternalInfo {
   id: string
   info_id: string
-  info_type: 'news' | 'announcement' | 'earnings'
+  info_type: 'news' | 'announcement' | 'earnings' | 'filing'
   title: string
   url?: string
   summary?: string
@@ -130,6 +130,7 @@ export interface ThemeExternalInfos {
   news: ExternalInfo[]
   announcements: ExternalInfo[]
   earnings: ExternalInfo[]
+  filings: ExternalInfo[]
 }
 
 export interface AlignmentHighlight {

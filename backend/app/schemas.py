@@ -197,6 +197,7 @@ class ThemeExternalInfosResponse(BaseModel):
     news: List[ExternalInfoResponse]
     announcements: List[ExternalInfoResponse]
     earnings: List[ExternalInfoResponse]
+    filings: List[ExternalInfoResponse] = []
 
 
 class HighAlignmentHighlightResponse(BaseModel):

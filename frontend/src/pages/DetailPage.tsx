@@ -35,7 +35,9 @@ export default function DetailPage() {
       : { id: sc.from_theme_id, name: sc.from_theme_name }))
     .filter((th, i, arr) => th.id && th.id !== id && arr.findIndex(x => x.id === th.id) === i)
 
-  const externalCount = externalInfos ? externalInfos.news.length + externalInfos.announcements.length + externalInfos.earnings.length : 0
+  const externalCount = externalInfos
+    ? externalInfos.news.length + externalInfos.announcements.length + externalInfos.earnings.length + (externalInfos.filings?.length ?? 0)
+    : 0
 
   const detailTabs: { id: typeof detailTab; label: string }[] = [
     { id: 'overview', label: t('detail.tab.overview') },
@@ -212,70 +214,37 @@ export default function DetailPage() {
         </section>
       )}
 
-      {detailTab === 'external' && externalInfos && externalInfos.news.length > 0 && (
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.news', { n: externalInfos.news.length })}</h2>
+      {detailTab === 'external' && externalInfos && ([
+        { key: 'news', items: externalInfos.news, label: 'detail.external.news', badge: 'bg-blue-100 text-blue-700' },
+        { key: 'announcements', items: externalInfos.announcements, label: 'detail.external.announcements', badge: 'bg-purple-100 text-purple-700' },
+        { key: 'earnings', items: externalInfos.earnings, label: 'detail.external.earnings', badge: 'bg-emerald-100 text-emerald-700' },
+        { key: 'filings', items: externalInfos.filings ?? [], label: 'detail.external.filings', badge: 'bg-amber-100 text-amber-700' },
+      ] as const).filter(group => group.items.length > 0).map(group => (
+        <section key={group.key} className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t(group.label, { n: group.items.length })}</h2>
           <div className="space-y-3">
-            {externalInfos.news.map(item => (
+            {group.items.map(item => (
               <div key={item.id} className="border-b pb-3">
                 <p className="font-medium text-sm">
                   {item.url
                     ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
                     : item.title}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">{item.published_at} · {item.source_name}</p>
-                {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {detailTab === 'external' && externalInfos && externalInfos.announcements.length > 0 && (
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.announcements', { n: externalInfos.announcements.length })}</h2>
-          <div className="space-y-3">
-            {externalInfos.announcements.map(item => (
-              <div key={item.id} className="border-b pb-3">
-                <p className="font-medium text-sm">
-                  {item.url
-                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
-                    : item.title}
-                </p>
-                <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
-                  <span>{item.published_at}</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${group.badge}`}>{t(`detail.external.type.${group.key}`)}</span>
+                  {item.published_at && <span>{item.published_at}</span>}
                   {item.related_company && <span className="bg-gray-100 px-1 rounded">{item.related_company}</span>}
-                  <span>{item.source_name}</span>
+                  {item.source_name && <span>{item.source_name}</span>}
+                  {item.relevance_score > 0 && (
+                    <span className="text-gray-400">{t('detail.external.relevance', { n: Math.round(item.relevance_score) })}</span>
+                  )}
                 </div>
                 {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
               </div>
             ))}
           </div>
         </section>
-      )}
-
-      {detailTab === 'external' && externalInfos && externalInfos.earnings.length > 0 && (
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('detail.external.earnings', { n: externalInfos.earnings.length })}</h2>
-          <div className="space-y-3">
-            {externalInfos.earnings.map(item => (
-              <div key={item.id} className="border-b pb-3">
-                <p className="font-medium text-sm">
-                  {item.url
-                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.title}</a>
-                    : item.title}
-                </p>
-                <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
-                  <span>{item.published_at}</span>
-                  {item.related_company && <span className="bg-gray-100 px-1 rounded">{item.related_company}</span>}
-                  <span>{item.source_name}</span>
-                </div>
-                {item.summary && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.summary}</p>}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      ))}
 
       {detailTab === 'papers' && (
       <section className="bg-white rounded-lg shadow p-6">

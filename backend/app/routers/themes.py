@@ -64,6 +64,7 @@ def get_theme_external_infos(theme_id: str):
         "news": repo.list_external_infos_by_theme(theme_id, "news"),
         "announcements": repo.list_external_infos_by_theme(theme_id, "announcement"),
         "earnings": repo.list_external_infos_by_theme(theme_id, "earnings"),
+        "filings": repo.list_external_infos_by_theme(theme_id, "filing"),
     }
 
 
