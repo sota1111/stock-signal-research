@@ -83,7 +83,7 @@ export const messages = {
     'btn.refetch': '再取得',
     // theme selector
     'dashboard.themeLabel': 'テーマ',
-    'dashboard.categoryLabel': '大カテゴリ',
+    'dashboard.categoryLabel': 'カテゴリ',
     'dashboard.allCategories': '全カテゴリ',
     'dashboard.themeSearch': 'テーマを検索',
     'dashboard.cardsLabel': '表示カード',
@@ -131,7 +131,7 @@ export const messages = {
     'chart.holdings.subtitle': '対象企業に対する各投資家の保有比率(%)の四半期推移（13F）',
     // G5 サプライチェーン依存関係（SOT-1126 子3）
     'chart.supplyChainPanel.title': 'サプライチェーン依存関係',
-    'chart.supplyChainPanel.subtitle': '選択テーマ/カテゴリに連なる供給・依存関係（大カテゴリで色分け）',
+    'chart.supplyChainPanel.subtitle': '選択テーマ/カテゴリに連なる供給・依存関係（カテゴリで色分け）',
     // G6 最新エビデンス・タイムライン（SOT-1126 子4）
     'chart.evidence.title': '最新エビデンス・タイムライン',
     'chart.evidence.subtitle': '全テーマ横断の最新の動き（ニュース / IR / 決算 / SEC開示）を日付降順で表示',
@@ -524,8 +524,8 @@ export const messages = {
     'chart.empty.supplyChain': 'サプライチェーンデータがありません',
     // SOT-1124 サプライチェーン画面
     'supplyChain.title': 'サプライチェーン',
-    'supplyChain.subtitle': '100テーマ横断の構造化サプライチェーンを大カテゴリ/テーマ/企業で絞り込み',
-    'supplyChain.filterCategory': '大カテゴリ',
+    'supplyChain.subtitle': '100テーマ横断の構造化サプライチェーンをカテゴリ/テーマ/企業で絞り込み',
+    'supplyChain.filterCategory': 'カテゴリ',
     'supplyChain.filterTheme': 'テーマ',
     'supplyChain.filterCompany': '企業',
     'supplyChain.all': 'すべて',
