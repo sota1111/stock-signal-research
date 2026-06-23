@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSupplyChain, fetchCompanies } from '../api'
-import type { SupplyChainItem, SupplyChainGraphNode, SupplyChainGraphEdge } from '../types'
+import type { SupplyChainItem } from '../types'
 import ChartCard from '../components/charts/ChartCard'
-import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
+import SupplyChainSankey from '../components/charts/SupplyChainSankey'
+import SupplyChainSwimlane from '../components/charts/SupplyChainSwimlane'
+import SupplyChainMatrix from '../components/charts/SupplyChainMatrix'
+import { RELATION_TYPES, relationColor } from '../components/charts/chartUtils'
 import { PageLoading, PageError, PageEmpty } from '../components/AsyncState'
 import { useI18n } from '../i18n/useI18n'
 
@@ -13,7 +16,10 @@ const REL_LABELS: Record<'ja' | 'en', Record<string, string>> = {
   en: { supplies: 'supplies', enables: 'enables', depends_on: 'depends on', complements: 'complements', competes: 'competes' },
 }
 
-// SOT-1124: 100テーマ横断の構造化サプライチェーンを 大カテゴリ/テーマ/企業 で絞り込んで表示する。
+type ViewMode = 'sankey' | 'swimlane' | 'matrix'
+
+// SOT-1124: 100テーマ横断の構造化サプライチェーン。
+// SOT-1142: 円形レイアウトを廃し、Sankey / スイムレーン / 隣接行列の3ビュー切替 + relation/confidence フィルタで見やすくする。
 export default function SupplyChainPage() {
   const { t, lang } = useI18n()
   const relLabel = (rt: string) => REL_LABELS[lang]?.[rt] ?? rt
@@ -21,6 +27,11 @@ export default function SupplyChainPage() {
   const [themeId, setThemeId] = useState('')
   const [companyId, setCompanyId] = useState('')
   const [selectedEdge, setSelectedEdge] = useState<number | undefined>(undefined)
+  // SOT-1142: ビュー・フィルタ状態
+  const [view, setView] = useState<ViewMode>('sankey')
+  const [relationType, setRelationType] = useState('')
+  const [minConfidence, setMinConfidence] = useState(0)
+  const [matrixPair, setMatrixPair] = useState<{ from: string; to: string } | null>(null)
 
   // 選択肢導出のための全 edge（フィルタなし）
   const allQuery = useQuery({
@@ -43,6 +54,8 @@ export default function SupplyChainPage() {
 
   const all = useMemo(() => allQuery.data ?? [], [allQuery.data])
   const items = useMemo(() => filteredQuery.data ?? [], [filteredQuery.data])
+
+  const resetSelection = () => setSelectedEdge(undefined)
 
   // 選択肢: カテゴリ（from/to）、テーマ（id+name）
   const categories = useMemo(() => {
@@ -67,44 +80,31 @@ export default function SupplyChainPage() {
 
   const companies = companiesQuery.data ?? []
 
-  // グラフ用 nodes/edges を構造化 edge から組み立てる（node.type=カテゴリで色分け）
-  const { nodes, edges } = useMemo(() => {
-    const nodeMap = new Map<string, SupplyChainGraphNode>()
-    const gedges: SupplyChainGraphEdge[] = []
-    for (const e of items) {
-      if (!nodeMap.has(e.from_theme_id)) {
-        nodeMap.set(e.from_theme_id, {
-          id: e.from_theme_id,
-          type: e.from_category ?? 'theme',
-          label: e.from_theme_name ?? e.from_theme_id,
-        })
-      }
-      if (!nodeMap.has(e.to_theme_id)) {
-        nodeMap.set(e.to_theme_id, {
-          id: e.to_theme_id,
-          type: e.to_category ?? 'theme',
-          label: e.to_theme_name ?? e.to_theme_id,
-        })
-      }
-      gedges.push({
-        source: e.from_theme_id,
-        target: e.to_theme_id,
-        relation: e.relation_type,
-        evidence: e.evidence ?? [],
-      })
-    }
-    return { nodes: Array.from(nodeMap.values()), edges: gedges }
-  }, [items])
-
-  const resetSelection = () => setSelectedEdge(undefined)
+  // SOT-1142(案D): relation_type / confidence しきい値 / 行列ドリルダウンをクライアント側で適用。
+  const visibleItems = useMemo(
+    () =>
+      items.filter(
+        e =>
+          (!relationType || e.relation_type === relationType) &&
+          (e.confidence ?? 0) >= minConfidence &&
+          (!matrixPair || ((e.from_category ?? '—') === matrixPair.from && (e.to_category ?? '—') === matrixPair.to)),
+      ),
+    [items, relationType, minConfidence, matrixPair],
+  )
 
   if (allQuery.isLoading) return <PageLoading />
   if (allQuery.error) return <PageError onRetry={() => allQuery.refetch()} />
 
   const selected: SupplyChainItem | undefined =
-    selectedEdge !== undefined ? items[selectedEdge] : undefined
+    selectedEdge !== undefined ? visibleItems[selectedEdge] : undefined
 
   const fmtConfidence = (c: number) => `${Math.round((c ?? 0) * 100)}%`
+
+  const viewButtons: { id: ViewMode; label: string }[] = [
+    { id: 'sankey', label: t('supplyChain.viewSankey') },
+    { id: 'swimlane', label: t('supplyChain.viewSwimlane') },
+    { id: 'matrix', label: t('supplyChain.viewMatrix') },
+  ]
 
   return (
     <div className="space-y-4">
@@ -113,7 +113,7 @@ export default function SupplyChainPage() {
         <p className="text-sm text-muted-foreground mt-0.5">{t('supplyChain.subtitle')}</p>
       </div>
 
-      {/* 絞り込み */}
+      {/* 絞り込み（サーバ側: カテゴリ/テーマ/企業） */}
       <div className="flex flex-wrap items-center gap-3 bg-surface rounded-xl border border-border/80 shadow-card p-3">
         <div className="flex items-center gap-2">
           <label htmlFor="sc-category" className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.filterCategory')}</label>
@@ -160,19 +160,105 @@ export default function SupplyChainPage() {
             {t('supplyChain.clear')}
           </button>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">{t('supplyChain.edgeCount')}: {items.length}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{t('supplyChain.edgeCount')}: {visibleItems.length}</span>
       </div>
 
-      <ChartCard title={t('supplyChain.graphTitle')} subtitle={t('supplyChain.graphHint')}>
-        {items.length === 0 ? (
-          <PageEmpty message={t('supplyChain.empty')} />
-        ) : (
-          <SupplyChainGraphView
-            nodes={nodes}
-            edges={edges}
-            onEdgeClick={setSelectedEdge}
-            selectedEdgeIndex={selectedEdge}
+      {/* 表示モード切替 + relation/confidence フィルタ（案D） */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 bg-surface rounded-xl border border-border/80 shadow-card p-3">
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.viewMode')}</span>
+          <div className="inline-flex rounded-md border border-border overflow-hidden">
+            {viewButtons.map(b => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => { setView(b.id); resetSelection() }}
+                className={`px-3 py-1 text-sm ${view === b.id ? 'bg-sky-600 text-white' : 'bg-surface text-foreground hover:bg-surface-muted'}`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.relationFilter')}</span>
+          <button
+            type="button"
+            onClick={() => { setRelationType(''); resetSelection() }}
+            className={`px-2 py-0.5 rounded text-xs ${relationType === '' ? 'bg-slate-700 text-white' : 'bg-surface-muted text-foreground'}`}
+          >
+            {t('supplyChain.relAll')}
+          </button>
+          {RELATION_TYPES.map(rt => (
+            <button
+              key={rt}
+              type="button"
+              onClick={() => { setRelationType(rt); resetSelection() }}
+              className={`px-2 py-0.5 rounded text-xs border ${relationType === rt ? 'text-white' : 'text-foreground'}`}
+              style={relationType === rt ? { backgroundColor: relationColor(rt), borderColor: relationColor(rt) } : { borderColor: relationColor(rt) }}
+            >
+              {relLabel(rt)}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="sc-conf" className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.minConfidence')}</label>
+          <input
+            id="sc-conf"
+            type="range"
+            min={0}
+            max={0.9}
+            step={0.05}
+            value={minConfidence}
+            onChange={e => { setMinConfidence(Number(e.target.value)); resetSelection() }}
           />
+          <span className="text-xs text-foreground w-9 nums">{fmtConfidence(minConfidence)}</span>
+        </div>
+      </div>
+
+      {/* 関係タイプ凡例 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
+        <span>{t('supplyChain.legend')}:</span>
+        {RELATION_TYPES.map(rt => (
+          <span key={rt} className="inline-flex items-center gap-1">
+            <span className="inline-block w-4 h-1.5 rounded" style={{ backgroundColor: relationColor(rt) }} />
+            {relLabel(rt)}
+          </span>
+        ))}
+      </div>
+
+      {/* ドリルダウン中のカテゴリ対チップ */}
+      {matrixPair && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-1 bg-sky-50 text-sky-800 px-2 py-1 rounded">
+            {t('supplyChain.drilldown')}: {matrixPair.from} → {matrixPair.to}
+          </span>
+          <button type="button" onClick={() => { setMatrixPair(null); resetSelection() }} className="text-sky-600 hover:underline">
+            {t('supplyChain.clearPair')}
+          </button>
+        </div>
+      )}
+
+      <ChartCard title={t('supplyChain.graphTitle')} subtitle={t('supplyChain.graphHint')}>
+        {view === 'matrix' ? (
+          // 行列はフィルタ前(items)で全体を俯瞰し、セルクリックでドリルダウン
+          items.length === 0 ? (
+            <PageEmpty message={t('supplyChain.empty')} />
+          ) : (
+            <SupplyChainMatrix
+              items={items.filter(e => (!relationType || e.relation_type === relationType) && (e.confidence ?? 0) >= minConfidence)}
+              selectedPair={matrixPair}
+              onCellClick={(from, to) => { setMatrixPair({ from, to }); setView('sankey'); resetSelection() }}
+            />
+          )
+        ) : visibleItems.length === 0 ? (
+          <PageEmpty message={t('supplyChain.empty')} />
+        ) : view === 'sankey' ? (
+          <SupplyChainSankey items={visibleItems} onEdgeClick={setSelectedEdge} selectedIndex={selectedEdge} />
+        ) : (
+          <SupplyChainSwimlane items={visibleItems} onEdgeClick={setSelectedEdge} selectedIndex={selectedEdge} />
         )}
       </ChartCard>
 
@@ -208,7 +294,7 @@ export default function SupplyChainPage() {
 
       {/* edge 一覧（根拠/関係タイプ/信頼度/作成日） */}
       <ChartCard title={t('supplyChain.listTitle')}>
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <PageEmpty message={t('supplyChain.empty')} />
         ) : (
           <div className="overflow-x-auto">
@@ -224,7 +310,7 @@ export default function SupplyChainPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((e, i) => (
+                {visibleItems.map((e, i) => (
                   <tr
                     key={e.id}
                     onClick={() => setSelectedEdge(i)}
