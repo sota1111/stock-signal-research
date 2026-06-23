@@ -7,6 +7,7 @@ import ChartCard from '../components/charts/ChartCard'
 import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
 import PrecursorOverlayLine from '../components/charts/PrecursorOverlayLine'
+import PrecursorScoreBreakdown from '../components/charts/PrecursorScoreBreakdown'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import { GRAPH_FROM_YEAR } from './dashboardData'
@@ -163,6 +164,16 @@ export default function SignalDetectionPage() {
           subtitle={t('signals.precursorOverlay.thresholdNote')}
         >
           <PrecursorOverlayLine data={overlayMonthly ?? []} />
+        </ChartCard>
+        {/* 案B (SOT-1160): 前兆スコアを加点要素（MoM寄与・連続増寄与）に分解した積み上げ内訳 */}
+        <ChartCard
+          title={t('signals.precursorBreakdown.title')}
+          subtitle={t('signals.precursorBreakdown.subtitle')}
+        >
+          <PrecursorScoreBreakdown
+            breakdown={overlayBreakdown}
+            alignmentScore={alignmentMap.get(overlayThemeId)}
+          />
         </ChartCard>
       </section>
 
