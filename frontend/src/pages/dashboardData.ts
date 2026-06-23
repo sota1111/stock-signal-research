@@ -1,8 +1,8 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { fetchDashboard, fetchStock, fetchThemes } from '../api'
-import type { Company, Theme } from '../types'
+import { fetchDashboard, fetchStock, fetchThemes, fetchFinancialFundamentals } from '../api'
+import type { Company, Theme, FinancialFundamentals } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
-import { toYearly, yearOf } from '../components/charts/chartUtils'
+import { toYearly, yearOf, pctReturn } from '../components/charts/chartUtils'
 
 // SOT-1069: 全グラフ・年セレクタの可視下限を 2009 年に統一する共有定数。
 // 実時価総額(SOT-1056)が2009起点であるのに合わせ、論文/特許/株価のグラフ起点もここに揃える。
@@ -210,4 +210,134 @@ export function buildTopMarketCapCompanyYearly(
 
   const data = [...byYear.values()].sort((a, b) => a.year - b.year)
   return { data, series }
+}
+
+// ---------------------------------------------------------------------------
+// 財務ファンダメンタルズ（SOT-1126 子1 / G1 研究→業績連鎖, G2 R&D集約度散布図）
+// ---------------------------------------------------------------------------
+
+const FUNDAMENTALS_STALE_TIME = 1000 * 60 * 30
+// 1 カード分の per-ticker fetch 上限。カテゴリ未選択時に注目企業全件を引かないよう抑制する。
+const FUNDAMENTALS_MAX_TICKERS = 12
+
+export interface FundamentalsItem {
+  ticker: string
+  name: string
+  data?: FinancialFundamentals
+}
+
+/**
+ * 企業群（カテゴリ絞り込み済みの注目企業を想定）の財務ファンダメンタルズ時系列を per-ticker で取得する。
+ * `useTickerStocks` と同じ流儀: hooks 数を一定に保つため常に呼び出し、`enabled` で fetch を制御する。
+ * 取得対象は ticker を持つ企業の先頭 `max` 件に制限する（過剰 fetch 抑制）。
+ */
+export function useTickerFundamentals(
+  companies: Company[],
+  options?: { enabled?: boolean; max?: number },
+) {
+  const enabled = options?.enabled ?? true
+  const max = options?.max ?? FUNDAMENTALS_MAX_TICKERS
+  const tickerCompanies = companies
+    .filter((c): c is Company & { ticker: string } => !!c.ticker)
+    .slice(0, max)
+  const queries = useQueries({
+    queries: tickerCompanies.map(c => ({
+      queryKey: ['financial-fundamentals', c.ticker],
+      queryFn: () => fetchFinancialFundamentals(c.ticker),
+      staleTime: FUNDAMENTALS_STALE_TIME,
+      retry: 1,
+      enabled,
+    })),
+  })
+  const items: FundamentalsItem[] = tickerCompanies.map((c, i) => ({
+    ticker: c.ticker,
+    name: c.name,
+    data: queries[i]?.data,
+  }))
+  return { tickerCompanies, queries, items }
+}
+
+export interface ResearchPerformancePoint {
+  year: number
+  revenue: number
+  grossMarginPct: number | null
+  rndRatioPct: number | null
+}
+
+/**
+ * G1: 構成企業の財務時系列を年次で集計し「研究→業績」連鎖の系列を作る。
+ * 売上=合計, 粗利率%=Σ粗利/Σ売上, R&D比率%=ΣR&D/Σ売上。GRAPH_FROM_YEAR(2009) 以降のみ。
+ */
+export function buildResearchPerformanceSeries(items: FundamentalsItem[]): ResearchPerformancePoint[] {
+  const rev = new Map<number, number>()
+  const gp = new Map<number, number>()
+  const rnd = new Map<number, number>()
+  for (const it of items) {
+    const points = it.data?.points
+    if (!points) continue
+    for (const p of points) {
+      const v = p.values ?? {}
+      if (typeof v.revenue === 'number') rev.set(p.year, (rev.get(p.year) ?? 0) + v.revenue)
+      if (typeof v.gross_profit === 'number') gp.set(p.year, (gp.get(p.year) ?? 0) + v.gross_profit)
+      if (typeof v.rnd === 'number') rnd.set(p.year, (rnd.get(p.year) ?? 0) + v.rnd)
+    }
+  }
+  const years = [...rev.keys()].filter(y => y >= GRAPH_FROM_YEAR).sort((a, b) => a - b)
+  return years.map(y => {
+    const r = rev.get(y) ?? 0
+    const g = gp.get(y)
+    const rd = rnd.get(y)
+    return {
+      year: y,
+      revenue: r,
+      grossMarginPct: g != null && r > 0 ? (g / r) * 100 : null,
+      rndRatioPct: rd != null && r > 0 ? (rd / r) * 100 : null,
+    }
+  })
+}
+
+export interface RnDIntensityPoint {
+  name: string
+  rndRatio: number
+  growth: number
+  revenue: number
+}
+
+/**
+ * G2: 企業ごとの R&D集約度 散布図ポイント。
+ * X=R&D/売上比率(%), Y=時価総額成長率(株価騰落率%で近似), バブル径=売上規模。
+ * 最新の「売上>0 かつ R&D あり」年を採用。株価系列が無い企業は除外。
+ */
+export function buildRnDIntensityPoints(
+  items: FundamentalsItem[],
+  stockItems: StockItem[],
+): RnDIntensityPoint[] {
+  const growthByTicker = new Map<string, number>()
+  for (const si of stockItems) {
+    if (si.stock && !si.stock.error && si.stock.prices.length > 1) {
+      const g = pctReturn(si.stock.prices)
+      if (g != null) growthByTicker.set(si.ticker, g)
+    }
+  }
+  const out: RnDIntensityPoint[] = []
+  for (const it of items) {
+    const points = it.data?.points
+    if (!points || points.length === 0) continue
+    const sorted = [...points].sort((a, b) => b.year - a.year)
+    const chosen = sorted.find(p => {
+      const v = p.values ?? {}
+      return typeof v.revenue === 'number' && v.revenue > 0 && typeof v.rnd === 'number'
+    })
+    if (!chosen) continue
+    const v = chosen.values
+    const growth = growthByTicker.get(it.ticker)
+    if (growth == null) continue
+    out.push({
+      name: it.name,
+      rndRatio: (v.rnd / v.revenue) * 100,
+      growth,
+      revenue: v.revenue,
+    })
+  }
+  return out
 }

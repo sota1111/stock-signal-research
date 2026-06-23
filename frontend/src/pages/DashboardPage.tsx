@@ -9,9 +9,11 @@ import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
 import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsChart'
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
+import ResearchToPerformanceChart from '../components/charts/ResearchToPerformanceChart'
+import RnDIntensityScatter from '../components/charts/RnDIntensityScatter'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
-import { useDashboardQuery, useAllThemes, useTickerStocks, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -67,6 +69,15 @@ export default function DashboardPage() {
   // クロス分析が使う実効時価総額系列: scoped があればそれ、無ければグローバルにフォールバック。
   const crossMarketCapYearly =
     scopedMarketCapYearly.length > 0 ? scopedMarketCapYearly : globalMarketCapYearly
+
+  // 財務ファンダメンタルズ（SOT-1126 子1 / G1・G2）。選択中の大カテゴリに属する企業（未選択時は全注目企業）
+  // の財務時系列を per-ticker で取得し、研究→業績連鎖（集計）と R&D集約度散布図を描く。
+  // hooks 数を一定に保つためガード(return)より前で呼ぶ。
+  const { items: fundamentalsItems, queries: fundamentalsQueries } = useTickerFundamentals(scopedCompanies)
+  const researchPerformance = buildResearchPerformanceSeries(fundamentalsItems)
+  const rndIntensityPoints = buildRnDIntensityPoints(fundamentalsItems, stockItems)
+  const isFundamentalsLoading =
+    fundamentalsQueries.some(q => q.isLoading || q.isFetching) && researchPerformance.length === 0
 
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
@@ -155,6 +166,8 @@ export default function DashboardPage() {
   const filteredPaperCounts = paperCounts.filter(c => inRange(c.year))
   const filteredMarketCapYearly = marketCapYearly.filter(m => inRange(m.year))
   const filteredMarketCapByCompanyData = marketCapByCompany.data.filter(d => inRange(d.year))
+  // G1: 研究→業績連鎖は年レンジ選択にも追随させる（散布図 G2 は最新年スナップショットなので非追随）。
+  const filteredResearchPerformance = researchPerformance.filter(r => inRange(r.year))
   const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
 
   // クロス分析（指数）の基準年セレクタ（SOT-1014）。
@@ -219,6 +232,8 @@ export default function DashboardPage() {
   const CARDS: { id: string; label: string }[] = [
     { id: 'cross', label: t('chart.cross.title') },
     { id: 'papers', label: t('chart.papers.title') },
+    { id: 'research', label: t('chart.research.title') },
+    { id: 'rndScatter', label: t('chart.rndScatter.title') },
     { id: 'categoryAvg', label: t('chart.categoryAvg.title') },
     { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
@@ -409,6 +424,42 @@ export default function DashboardPage() {
               <p>{t('chart.papers.empty')}</p>
               <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
             </div>
+          )}
+        </ChartCard>
+        )}
+
+        {/* G1 研究→業績 連鎖チャート（財務ファンダメンタルズ集計, SOT-1126 子1） */}
+        {isCardVisible('research') && (
+        <ChartCard
+          title={t('chart.research.title')}
+          subtitle={`${t('chart.research.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
+        >
+          {isFundamentalsLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('chart.research.loading')}</p>
+            </div>
+          ) : (
+            <ResearchToPerformanceChart data={filteredResearchPerformance} />
+          )}
+        </ChartCard>
+        )}
+
+        {/* G2 R&D集約度 散布図（SOT-1126 子1） */}
+        {isCardVisible('rndScatter') && (
+        <ChartCard
+          title={t('chart.rndScatter.title')}
+          subtitle={`${t('chart.rndScatter.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
+          actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
+        >
+          {isFundamentalsLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('chart.research.loading')}</p>
+            </div>
+          ) : (
+            <RnDIntensityScatter points={rndIntensityPoints} />
           )}
         </ChartCard>
         )}
