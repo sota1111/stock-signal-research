@@ -9,6 +9,7 @@ import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
 import PrecursorOverlayLine from '../components/charts/PrecursorOverlayLine'
 import PrecursorScoreBreakdown from '../components/charts/PrecursorScoreBreakdown'
 import ThemeMomentumScatter, { type ThemeMomentumPoint } from '../components/charts/ThemeMomentumScatter'
+import SignalTimeline from '../components/charts/SignalTimeline'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import { GRAPH_FROM_YEAR } from './dashboardData'
@@ -224,6 +225,23 @@ export default function SignalDetectionPage() {
             <ThemeMomentumScatter points={momentumPoints} />
           )}
         </ChartCard>
+      </section>
+
+      {/* === 前兆→その後タイムライン（案D, SOT-1162）: 選択テーマの発火月＋発火後追従 === */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">{t('signals.signalTimeline.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('signals.signalTimeline.subtitle')}</p>
+        </div>
+        <ChartCard title={t('signals.signalTimeline.title')}>
+          <SignalTimeline data={overlayMonthly ?? []} />
+        </ChartCard>
+        <div className="flex flex-col gap-1">
+          <Link to="/evaluation" className="text-sm font-medium text-sky-700 hover:underline">
+            {t('signals.signalTimeline.evaluationCta')}
+          </Link>
+          <p className="text-xs text-muted-foreground">{t('signals.signalTimeline.evaluationNote')}</p>
+        </div>
       </section>
 
       {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
