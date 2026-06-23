@@ -20,7 +20,6 @@ const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
 const ListPage = lazy(() => import('./pages/ListPage'))
 const DetailPage = lazy(() => import('./pages/DetailPage'))
 const InputPage = lazy(() => import('./pages/InputPage'))
-const EvaluationPage = lazy(() => import('./pages/EvaluationPage'))
 const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
 const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage'))
 const ResearchHubPage = lazy(() => import('./pages/ResearchHubPage'))
@@ -51,7 +50,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/stock', label: 'nav.stock' },
   { to: '/investors', label: 'nav.investors' },
   { to: '/candidates', label: 'nav.candidates' },
-  { to: '/evaluation', label: 'nav.evaluation' },
   { to: '/list', label: 'nav.list' },
   { to: '/input', label: 'nav.input' },
   { to: '/research-seeds', label: 'nav.researchSeeds' },
@@ -155,7 +153,8 @@ function AppLayout() {
               <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
               <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
               <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
-              <Route path="/evaluation" element={<PrivateRoute><EvaluationPage /></PrivateRoute>} />
+              {/* SOT-1147: 一致度評価ページは投資候補ページへ統合。旧URLは /candidates へリダイレクト。 */}
+              <Route path="/evaluation" element={<Navigate to="/candidates" replace />} />
               <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
               <Route path="/supply-chain" element={<PrivateRoute><SupplyChainPage /></PrivateRoute>} />
             </Routes>
