@@ -6,9 +6,11 @@ import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
+import PrecursorOverlayLine from '../components/charts/PrecursorOverlayLine'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import { GRAPH_FROM_YEAR } from './dashboardData'
+import { aggregateMonthly, computePrecursorBreakdown } from './precursorScore'
 import { useI18n } from '../i18n/useI18n'
 
 // SOT-945/SOT-987/SOT-1069: keep the paper graph on the same 2009 history floor as DashboardPage.
@@ -37,6 +39,17 @@ export default function SignalDetectionPage() {
     enabled: !!data,
   })
 
+  // SOT-1159 (案A): 前兆判定オーバーレイ。選択テーマの月次系列を取得し加点根拠を可視化する。
+  const [selectedThemeId, setSelectedThemeId] = useState('')
+  const overlayThemeId = selectedThemeId || data?.trending_themes?.[0]?.id || ''
+  const { data: overlayMonthly } = useQuery({
+    queryKey: ['precursor-monthly', overlayThemeId],
+    queryFn: () => fetchMonthlyData(overlayThemeId),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+    enabled: !!data && !!overlayThemeId,
+  })
+
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
       <span className="h-8 w-8 mb-3 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
@@ -56,6 +69,10 @@ export default function SignalDetectionPage() {
   data.alignment_highlights?.high_alignment?.forEach(item => alignmentMap.set(item.theme.id, item.score))
   // 閾値フィルタ後の急増テーマ（/signals-2）。
   const filteredThemes = data.trending_themes.filter(theme => theme.precursor_score >= minScore)
+
+  // SOT-1159 (案A): 選択テーマの前兆スコア加点内訳（フロントで scoring.py を再現）。
+  const overlaySeries = aggregateMonthly(overlayMonthly ?? [])
+  const overlayBreakdown = computePrecursorBreakdown(overlaySeries)
 
   return (
     <div className="space-y-8">
@@ -111,6 +128,42 @@ export default function SignalDetectionPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* === 前兆判定オーバーレイ（案A, SOT-1159）: 加点根拠を月次折れ線に重ね描き === */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{t('signals.precursorOverlay.title')}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('signals.precursorOverlay.subtitle')}</p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {t('signals.precursorOverlay.selectTheme')}
+            <select
+              value={overlayThemeId}
+              onChange={e => setSelectedThemeId(e.target.value)}
+              className="rounded border border-border bg-surface px-2 py-1 text-sm text-foreground"
+            >
+              {data.trending_themes.map(theme => (
+                <option key={theme.id} value={theme.id}>{theme.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <ChartCard
+          title={
+            overlayBreakdown.total > 0
+              ? t('signals.precursorOverlay.formula', {
+                  total: overlayBreakdown.total,
+                  mom: `+${overlayBreakdown.momPoints}`,
+                  streak: `+${overlayBreakdown.streakPoints}`,
+                })
+              : t('signals.precursorOverlay.noSignal')
+          }
+          subtitle={t('signals.precursorOverlay.thresholdNote')}
+        >
+          <PrecursorOverlayLine data={overlayMonthly ?? []} />
+        </ChartCard>
       </section>
 
       {data.alignment_highlights && (data.alignment_highlights.high_alignment?.length > 0 || data.alignment_highlights.paper_only?.length > 0) && (
