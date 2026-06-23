@@ -114,7 +114,7 @@ export default function DetailPage() {
           <span className="text-gray-300" aria-hidden>→</span>
           <Link to={`/stock?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-foreground hover:bg-surface-muted">{t('nav.stock')}</Link>
           <span className="text-gray-300" aria-hidden>→</span>
-          <Link to={`/evaluation?theme=${encodeURIComponent(theme.name)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-foreground hover:bg-surface-muted">{t('nav.evaluation')}</Link>
+          <Link to="/candidates" className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-foreground hover:bg-surface-muted">{t('nav.evaluation')}</Link>
         </div>
       </section>
 

@@ -5,6 +5,9 @@ import { toMonthly } from '../components/charts/chartUtils'
 /** リードラグ分析で評価するラグ（月数）。 */
 export const LEAD_LAG_BUCKETS = [1, 3, 6, 12]
 
+/** 論文増加率の算出方法: 前月比(MoM) / 前年比(YoY, 12か月前との比)。 */
+export type GrowthMode = 'mom' | 'yoy'
+
 export interface MonthlyPoint {
   ym: string // YYYY-MM
   value: number
@@ -85,6 +88,7 @@ export function computeLeadLag(
   paperMonthly: MonthlyPoint[],
   stockMonthly: MonthlyPoint[],
   lags: number[] = LEAD_LAG_BUCKETS,
+  growthMode: GrowthMode = 'mom',
 ): { results: LeadLagResult[]; bestLag: number | null } {
   const stockByYm = new Map(stockMonthly.map(p => [p.ym, p.value]))
   // 両系列にデータがある月のみ、昇順で採用する。
@@ -94,19 +98,20 @@ export function computeLeadLag(
   const paper = months.map(ym => paperByYm.get(ym)!)
   const stock = months.map(ym => stockByYm.get(ym)!)
 
-  // 論文の前月比成長率（MoM）。
+  // 論文の成長率: 前月比(MoM, span=1) または 前年比(YoY, span=12)。
+  const span = growthMode === 'yoy' ? 12 : 1
   const growth: number[] = []
-  for (let i = 1; i < paper.length; i++) {
-    const prev = paper[i - 1]
+  for (let i = span; i < paper.length; i++) {
+    const prev = paper[i - span]
     growth[i] = prev > 0 ? (paper[i] - prev) / prev : 0
   }
 
   const results: LeadLagResult[] = lags.map(lag => {
     const xs: number[] = []
     const ys: number[] = []
-    for (let i = 1; i + lag < stock.length; i++) {
+    for (let i = span; i + lag < stock.length; i++) {
       const base = stock[i]
-      if (!base) continue
+      if (!base || growth[i] === undefined) continue
       const fwd = (stock[i + lag] - base) / base
       xs.push(growth[i])
       ys.push(fwd)
