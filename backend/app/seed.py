@@ -115,6 +115,11 @@ def run_seed():
                     report_date=rec.get("report_date"),
                     report_type=rec.get("report_type", "13F"),
                     notes=rec.get("notes"),
+                    cusip=rec.get("cusip"),
+                    ticker=rec.get("ticker"),
+                    shares=rec.get("shares"),
+                    value_usd=rec.get("value_usd"),
+                    quarter_delta=rec.get("quarter_delta"),
                 ))
         else:
             investors_data = [
@@ -943,6 +948,11 @@ def seed_investors_firestore():
                 "report_date": rec.get("report_date"),
                 "report_type": rec.get("report_type", "13F"),
                 "notes": rec.get("notes"),
+                "cusip": rec.get("cusip"),
+                "ticker": rec.get("ticker"),
+                "shares": rec.get("shares"),
+                "value_usd": rec.get("value_usd"),
+                "quarter_delta": rec.get("quarter_delta"),
             }
             if repo.save(data):
                 seeded += 1
