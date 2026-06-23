@@ -10,6 +10,7 @@ import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsCh
 import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
+import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
 import { useDashboardQuery, useAllThemes, useTickerStocks, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
@@ -331,6 +332,7 @@ export default function DashboardPage() {
         <ChartCard
           title={t('chart.cross.title')}
           subtitle={`${t('dashboard.themeLabel')}: ${reportQuery}`}
+          actions={<DataProvenanceBadge kind="approx" note={t('provenance.cross.note')} asOf={lastAnalyzed} />}
         >
           {isCrossLoading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
@@ -350,6 +352,7 @@ export default function DashboardPage() {
           subtitle={`${t('dashboard.categoryLabel')}: ${effectiveCategory || t('dashboard.allCategories')}${
             effStart != null && effEnd != null ? ` / ${effStart}–${effEnd}` : ''
           }`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} asOf={lastAnalyzed} />}
         >
           {effectiveCategory ? (
             categoryPaperCounts && categoryPaperCounts.series.length > 0 ? (
@@ -386,6 +389,7 @@ export default function DashboardPage() {
         <ChartCard
           title={t('chart.categoryAvg.title')}
           subtitle={t('chart.categoryAvg.subtitle')}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allCategories')} />}
         >
           {categoryAverages ? (
             <CategoryAvgPapersChart data={categoryAverages} fromYear={effStart} toYear={effEnd} />
@@ -403,6 +407,7 @@ export default function DashboardPage() {
         <ChartCard
           title={t('chart.topMarketCap.title', { n: TOP_N })}
           subtitle={`${t('chart.topMarketCap.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
+          actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} />}
         >
           <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
         </ChartCard>
@@ -413,6 +418,7 @@ export default function DashboardPage() {
         <ChartCard
           title={t('chart.citationMatrix.title')}
           subtitle={`${t('chart.citationMatrix.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
         >
           {displayCitationMatrix ? (
             <ThemeCitationMatrix data={displayCitationMatrix} />
@@ -423,9 +429,12 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <p className="text-xs text-gray-400 border-t pt-4">
-        {t('dashboard.disclaimer')}
-      </p>
+      <div className="border-t pt-4 space-y-2">
+        <DataProvenanceLegend />
+        <p className="text-xs text-gray-400">
+          {t('dashboard.disclaimer')}
+        </p>
+      </div>
     </div>
   )
 }
