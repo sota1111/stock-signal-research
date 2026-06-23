@@ -14,8 +14,6 @@ import RouteErrorBoundary from './components/RouteErrorBoundary'
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const StatusPage = lazy(() => import('./pages/StatusPage'))
 const StockPage = lazy(() => import('./pages/StockPage'))
-const PapersPage = lazy(() => import('./pages/PapersPage'))
-const PatentsPage = lazy(() => import('./pages/PatentsPage'))
 const InvestorsPage = lazy(() => import('./pages/InvestorsPage'))
 const InvestmentCandidatesPage = lazy(() => import('./pages/InvestmentCandidatesPage'))
 const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
@@ -25,6 +23,7 @@ const InputPage = lazy(() => import('./pages/InputPage'))
 const EvaluationPage = lazy(() => import('./pages/EvaluationPage'))
 const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
 const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage'))
+const ResearchHubPage = lazy(() => import('./pages/ResearchHubPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -47,9 +46,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', end: true },
   { to: '/signals', label: 'nav.signals' },
   { to: '/supply-chain', label: 'nav.supplyChain' },
-  { to: '/list?tab=themes', label: 'nav.themes' },
-  { to: '/papers', label: 'nav.papers' },
-  { to: '/patents', label: 'nav.patents' },
+  // テーマ・論文・特許を統一ページに集約（SOT-1145）。旧 themes/papers/patents の3項目を1つに。
+  { to: '/research', label: 'nav.research' },
   { to: '/stock', label: 'nav.stock' },
   { to: '/investors', label: 'nav.investors' },
   { to: '/candidates', label: 'nav.candidates' },
@@ -147,8 +145,10 @@ function AppLayout() {
               <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
               <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
               <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
-              <Route path="/papers" element={<PrivateRoute><PapersPage /></PrivateRoute>} />
-              <Route path="/patents" element={<PrivateRoute><PatentsPage /></PrivateRoute>} />
+              <Route path="/research" element={<PrivateRoute><ResearchHubPage /></PrivateRoute>} />
+              {/* 旧ルートは統一ページ(SOT-1145)へリダイレクトし、ディープリンク/既存導線を維持する。 */}
+              <Route path="/papers" element={<Navigate to="/research?tab=papers" replace />} />
+              <Route path="/patents" element={<Navigate to="/research?tab=patents" replace />} />
               <Route path="/investors" element={<PrivateRoute><InvestorsPage /></PrivateRoute>} />
               <Route path="/candidates" element={<PrivateRoute><InvestmentCandidatesPage /></PrivateRoute>} />
               <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
