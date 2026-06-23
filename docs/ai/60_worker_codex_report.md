@@ -1,50 +1,41 @@
 # Worker Report
 
 ## Summary
-Initial task check for SOT-1137「文字の色」(背景が黒→白文字 / 白→黒文字).
-**Worker non-response: Codex CLI exited 75 (usage-limit cooldown, until epoch 1782609660).**
-Per Worker Non-Response Fallback Policy, Claude Code performed this task check directly.
+SOT-1146 is ACTIONABLE. Task check performed by Claude Code under the Worker Non-Response Fallback Policy because Codex was non-responsive.
 
-Verdict: **actionable, no decomposition needed** (single cohesive frontend contrast fix).
+- Non-responsive worker: Codex (`scripts/ai/run_codex.sh`)
+- Detected failure mode: usage-limit cooldown — exited with dedicated non-response code `75` (CODEX_COOLDOWN_ACTIVE).
+- Action: Claude Code performed the read-only task check directly.
 
-Root cause: the frontend has a half-finished design-token system. `frontend/src/index.css` defines
-surface tokens (`--surface`, `--surface-muted`) that auto-swap light↔dark via
-`@media (prefers-color-scheme: dark)` and `.theme-dark`, but there is **no `--foreground` (text)
-token**. Text colors are hardcoded everywhere as `text-gray-*` / `text-slate-*` (dark grays), and
-backgrounds are mostly hardcoded `bg-white`. Only `ChartCard.tsx` uses `bg-surface` (which becomes
-near-black `#161b22` in dark mode) — so its dark hardcoded text renders dark-on-dark. The app shell
-(`App.tsx`) is hardcoded `bg-slate-50 text-slate-800`. Net effect under a dark OS/browser:
-inconsistent, low-contrast text (dark text on dark surface) — exactly the user's complaint.
+The issue requires reworking `frontend/src/pages/InvestorsPage.tsx` to show ONLY per-investor pie charts and remove all other sections.
 
 ## Changed Files
-- none (task check only)
+- none (read-only task check)
 
 ## Commands Run
-- `grep -rhoE "(text|bg)-(white|black|gray|slate|...)-[0-9]+" src` → bg-white×87, text-gray-500×89,
-  text-gray-700×85, text-gray-400×67, text-gray-600×55, text-gray-800×32, text-white×25, etc.
-- `grep -rho "bg-surface" src` → only 2 occurrences (ChartCard.tsx)
-- Read `frontend/src/index.css` (no `--foreground` token), `tailwind.config.*`, `App.tsx`
+- git status, ls frontend/src/pages, read of InvestorsPage.tsx and HoldingsConcentrationPie.tsx
 
 ## Findings
-- Repo uses CSS-var tokens for surfaces/brand but NOT for text → text contrast is not theme-aware.
-- Key files: `frontend/src/index.css` (tokens), `frontend/tailwind.config.*` (token→class mapping),
-  `frontend/src/App.tsx` (shell `bg-slate-50 text-slate-800`), `frontend/src/components/**`,
-  `frontend/src/pages/**` (hardcoded `text-gray-*` / `bg-white`).
-- Recommended minimal fix (mirrors sibling-repo playbook): add swapping text tokens
-  `--foreground` / `--muted-foreground` / `--border` to `index.css` (light = near-black,
-  dark = near-white), expose as tailwind `foreground` / `muted-foreground` / `border`, set a base
-  `body { background: var(--surface-muted); color: var(--foreground); }`, then sweep hardcoded
-  `bg-white`→`bg-surface`, `text-gray-700/800/900`→`text-foreground`,
-  `text-gray-400/500/600`→`text-muted-foreground`, app shell to token classes. Keep brand/up/down
-  semantic colors. Guarantees: black bg→white text, white bg→black text in both themes.
+- InvestorsPage.tsx exists. Sections present (all but the per-investor pie are to be removed):
+  - 機関投資家 13F 保有テーブル — REMOVE
+  - 保有推移（四半期）HoldingsTrendLines — REMOVE
+  - 保有集中度 HoldingsConcentrationPie (企業別・全体集計1枚) — REPLACE with per-investor pies
+  - 投資家 → 企業 関係 — REMOVE
+  - 注目企業 TOP5 — REMOVE
+  - サプライチェーン連鎖 + 連鎖図 SupplyChainGraphView — REMOVE
+- Investors data (fetchInvestors) fields: investor_name, company_name/company_id, ticker, shares, value_usd, ownership_pct, change_pct, quarter_delta, report_date. Enough to build a per-investor pie: group by investor_name, latest report per (investor, company), slice by company, weight by value_usd (fallback ownership_pct).
+- Reusable pie: HoldingsConcentrationPie.tsx uses recharts PieChart/Pie/Cell/Tooltip/Legend/ResponsiveContainer, TOP_N=8 + "その他" aggregation, SERIES_COLORS.
+- i18n: investors.* keys exist in frontend/src/i18n/messages.ts.
+- Quality gate scripts: to be confirmed by implementer from frontend/package.json.
 
-## Acceptance Criteria
-- [x] Issue is actionable
-- [x] Black background → white text; white background → black text scope identified (files/lines)
+## Acceptance Criteria (derived; issue has none explicit)
+- [ ] 投資家ページが投資家ごとの円グラフのみで構成される
+- [ ] 13Fテーブル / 保有推移 / 投資家→企業関係 / 注目企業TOP5 / サプライチェーン連鎖（連鎖図含む）が削除される
+- [ ] lint / typecheck / build が pass
 
 ## Risks
-- Broad sweep across many components; risk of visual regression. Mitigate by tokenizing rather than
-  per-element edits, and verifying both light and forced-dark (`.theme-dark`) render.
+- value_usd が null の投資家は ownership_pct にフォールバック。
+- 削除で未使用 import が残ると lint/typecheck エラー → 確実に除去すること。
 
 ## Next Action
 READY_FOR_REVIEW
