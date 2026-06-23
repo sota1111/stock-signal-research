@@ -132,10 +132,14 @@ export default function InvestorsPage() {
                 <tr>
                   <th className="px-4 py-2 text-left">{t('list.col.investorName')}</th>
                   <th className="px-4 py-2 text-left">{t('investors.col.company')}</th>
+                  <th className="px-4 py-2 text-left">{t('investors.col.ticker')}</th>
+                  <th className="px-4 py-2 text-left">{t('investors.col.cusip')}</th>
+                  <th className="px-4 py-2 text-right">{t('investors.col.shares')}</th>
+                  <th className="px-4 py-2 text-right">{t('investors.col.value')}</th>
                   <th className="px-4 py-2 text-right">{t('list.col.ownership')}</th>
                   <th className="px-4 py-2 text-right">{t('list.col.change')}</th>
+                  <th className="px-4 py-2 text-right">{t('investors.col.quarterDelta')}</th>
                   <th className="px-4 py-2 text-left">{t('list.col.reportDate')}</th>
-                  <th className="px-4 py-2 text-left">{t('investors.col.shares')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,12 +147,21 @@ export default function InvestorsPage() {
                   <tr key={inv.id} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-2 font-medium" data-label={t('list.col.investorName')}>{inv.investor_name}</td>
                     <td className="px-4 py-2" data-label={t('investors.col.company')}>{inv.company_name ?? '-'}</td>
+                    <td className="px-4 py-2 text-gray-600" data-label={t('investors.col.ticker')}>{inv.ticker ?? '—'}</td>
+                    <td className="px-4 py-2 text-gray-500 font-mono text-xs" data-label={t('investors.col.cusip')}>{inv.cusip ?? '—'}</td>
+                    <td className="px-4 py-2 text-right" data-label={t('investors.col.shares')}>{inv.shares != null ? inv.shares.toLocaleString() : '—'}</td>
+                    <td className="px-4 py-2 text-right text-gray-600" data-label={t('investors.col.value')}>{inv.value_usd != null ? `$${Math.round(inv.value_usd).toLocaleString()}` : '—'}</td>
                     <td className="px-4 py-2 text-right" data-label={t('list.col.ownership')}>{inv.ownership_pct.toFixed(2)}%</td>
                     <td className={`px-4 py-2 text-right ${inv.change_pct >= 0 ? 'text-green-600' : 'text-red-600'}`} data-label={t('list.col.change')}>
                       {inv.change_pct >= 0 ? '+' : ''}{inv.change_pct.toFixed(2)}%
                     </td>
+                    <td
+                      className={`px-4 py-2 text-right ${inv.quarter_delta == null || inv.quarter_delta === 0 ? 'text-gray-400' : inv.quarter_delta > 0 ? 'text-green-600' : 'text-red-600'}`}
+                      data-label={t('investors.col.quarterDelta')}
+                    >
+                      {inv.quarter_delta == null ? '—' : `${inv.quarter_delta > 0 ? '+' : ''}${inv.quarter_delta.toLocaleString()}`}
+                    </td>
                     <td className="px-4 py-2 text-gray-500" data-label={t('list.col.reportDate')}>{inv.report_date}</td>
-                    <td className="px-4 py-2 text-gray-500" data-label={t('investors.col.shares')}>{inv.notes ?? '-'}</td>
                   </tr>
                 ))}
               </tbody>

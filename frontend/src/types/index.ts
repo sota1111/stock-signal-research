@@ -93,6 +93,12 @@ export interface InstitutionalInvestor {
   report_type: string
   notes?: string
   company_name?: string | null
+  // SOT-1120: 13F の保有内訳を独立フィールドで保持。
+  cusip?: string
+  ticker?: string
+  shares?: number
+  value_usd?: number
+  quarter_delta?: number
 }
 
 export interface DashboardData {

@@ -151,6 +151,12 @@ class InstitutionalInvestorBase(BaseModel):
     report_date: str
     report_type: str
     notes: Optional[str] = None
+    # SOT-1120: 13F の保有内訳を独立フィールドで公開する。
+    cusip: Optional[str] = None
+    ticker: Optional[str] = None
+    shares: Optional[int] = None
+    value_usd: Optional[float] = None
+    quarter_delta: Optional[int] = None
 
 
 class InstitutionalInvestorCreate(InstitutionalInvestorBase):

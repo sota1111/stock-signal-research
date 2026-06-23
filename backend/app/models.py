@@ -113,6 +113,12 @@ class InstitutionalInvestor(Base):
     report_date = Column(String)
     report_type = Column(String)
     notes = Column(String)
+    # SOT-1120: 13F の保有内訳を notes 文字列に潰さず独立カラムで保持する。
+    cusip = Column(String)
+    ticker = Column(String)
+    shares = Column(Integer)        # 保有株数
+    value_usd = Column(Float)       # 評価額(USD)
+    quarter_delta = Column(Integer)  # 前期(四半期)比の保有株数の符号付き差分。初回は0。
 
 
 class ExternalInfo(Base):

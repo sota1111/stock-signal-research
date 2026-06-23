@@ -56,6 +56,10 @@ async def lifespan(app: FastAPI):
     app_env = os.getenv("APP_ENV", "local")
     if app_env in ("local", "test"):
         Base.metadata.create_all(bind=engine)
+        # SOT-1120: create_all は既存テーブルに新カラムを追加しないため、永続SQLiteに対し
+        # 13F の追加カラムを冪等にALTERで補う(無ければ何もしない)。
+        from .migrations import ensure_investor_schema
+        ensure_investor_schema(engine)
         seed.run_seed()
     else:
         # production: SQLiteは初期化しない。Firestore接続確認＋初期データ投入(冪等)。
