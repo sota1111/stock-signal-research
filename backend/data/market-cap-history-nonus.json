@@ -1,0 +1,771 @@
+{
+  "005930.KS": {
+    "name": "Samsung Electronics Co., Ltd.",
+    "currency": "KRW",
+    "exchange": "KRX",
+    "provenance": "approx",
+    "mcap_yearly": [
+      {
+        "year": 2009,
+        "market_cap": 63991172736.28,
+        "close": 11696.5684,
+        "shares": 6297593996.61,
+        "fx_rate": 1151.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2010,
+        "market_cap": 78532189495.55,
+        "close": 14055.1504,
+        "shares": 6297593996.61,
+        "fx_rate": 1127.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2011,
+        "market_cap": 85859214139.62,
+        "close": 15752.3232,
+        "shares": 6297593996.61,
+        "fx_rate": 1155.4,
+        "currency": "KRW"
+      },
+      {
+        "year": 2012,
+        "market_cap": 138234545652.56,
+        "close": 22786.6836,
+        "shares": 6297593996.61,
+        "fx_rate": 1038.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2013,
+        "market_cap": 123959790210.93,
+        "close": 20752.498,
+        "shares": 6297593996.61,
+        "fx_rate": 1054.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2014,
+        "market_cap": 117139156950.4,
+        "close": 20373.2598,
+        "shares": 6297593996.61,
+        "fx_rate": 1095.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2015,
+        "market_cap": 105387734047.26,
+        "close": 19670.5215,
+        "shares": 6297593996.61,
+        "fx_rate": 1175.44,
+        "currency": "KRW"
+      },
+      {
+        "year": 2016,
+        "market_cap": 149256900076.58,
+        "close": 28589.1133,
+        "shares": 6297593996.61,
+        "fx_rate": 1206.26,
+        "currency": "KRW"
+      },
+      {
+        "year": 2017,
+        "market_cap": 243059247428.19,
+        "close": 41157.5469,
+        "shares": 6297593996.61,
+        "fx_rate": 1066.38,
+        "currency": "KRW"
+      },
+      {
+        "year": 2018,
+        "market_cap": 181967721044.07,
+        "close": 32255.2656,
+        "shares": 6297593996.61,
+        "fx_rate": 1116.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2019,
+        "market_cap": 260801405416.56,
+        "close": 47887.7656,
+        "shares": 6297593996.61,
+        "fx_rate": 1156.35,
+        "currency": "KRW"
+      },
+      {
+        "year": 2020,
+        "market_cap": 421501426211.87,
+        "close": 72714.6875,
+        "shares": 6297593996.61,
+        "fx_rate": 1086.42,
+        "currency": "KRW"
+      },
+      {
+        "year": 2021,
+        "market_cap": 378815078022.11,
+        "close": 71574.6797,
+        "shares": 6297593996.61,
+        "fx_rate": 1189.89,
+        "currency": "KRW"
+      },
+      {
+        "year": 2022,
+        "market_cap": 258690669387.7,
+        "close": 51795.2812,
+        "shares": 6297593996.61,
+        "fx_rate": 1260.91,
+        "currency": "KRW"
+      },
+      {
+        "year": 2023,
+        "market_cap": 365442499898.52,
+        "close": 75062.1328,
+        "shares": 6297593996.61,
+        "fx_rate": 1293.53,
+        "currency": "KRW"
+      },
+      {
+        "year": 2024,
+        "market_cap": 223036015406.87,
+        "close": 51969.1836,
+        "shares": 6297593996.61,
+        "fx_rate": 1467.39,
+        "currency": "KRW"
+      },
+      {
+        "year": 2025,
+        "market_cap": 524039670073.05,
+        "close": 119652.3438,
+        "shares": 6297593996.61,
+        "fx_rate": 1437.91,
+        "currency": "KRW"
+      },
+      {
+        "year": 2026,
+        "market_cap": 1452363076260.66,
+        "close": 354000.0,
+        "shares": 6297593996.61,
+        "fx_rate": 1534.98,
+        "currency": "KRW"
+      }
+    ]
+  },
+  "000660.KS": {
+    "name": "SK hynix Inc.",
+    "currency": "KRW",
+    "exchange": "KRX",
+    "provenance": "approx",
+    "mcap_yearly": [
+      {
+        "year": 2009,
+        "market_cap": 12301795882.66,
+        "close": 19699.1328,
+        "shares": 718843686.38,
+        "fx_rate": 1151.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2010,
+        "market_cap": 13190267274.26,
+        "close": 20681.4785,
+        "shares": 718843686.38,
+        "fx_rate": 1127.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2011,
+        "market_cap": 11768117881.45,
+        "close": 18914.9375,
+        "shares": 718843686.38,
+        "fx_rate": 1155.4,
+        "currency": "KRW"
+      },
+      {
+        "year": 2012,
+        "market_cap": 15365365783.84,
+        "close": 22189.5059,
+        "shares": 718843686.38,
+        "fx_rate": 1038.1,
+        "currency": "KRW"
+      },
+      {
+        "year": 2013,
+        "market_cap": 21621628718.21,
+        "close": 31711.5996,
+        "shares": 718843686.38,
+        "fx_rate": 1054.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2014,
+        "market_cap": 27178538912.75,
+        "close": 41411.8594,
+        "shares": 718843686.38,
+        "fx_rate": 1095.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2015,
+        "market_cap": 16577359597.81,
+        "close": 27106.9941,
+        "shares": 718843686.38,
+        "fx_rate": 1175.44,
+        "currency": "KRW"
+      },
+      {
+        "year": 2016,
+        "market_cap": 23794867280.37,
+        "close": 39929.1211,
+        "shares": 718843686.38,
+        "fx_rate": 1206.26,
+        "currency": "KRW"
+      },
+      {
+        "year": 2017,
+        "market_cap": 46695507964.07,
+        "close": 69271.1875,
+        "shares": 718843686.38,
+        "fx_rate": 1066.38,
+        "currency": "KRW"
+      },
+      {
+        "year": 2018,
+        "market_cap": 36180688064.04,
+        "close": 56185.375,
+        "shares": 718843686.38,
+        "fx_rate": 1116.3,
+        "currency": "KRW"
+      },
+      {
+        "year": 2019,
+        "market_cap": 54904539325.42,
+        "close": 88320.8203,
+        "shares": 718843686.38,
+        "fx_rate": 1156.35,
+        "currency": "KRW"
+      },
+      {
+        "year": 2020,
+        "market_cap": 74344746233.55,
+        "close": 112360.4766,
+        "shares": 718843686.38,
+        "fx_rate": 1086.42,
+        "currency": "KRW"
+      },
+      {
+        "year": 2021,
+        "market_cap": 75957675191.57,
+        "close": 125731.4766,
+        "shares": 718843686.38,
+        "fx_rate": 1189.89,
+        "currency": "KRW"
+      },
+      {
+        "year": 2022,
+        "market_cap": 41585666809.63,
+        "close": 72944.625,
+        "shares": 718843686.38,
+        "fx_rate": 1260.91,
+        "currency": "KRW"
+      },
+      {
+        "year": 2023,
+        "market_cap": 77309062196.85,
+        "close": 139114.5156,
+        "shares": 718843686.38,
+        "fx_rate": 1293.53,
+        "currency": "KRW"
+      },
+      {
+        "year": 2024,
+        "market_cap": 84138548774.75,
+        "close": 171753.7031,
+        "shares": 718843686.38,
+        "fx_rate": 1467.39,
+        "currency": "KRW"
+      },
+      {
+        "year": 2025,
+        "market_cap": 324795892552.98,
+        "close": 649692.375,
+        "shares": 718843686.38,
+        "fx_rate": 1437.91,
+        "currency": "KRW"
+      },
+      {
+        "year": 2026,
+        "market_cap": 1294403802763.94,
+        "close": 2764000.0,
+        "shares": 718843686.38,
+        "fx_rate": 1534.98,
+        "currency": "KRW"
+      }
+    ]
+  },
+  "8035.T": {
+    "name": "Tokyo Electron Limited",
+    "currency": "JPY",
+    "exchange": "TSE",
+    "provenance": "approx",
+    "mcap_yearly": [
+      {
+        "year": 2009,
+        "market_cap": 6596347881.27,
+        "close": 1309.3391,
+        "shares": 468073306.33,
+        "fx_rate": 92.91,
+        "currency": "JPY"
+      },
+      {
+        "year": 2010,
+        "market_cap": 6596918788.73,
+        "close": 1148.3606,
+        "shares": 468073306.33,
+        "fx_rate": 81.48,
+        "currency": "JPY"
+      },
+      {
+        "year": 2011,
+        "market_cap": 5441683235.03,
+        "close": 902.8408,
+        "shares": 468073306.33,
+        "fx_rate": 77.659,
+        "currency": "JPY"
+      },
+      {
+        "year": 2012,
+        "market_cap": 5003765720.51,
+        "close": 918.9238,
+        "shares": 468073306.33,
+        "fx_rate": 85.96,
+        "currency": "JPY"
+      },
+      {
+        "year": 2013,
+        "market_cap": 6066444428.68,
+        "close": 1359.9927,
+        "shares": 468073306.33,
+        "fx_rate": 104.934,
+        "currency": "JPY"
+      },
+      {
+        "year": 2014,
+        "market_cap": 8644365502.21,
+        "close": 2206.1472,
+        "shares": 468073306.33,
+        "fx_rate": 119.458,
+        "currency": "JPY"
+      },
+      {
+        "year": 2015,
+        "market_cap": 7008998471.92,
+        "close": 1803.636,
+        "shares": 468073306.33,
+        "fx_rate": 120.45,
+        "currency": "JPY"
+      },
+      {
+        "year": 2016,
+        "market_cap": 11221899946.55,
+        "close": 2802.3984,
+        "shares": 468073306.33,
+        "fx_rate": 116.89,
+        "currency": "JPY"
+      },
+      {
+        "year": 2017,
+        "market_cap": 22277236187.66,
+        "close": 5362.833,
+        "shares": 468073306.33,
+        "fx_rate": 112.68,
+        "currency": "JPY"
+      },
+      {
+        "year": 2018,
+        "market_cap": 14566816752.98,
+        "close": 3433.5581,
+        "shares": 468073306.33,
+        "fx_rate": 110.33,
+        "currency": "JPY"
+      },
+      {
+        "year": 2019,
+        "market_cap": 29168390516.4,
+        "close": 6784.5146,
+        "shares": 468073306.33,
+        "fx_rate": 108.873,
+        "currency": "JPY"
+      },
+      {
+        "year": 2020,
+        "market_cap": 50909898001.82,
+        "close": 11215.9346,
+        "shares": 468073306.33,
+        "fx_rate": 103.121,
+        "currency": "JPY"
+      },
+      {
+        "year": 2021,
+        "market_cap": 80444919266.17,
+        "close": 19775.1797,
+        "shares": 468073306.33,
+        "fx_rate": 115.063,
+        "currency": "JPY"
+      },
+      {
+        "year": 2022,
+        "market_cap": 42891108616.52,
+        "close": 12014.0439,
+        "shares": 468073306.33,
+        "fx_rate": 131.11,
+        "currency": "JPY"
+      },
+      {
+        "year": 2023,
+        "market_cap": 79686865539.11,
+        "close": 24007.8672,
+        "shares": 468073306.33,
+        "fx_rate": 141.02,
+        "currency": "JPY"
+      },
+      {
+        "year": 2024,
+        "market_cap": 69690347989.27,
+        "close": 23374.6211,
+        "shares": 468073306.33,
+        "fx_rate": 156.995,
+        "currency": "JPY"
+      },
+      {
+        "year": 2025,
+        "market_cap": 101752723169.51,
+        "close": 34002.043,
+        "shares": 468073306.33,
+        "fx_rate": 156.413,
+        "currency": "JPY"
+      },
+      {
+        "year": 2026,
+        "market_cap": 218339178769.66,
+        "close": 75360.0,
+        "shares": 468073306.33,
+        "fx_rate": 161.556,
+        "currency": "JPY"
+      }
+    ]
+  },
+  "6857.T": {
+    "name": "Advantest Corporation",
+    "currency": "JPY",
+    "exchange": "TSE",
+    "provenance": "approx",
+    "mcap_yearly": [
+      {
+        "year": 2009,
+        "market_cap": 3856038965.01,
+        "close": 484.3658,
+        "shares": 739657053.08,
+        "fx_rate": 92.91,
+        "currency": "JPY"
+      },
+      {
+        "year": 2010,
+        "market_cap": 3375429682.16,
+        "close": 371.8345,
+        "shares": 739657053.08,
+        "fx_rate": 81.48,
+        "currency": "JPY"
+      },
+      {
+        "year": 2011,
+        "market_cap": 1426760252.93,
+        "close": 149.8002,
+        "shares": 739657053.08,
+        "fx_rate": 77.659,
+        "currency": "JPY"
+      },
+      {
+        "year": 2012,
+        "market_cap": 2410357851.95,
+        "close": 280.1222,
+        "shares": 739657053.08,
+        "fx_rate": 85.96,
+        "currency": "JPY"
+      },
+      {
+        "year": 2013,
+        "market_cap": 1943856432.38,
+        "close": 275.7719,
+        "shares": 739657053.08,
+        "fx_rate": 104.934,
+        "currency": "JPY"
+      },
+      {
+        "year": 2014,
+        "market_cap": 1990180740.24,
+        "close": 321.4233,
+        "shares": 739657053.08,
+        "fx_rate": 119.458,
+        "currency": "JPY"
+      },
+      {
+        "year": 2015,
+        "market_cap": 1345063127.11,
+        "close": 219.0378,
+        "shares": 739657053.08,
+        "fx_rate": 120.45,
+        "currency": "JPY"
+      },
+      {
+        "year": 2016,
+        "market_cap": 2721276066.98,
+        "close": 430.0506,
+        "shares": 739657053.08,
+        "fx_rate": 116.89,
+        "currency": "JPY"
+      },
+      {
+        "year": 2017,
+        "market_cap": 3030652219.38,
+        "close": 461.6922,
+        "shares": 739657053.08,
+        "fx_rate": 112.68,
+        "currency": "JPY"
+      },
+      {
+        "year": 2018,
+        "market_cap": 3425828269.12,
+        "close": 511.0093,
+        "shares": 739657053.08,
+        "fx_rate": 110.33,
+        "currency": "JPY"
+      },
+      {
+        "year": 2019,
+        "market_cap": 9774228302.36,
+        "close": 1438.7067,
+        "shares": 739657053.08,
+        "fx_rate": 108.873,
+        "currency": "JPY"
+      },
+      {
+        "year": 2020,
+        "market_cap": 13169527805.22,
+        "close": 1836.0602,
+        "shares": 739657053.08,
+        "fx_rate": 103.121,
+        "currency": "JPY"
+      },
+      {
+        "year": 2021,
+        "market_cap": 16862599453.53,
+        "close": 2623.1904,
+        "shares": 739657053.08,
+        "fx_rate": 115.063,
+        "currency": "JPY"
+      },
+      {
+        "year": 2022,
+        "market_cap": 11706496497.43,
+        "close": 2075.0681,
+        "shares": 739657053.08,
+        "fx_rate": 131.11,
+        "currency": "JPY"
+      },
+      {
+        "year": 2023,
+        "market_cap": 24871495012.78,
+        "close": 4741.8979,
+        "shares": 739657053.08,
+        "fx_rate": 141.02,
+        "currency": "JPY"
+      },
+      {
+        "year": 2024,
+        "market_cap": 43069344704.0,
+        "close": 9141.6309,
+        "shares": 739657053.08,
+        "fx_rate": 156.995,
+        "currency": "JPY"
+      },
+      {
+        "year": 2025,
+        "market_cap": 92725190107.18,
+        "close": 19608.3105,
+        "shares": 739657053.08,
+        "fx_rate": 156.413,
+        "currency": "JPY"
+      },
+      {
+        "year": 2026,
+        "market_cap": 145316267205.43,
+        "close": 31740.0,
+        "shares": 739657053.08,
+        "fx_rate": 161.556,
+        "currency": "JPY"
+      }
+    ]
+  },
+  "5803.T": {
+    "name": "Fujikura Ltd.",
+    "currency": "JPY",
+    "exchange": "TSE",
+    "provenance": "approx",
+    "mcap_yearly": [
+      {
+        "year": 2009,
+        "market_cap": 1382529172.56,
+        "close": 60.8426,
+        "shares": 2111198164.15,
+        "fx_rate": 92.91,
+        "currency": "JPY"
+      },
+      {
+        "year": 2010,
+        "market_cap": 1351907869.09,
+        "close": 52.1758,
+        "shares": 2111198164.15,
+        "fx_rate": 81.48,
+        "currency": "JPY"
+      },
+      {
+        "year": 2011,
+        "market_cap": 793555401.06,
+        "close": 29.1904,
+        "shares": 2111198164.15,
+        "fx_rate": 77.659,
+        "currency": "JPY"
+      },
+      {
+        "year": 2012,
+        "market_cap": 867278535.74,
+        "close": 35.3123,
+        "shares": 2111198164.15,
+        "fx_rate": 85.96,
+        "currency": "JPY"
+      },
+      {
+        "year": 2013,
+        "market_cap": 1333468685.49,
+        "close": 66.2781,
+        "shares": 2111198164.15,
+        "fx_rate": 104.934,
+        "currency": "JPY"
+      },
+      {
+        "year": 2014,
+        "market_cap": 1203756563.78,
+        "close": 68.1122,
+        "shares": 2111198164.15,
+        "fx_rate": 119.458,
+        "currency": "JPY"
+      },
+      {
+        "year": 2015,
+        "market_cap": 1595837953.43,
+        "close": 91.0472,
+        "shares": 2111198164.15,
+        "fx_rate": 120.45,
+        "currency": "JPY"
+      },
+      {
+        "year": 2016,
+        "market_cap": 1610396818.13,
+        "close": 89.1623,
+        "shares": 2111198164.15,
+        "fx_rate": 116.89,
+        "currency": "JPY"
+      },
+      {
+        "year": 2017,
+        "market_cap": 2652721992.15,
+        "close": 141.5825,
+        "shares": 2111198164.15,
+        "fx_rate": 112.68,
+        "currency": "JPY"
+      },
+      {
+        "year": 2018,
+        "market_cap": 1216218915.94,
+        "close": 63.5589,
+        "shares": 2111198164.15,
+        "fx_rate": 110.33,
+        "currency": "JPY"
+      },
+      {
+        "year": 2019,
+        "market_cap": 1305410527.24,
+        "close": 67.3191,
+        "shares": 2111198164.15,
+        "fx_rate": 108.873,
+        "currency": "JPY"
+      },
+      {
+        "year": 2020,
+        "market_cap": 1448355520.64,
+        "close": 70.7446,
+        "shares": 2111198164.15,
+        "fx_rate": 103.121,
+        "currency": "JPY"
+      },
+      {
+        "year": 2021,
+        "market_cap": 1543978447.25,
+        "close": 84.1488,
+        "shares": 2111198164.15,
+        "fx_rate": 115.063,
+        "currency": "JPY"
+      },
+      {
+        "year": 2022,
+        "market_cap": 2483996695.29,
+        "close": 154.2616,
+        "shares": 2111198164.15,
+        "fx_rate": 131.11,
+        "currency": "JPY"
+      },
+      {
+        "year": 2023,
+        "market_cap": 2587482793.24,
+        "close": 172.834,
+        "shares": 2111198164.15,
+        "fx_rate": 141.02,
+        "currency": "JPY"
+      },
+      {
+        "year": 2024,
+        "market_cap": 14342837130.91,
+        "close": 1066.5762,
+        "shares": 2111198164.15,
+        "fx_rate": 156.995,
+        "currency": "JPY"
+      },
+      {
+        "year": 2025,
+        "market_cap": 39048399353.67,
+        "close": 2892.991,
+        "shares": 2111198164.15,
+        "fx_rate": 156.413,
+        "currency": "JPY"
+      },
+      {
+        "year": 2026,
+        "market_cap": 67443448248.19,
+        "close": 5161.0,
+        "shares": 2111198164.15,
+        "fx_rate": 161.556,
+        "currency": "JPY"
+      }
+    ]
+  },
+  "_meta": {
+    "source": "yfinance bundled stock-prices.json (adjusted close, local currency) × Yahoo Finance snapshot 2026-06-23 (shares/current market-cap/year-end FX)",
+    "approach": "approximate: adjusted_close × effective_shares × (1/year-end FX) -> USD",
+    "provenance": "approx",
+    "scope": "non-US (JP/KR) tickers, years >= 2009",
+    "currency_note": "近似(株式数を現在値で一定とし調整後終値で按分)。米国=SEC実測と区別。",
+    "collected_at": "2026-06-23T02:07:41.838783+00:00",
+    "covered_tickers": 5
+  }
+}

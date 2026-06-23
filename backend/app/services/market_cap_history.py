@@ -19,11 +19,13 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_DATA_PATH = os.path.join(
+_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data",
-    "market-cap-history.json",
 )
+_DATA_PATH = os.path.join(_DATA_DIR, "market-cap-history.json")
+# 非米国(JP/KR)時価総額（USD換算・近似 / SOT-1122）。米国SEC実測データにマージする。
+_NONUS_DATA_PATH = os.path.join(_DATA_DIR, "market-cap-history-nonus.json")
 
 _CACHE: Optional[Dict[str, Any]] = None
 
@@ -33,25 +35,40 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(text).lower()).strip("-")
 
 
-def load_market_cap_history(path: Optional[str] = None) -> Dict[str, Any]:
-    """market-cap-history.json を読み込みキャッシュする。無ければ空dict。"""
-    global _CACHE
-    if path is None:
-        if _CACHE is not None:
-            return _CACHE
-        target = _DATA_PATH
-    else:
-        target = path
+def _load_json_file(target: str) -> Dict[str, Any]:
+    """JSONファイルを読み込む。無ければ空dict（例外を投げない）。"""
     try:
         with open(target, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
         data = {}
     except Exception as e:  # pragma: no cover - 防御的
-        logger.error(f"market-cap-history.json load failed: {e}")
+        logger.error(f"market-cap history load failed ({target}): {e}")
         data = {}
-    if path is None:
-        _CACHE = data
+    return data if isinstance(data, dict) else {}
+
+
+def load_market_cap_history(path: Optional[str] = None) -> Dict[str, Any]:
+    """時価総額履歴を読み込みキャッシュする。無ければ空dict。
+
+    `path` を明示した場合はそのファイルのみ読む（テスト用・後方互換）。
+    `path` 省略時は米国(SEC実測) + 非米国(JP/KR・USD換算近似 / SOT-1122) をマージして返す。
+    """
+    global _CACHE
+    if path is not None:
+        return _load_json_file(path)
+
+    if _CACHE is not None:
+        return _CACHE
+
+    data = _load_json_file(_DATA_PATH)
+    # 非米国データをマージ（ticker キーで上書きせず追加。`_meta` は除外）。
+    nonus = _load_json_file(_NONUS_DATA_PATH)
+    for ticker, entry in nonus.items():
+        if ticker == "_meta" or not isinstance(entry, dict):
+            continue
+        data.setdefault(ticker, entry)
+    _CACHE = data
     return data
 
 
@@ -124,9 +141,10 @@ def build_category_market_cap(
             name = c.get("name") if isinstance(c, dict) else getattr(c, "name", ticker)
             member_tickers.setdefault(ticker, name or ticker)
 
-    # 2) 履歴データを持つ企業だけ採用（米国・2009〜）。
+    # 2) 履歴データを持つ企業だけ採用（米国SEC実測 + 非米国USD換算近似・2009〜）。
     per_ticker_yearly: Dict[str, Dict[int, float]] = {}
     names: Dict[str, str] = {}
+    meta: Dict[str, Dict[str, Any]] = {}  # ticker -> {currency, exchange, provenance}
     for ticker, name in member_tickers.items():
         entry = _ticker_history(history, ticker)
         if not entry:
@@ -141,8 +159,17 @@ def build_category_market_cap(
         if yearly:
             per_ticker_yearly[ticker] = yearly
             names[ticker] = entry.get("name") or name
+            # 通貨/上場市場/来歴（非米国はファイルに保持、米国はデフォルト）。
+            meta[ticker] = {
+                "currency": entry.get("currency", "USD"),
+                "exchange": entry.get("exchange"),
+                "provenance": entry.get("provenance", "real"),
+            }
 
-    note = "米国上場株・2009年〜の真の時価総額（株価×SEC開示の発行株式数）。非米国・2008年以前は対象外。"
+    note = (
+        "米国(SEC実測・株価×開示株式数) + 非米国(JP/KR)はUSD換算の近似値。"
+        "値はすべてUSD換算・2009年〜。"
+    )
     if not per_ticker_yearly:
         return {
             "theme_id": theme_id,
@@ -177,7 +204,16 @@ def build_category_market_cap(
         return 0.0
 
     ordered = sorted(selected, key=_latest_mcap, reverse=True)
-    series = [{"key": t, "name": names.get(t, t)} for t in ordered]
+    series = [
+        {
+            "key": t,
+            "name": names.get(t, t),
+            "currency": meta.get(t, {}).get("currency", "USD"),
+            "exchange": meta.get(t, {}).get("exchange"),
+            "provenance": meta.get(t, {}).get("provenance", "real"),
+        }
+        for t in ordered
+    ]
 
     points = []
     for year in all_years:

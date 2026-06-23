@@ -408,6 +408,9 @@ export interface CategoryListResponse {
 export interface CategoryMarketCapSeries {
   key: string
   name: string
+  currency?: string
+  exchange?: string
+  provenance?: string
 }
 
 export interface CategoryMarketCapPoint {

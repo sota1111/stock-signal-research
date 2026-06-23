@@ -471,6 +471,9 @@ class StockDataResponse(BaseModel):
 class CategoryMarketCapSeries(BaseModel):
     key: str  # ティッカー
     name: str
+    currency: Optional[str] = None  # 上場通貨 (USD/KRW/JPY)
+    exchange: Optional[str] = None  # 上場市場 (US/KRX/TSE)
+    provenance: Optional[str] = None  # real(SEC実測) / approx(非米国USD換算近似)
 
 
 class CategoryMarketCapPoint(BaseModel):
