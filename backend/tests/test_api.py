@@ -79,6 +79,58 @@ def test_create_and_get_company(client):
     assert response.status_code == 200
     assert response.json()["name"] == "Test Company"
 
+def test_investors_resolve_company_name_without_per_record_lookup(client, monkeypatch):
+    # SOT-1168: /investors/ は企業名を一括取得で解決し、投資家1件ごとの
+    # get_by_id (N+1 → Firestore タイムアウト) を行わないこと。
+    company = client.post(
+        "/api/companies/",
+        json={
+            "name": "Investee Corp",
+            "ticker": "INV",
+            "description": "d",
+            "benefit_score": 50.0,
+            "benefit_type": "direct",
+        },
+    ).json()
+
+    for name in ("Fund A", "Fund B"):
+        res = client.post(
+            "/api/investors/",
+            json={
+                "investor_name": name,
+                "company_id": company["id"],
+                "ownership_pct": 1.0,
+                "change_pct": 0.0,
+                "report_date": "2024-12-31",
+                "report_type": "13F",
+            },
+        )
+        assert res.status_code == 200
+
+    import app.routers.investors as investors_router
+
+    repo = investors_router.get_company_repository()
+    calls = {"get_by_id": 0}
+    original_get_by_id = repo.get_by_id
+
+    def counting_get_by_id(company_id):
+        calls["get_by_id"] += 1
+        return original_get_by_id(company_id)
+
+    monkeypatch.setattr(repo, "get_by_id", counting_get_by_id)
+    monkeypatch.setattr(
+        investors_router, "get_company_repository", lambda: repo
+    )
+
+    response = client.get("/api/investors/")
+    assert response.status_code == 200
+    investors = response.json()
+    assert len(investors) == 2
+    assert {i["company_name"] for i in investors} == {"Investee Corp"}
+    # 一括取得のため、レコード数に比例した get_by_id 呼び出しは発生しない。
+    assert calls["get_by_id"] == 0
+
+
 def test_create_and_get_paper(client):
     paper_data = {
         "paper_id": "p001",
