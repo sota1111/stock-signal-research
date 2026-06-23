@@ -2,12 +2,42 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useI18n } from '../i18n/useI18n'
 
 const CHUNK_RELOAD_FLAG = 'ssr_chunk_reload'
+// 古いチャンクを参照するキャッシュ済み index.html を確実にバイパスして再取得するためのワンショット query。
+// 値はタイムスタンプ。アプリ起動時に下の stripCacheBustParam() で URL から取り除く。
+const CACHE_BUST_PARAM = 'cb'
 const STALE_CHUNK_MESSAGES = [
   'Failed to fetch dynamically imported module',
   'error loading dynamically imported module',
   'Importing a module script failed',
   'Loading chunk',
 ]
+
+// アプリ起動時に、過去のキャッシュバスト reload で付与した query を URL から取り除く（履歴を汚さない）。
+// RouteErrorBoundary は App から static import されるため、最初のレンダリング前にここが一度走る。
+;(function stripCacheBustParam() {
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has(CACHE_BUST_PARAM)) {
+      url.searchParams.delete(CACHE_BUST_PARAM)
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  } catch {
+    // URL 解析に失敗しても致命的ではないので無視する。
+  }
+})()
+
+// stale-chunk エラー時の復旧 reload。単純な location.reload() は heuristically/CDN キャッシュされた
+// 古い index.html（削除済みチャンクハッシュを参照）をそのまま再利用してしまい復旧しないことがある。
+// ワンショットの cache-bust query を付けて別 URL として読み込み、必ず最新の index.html を取得させる。
+function reloadBustingCache() {
+  try {
+    const url = new URL(window.location.href)
+    url.searchParams.set(CACHE_BUST_PARAM, Date.now().toString())
+    window.location.replace(url.toString())
+  } catch {
+    window.location.reload()
+  }
+}
 
 type RouteErrorBoundaryProps = {
   children: ReactNode
@@ -83,7 +113,7 @@ export default class RouteErrorBoundary extends Component<RouteErrorBoundaryProp
     if (!isStaleChunkError(error) || hasReloadedCurrentPath()) return
 
     markCurrentPathReloaded()
-    window.location.reload()
+    reloadBustingCache()
   }
 
   render() {
