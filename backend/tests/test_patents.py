@@ -45,6 +45,31 @@ def test_normalize_filters_pre_2000_and_strips_tags():
     assert rec["patent_id"].startswith("ppubs-")
 
 
+def test_theme_queries_cover_100_themes():
+    """SOT-1119: sot994_universe.json の70テーマが merge され、合計100テーマになる。"""
+    assert len(cdp.THEME_QUERIES) == 100
+    # 既存30テーマは温存される(setdefault)。
+    assert "SSD / NVMe" in cdp.THEME_QUERIES
+    # universe 由来のテーマも入っている。
+    assert "gene editing CRISPR" in cdp.THEME_QUERIES
+    # 全クエリが非空文字列。
+    assert all(isinstance(q, str) and q.strip() for q in cdp.THEME_QUERIES.values())
+
+
+def test_to_ppubs_brs_builds_or_of_phrases():
+    """arXiv 風キーワード列を OR-of-phrases な PPUBS BRS クエリへ機械変換する。"""
+    q = cdp._to_ppubs_brs("blockchain settlement", "blockchain distributed ledger settlement finance")
+    assert " OR " in q
+    assert '"distributed ledger"' in q  # 隣接バイグラムがフレーズ化される
+    assert '"blockchain settlement"' in q  # 多語テーマ名はフレーズとして採用
+    # 大文字略語は単独フレーズとして追加される。
+    q2 = cdp._to_ppubs_brs("central bank digital currency", "central bank digital currency CBDC monetary")
+    assert '"CBDC"' in q2
+    # 空クエリでもテーマ名にフォールバックして非空。
+    q3 = cdp._to_ppubs_brs("solo theme", "")
+    assert q3.strip()
+
+
 def test_load_collected_patents_missing_returns_none(tmp_path):
     assert seed._load_collected_patents(str(tmp_path / "nope.json")) is None
 
