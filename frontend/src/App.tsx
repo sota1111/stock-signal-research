@@ -12,15 +12,12 @@ import RouteErrorBoundary from './components/RouteErrorBoundary'
 
 // ページコンポーネントは React.lazy で動的 import し、ルート単位でチャンク分割する（SOT-1000 / 提案A-5）。
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
-const StatusPage = lazy(() => import('./pages/StatusPage'))
 const StockPage = lazy(() => import('./pages/StockPage'))
 const InvestorsPage = lazy(() => import('./pages/InvestorsPage'))
 const InvestmentCandidatesPage = lazy(() => import('./pages/InvestmentCandidatesPage'))
 const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
 const ListPage = lazy(() => import('./pages/ListPage'))
 const DetailPage = lazy(() => import('./pages/DetailPage'))
-const InputPage = lazy(() => import('./pages/InputPage'))
-const ResearchSeedsPage = lazy(() => import('./pages/ResearchSeedsPage'))
 const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage'))
 const ResearchHubPage = lazy(() => import('./pages/ResearchHubPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -51,9 +48,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/investors', label: 'nav.investors' },
   { to: '/candidates', label: 'nav.candidates' },
   { to: '/list', label: 'nav.list' },
-  { to: '/input', label: 'nav.input' },
-  { to: '/research-seeds', label: 'nav.researchSeeds' },
-  { to: '/status', label: 'nav.status' },
+  // SOT-1148: 登録(/input)・初期リサーチ(/research-seeds)・状態(/status) は「今は不要」のためナビから非表示。
+  // ルートは残置し / へリダイレクトする（下記 Routes 参照）。
 ]
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -141,7 +137,8 @@ function AppLayout() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-              <Route path="/status" element={<PrivateRoute><StatusPage /></PrivateRoute>} />
+              {/* SOT-1148: 登録/初期リサーチ/状態 は「今は不要」のため非表示。ルートは / へリダイレクト。 */}
+              <Route path="/status" element={<Navigate to="/" replace />} />
               <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
               <Route path="/research" element={<PrivateRoute><ResearchHubPage /></PrivateRoute>} />
               {/* 旧ルートは統一ページ(SOT-1145)へリダイレクトし、ディープリンク/既存導線を維持する。 */}
@@ -152,10 +149,12 @@ function AppLayout() {
               <Route path="/signals" element={<PrivateRoute><SignalDetectionPage /></PrivateRoute>} />
               <Route path="/list" element={<PrivateRoute><ListPage /></PrivateRoute>} />
               <Route path="/themes/:id" element={<PrivateRoute><DetailPage /></PrivateRoute>} />
-              <Route path="/input" element={<PrivateRoute><InputPage /></PrivateRoute>} />
+              {/* SOT-1148: 登録ページは非表示。/ へリダイレクト。 */}
+              <Route path="/input" element={<Navigate to="/" replace />} />
               {/* SOT-1147: 一致度評価ページは投資候補ページへ統合。旧URLは /candidates へリダイレクト。 */}
               <Route path="/evaluation" element={<Navigate to="/candidates" replace />} />
-              <Route path="/research-seeds" element={<PrivateRoute><ResearchSeedsPage /></PrivateRoute>} />
+              {/* SOT-1148: 初期リサーチページは非表示。/ へリダイレクト。 */}
+              <Route path="/research-seeds" element={<Navigate to="/" replace />} />
               <Route path="/supply-chain" element={<PrivateRoute><SupplyChainPage /></PrivateRoute>} />
             </Routes>
           </Suspense>
