@@ -45,6 +45,29 @@ export default function DashboardPage() {
   const scopedCompanies = filterCompaniesByCategory(data?.notable_companies ?? [], queryCategory, queryThemes)
   const { stockItems, stockQueries } = useTickerStocks(scopedCompanies)
 
+  // SOT-1128: クロス分析（論文×時価総額）の時価総額系列を、カテゴリ絞り込みで時価総額が
+  // 空のときだけ全注目企業の上位N社にフォールバックさせる。これにより、時価総額データを持つ
+  // 企業が居ない大カテゴリ/テーマ（例: ユーザー登録の「エネルギー」/「リチウムイオンバッテリー」）
+  // でも、選択テーマに論文があればクロス分析グラフが描画される。専用「上位N社時価総額」カードは
+  // 従来通り scoped のまま（フォールバックしない）。
+  // hooks 数を一定に保つため、フォールバック用の useTickerStocks は必ずローディングガードより前に呼ぶ。
+  const TOP_N = 10
+  const scopedMarketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
+  // scoped クエリが全て決着済み（loading でも fetching でもない）か。scopedCompanies が空なら
+  // stockQueries は空配列 → every は true（=「ティッカー企業が居ない」ケースで即フォールバック有効化）。
+  const scopedSettled = stockQueries.every(q => !q.isLoading && !q.isFetching)
+  // 大カテゴリ選択中 かつ scoped 時価総額が空 のときだけグローバル・フォールバックを取得する。
+  // 全カテゴリ（未選択）時は元々全企業なのでフォールバック不要。
+  const needGlobalMarketCap = !!queryCategory && scopedSettled && scopedMarketCapYearly.length === 0
+  const { stockItems: globalStockItems, stockQueries: globalStockQueries } = useTickerStocks(
+    data?.notable_companies ?? [],
+    { enabled: needGlobalMarketCap },
+  )
+  const globalMarketCapYearly = buildTopMarketCapYearly(globalStockItems, TOP_N)
+  // クロス分析が使う実効時価総額系列: scoped があればそれ、無ければグローバルにフォールバック。
+  const crossMarketCapYearly =
+    scopedMarketCapYearly.length > 0 ? scopedMarketCapYearly : globalMarketCapYearly
+
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
     queryFn: () => fetchSignalReport(reportQuery, PAPER_HISTORY_FROM_YEAR),
@@ -99,16 +122,22 @@ export default function DashboardPage() {
   const paperCounts = signalReport?.paper_counts_by_year ?? []
   // データ取得中（初期表示・テーマ切替時）は空表示ではなくローディングを出す
   const isPapersLoading = (isReportLoading || isReportFetching) && !signalReport
-  const TOP_N = 10
-  const marketCapYearly = buildTopMarketCapYearly(stockItems, TOP_N)
-  const isMarketCapLoading = stockQueries.some(q => q.isLoading || q.isFetching) && marketCapYearly.length === 0
+  // クロス分析が使う時価総額系列（SOT-1128: scoped 空ならグローバルにフォールバック）。
+  const marketCapYearly = crossMarketCapYearly
+  // クロス分析の時価総額がまだ無く、scoped かフォールバックのどちらかが取得中ならローディング扱い。
+  const isMarketCapLoading =
+    marketCapYearly.length === 0 &&
+    (stockQueries.some(q => q.isLoading || q.isFetching) ||
+      (needGlobalMarketCap && globalStockQueries.some(q => q.isLoading || q.isFetching)))
   // クロス分析カードは論文・時価総額の両系列に依存する。どちらかが取得中の間は
-  // 空表示ではなくローディングを出す（テーマ切替時のバックグラウンド再取得を含む, SOT-1055）。
+  // 空表示ではなくローディングを出す（テーマ切替時のバックグラウンド再取得を含む, SOT-1055 / SOT-1128）。
   const isCrossLoading =
     isReportLoading ||
     isReportFetching ||
     stockQueries.some(q => q.isLoading || q.isFetching) ||
+    (needGlobalMarketCap && globalStockQueries.some(q => q.isLoading || q.isFetching)) ||
     isMarketCapLoading
+  // 上位N社時価総額カードは従来通りカテゴリ絞り込み（scoped）のまま（SOT-1081 ⑤）。
   const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
 
   // 表示年レンジ: 論文件数・時価総額の年の和集合を選択可能ドメインとする

@@ -99,7 +99,10 @@ export function filterCompaniesByCategory(companies: Company[], category: string
  * Returns the ticker-bearing companies, their query results, the chart items and the
  * first successfully-loaded stock (used as the primary series in cross charts).
  */
-export function useTickerStocks(companies: Company[]) {
+export function useTickerStocks(companies: Company[], options?: { enabled?: boolean }) {
+  // SOT-1128: enabled=false のときは per-ticker fetch を抑止する（クロス分析の
+  // グローバル・フォールバックは「scoped 時価総額が空のとき」だけ取得するため）。
+  const enabled = options?.enabled ?? true
   const tickerCompanies = companies.filter((c): c is Company & { ticker: string } => !!c.ticker)
   const stockQueries = useQueries({
     queries: tickerCompanies.map(c => ({
@@ -107,6 +110,7 @@ export function useTickerStocks(companies: Company[]) {
       queryFn: () => fetchStock(c.ticker, STOCK_YEARS),
       staleTime: STOCK_STALE_TIME,
       retry: 1,
+      enabled,
     })),
   })
   // SOT-1069: 取得した日次終値を GRAPH_FROM_YEAR(2009) 以降に絞る。これにより本フック由来の
