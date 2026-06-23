@@ -378,6 +378,7 @@ export const messages = {
     'category.chart.title': '時価総額推移（上位{n}社）',
     'category.note': '各年で一度でも上位{n}位に入った企業を表示（米国・2009年〜の実データ）。',
     'category.empty': 'このカテゴリには時価総額データがありません。',
+    'category.nonUsApprox': '※ 非米国(JP/KR)銘柄はUSD換算の近似値です（米国はSEC実測）。',
     'category.loading': '読み込み中...',
     'category.noData': '時価総額データのあるカテゴリがありません。',
     // backtest table
@@ -842,6 +843,7 @@ export const messages = {
     'category.chart.title': 'Market-cap trend (top {n})',
     'category.note': 'Shows companies that ever ranked in the top {n} in any year (real data, US-listed, since 2009).',
     'category.empty': 'No market-cap data for this category.',
+    'category.nonUsApprox': 'Note: non-US (JP/KR) market caps are USD-converted approximations (US are SEC actuals).',
     'category.loading': 'Loading...',
     'category.noData': 'No category has market-cap data.',
     // backtest table

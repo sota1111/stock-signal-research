@@ -141,6 +141,51 @@ def test_empty_when_theme_has_no_history_companies():
     assert res["theme_name"] == theme_name
 
 
+def test_real_load_merges_non_us_tickers():
+    """実ファイル読込で非米国(JP/KR)エントリがマージされ、来歴/通貨を持つ (SOT-1122)。"""
+    mch._reset_cache()
+    hist = mch.load_market_cap_history()
+    # 非米国の主役が米国実測データにマージされている。
+    assert "005930.KS" in hist  # Samsung
+    samsung = hist["005930.KS"]
+    assert samsung["currency"] == "KRW"
+    assert samsung["exchange"] == "KRX"
+    assert samsung["provenance"] == "approx"
+    # USD換算の時価総額が正の妥当な大きさ（直近 ~1e12 USD オーダー）。
+    latest = samsung["mcap_yearly"][-1]
+    assert latest["market_cap"] > 1e11
+
+
+def test_series_carry_currency_exchange_provenance():
+    """build_category_market_cap の系列が 通貨/上場市場/来歴 を持つ (SOT-1122)。"""
+    import json
+
+    theme_name = "HBM"
+    sid = _slug_id(theme_name)
+    # 米国(実測) + 非米国(近似) を混在させた履歴を注入。
+    hist = {
+        "NVDA": {"name": "NVIDIA", "mcap_yearly": [
+            {"year": 2024, "market_cap": 3e12, "close": 1.0, "shares": 3e12}]},
+        "005930.KS": {"name": "Samsung", "currency": "KRW", "exchange": "KRX",
+                      "provenance": "approx", "mcap_yearly": [
+            {"year": 2024, "market_cap": 4e11, "close": 1.0, "shares": 4e11, "currency": "KRW"}]},
+    }
+    mch._CACHE = hist
+    theme_repo = FakeThemeRepo([{"id": "uuid-h", "name": theme_name, "category": "Memory"}])
+    company_repo = FakeCompanyRepo([
+        {"name": "NVIDIA", "ticker": "NVDA", "theme_ids": json.dumps([sid])},
+        {"name": "Samsung", "ticker": "005930.KS", "theme_ids": json.dumps([sid])},
+    ])
+
+    res = mch.build_category_market_cap("uuid-h", theme_repo, company_repo, top_n=10)
+    by_key = {s["key"]: s for s in res["series"]}
+    assert by_key["NVDA"]["currency"] == "USD"
+    assert by_key["NVDA"]["provenance"] == "real"
+    assert by_key["005930.KS"]["currency"] == "KRW"
+    assert by_key["005930.KS"]["exchange"] == "KRX"
+    assert by_key["005930.KS"]["provenance"] == "approx"
+
+
 def test_list_categories_flags_market_cap_availability():
     mch._CACHE = _make_history()
     t1 = {"id": "uuid-1", "name": "AI Compute", "category": "AI"}

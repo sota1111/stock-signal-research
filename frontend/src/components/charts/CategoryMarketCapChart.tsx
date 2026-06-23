@@ -15,30 +15,48 @@ export default function CategoryMarketCapChart({ data }: { data?: CategoryMarket
   const rows = data.points.map(p => ({ year: p.year, ...p.values }))
   const fmt = (v: number) => `$${formatCompact(v)}`
 
+  // 系列の表示名: 非米国(USD以外/取引所あり)は通貨・上場市場を併記する。
+  const displayName = (s: typeof data.series[number]) =>
+    s.exchange && s.currency && s.currency !== 'USD'
+      ? `${s.name} (${s.exchange} · ${s.currency})`
+      : s.name
+
+  // いずれかの系列が非米国の近似値なら脚注を出す。
+  const hasApprox = data.series.some(
+    s => s.provenance === 'approx' || (s.currency && s.currency !== 'USD'),
+  )
+
   return (
-    <ResponsiveContainer width="100%" height={360}>
-      <LineChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-        <XAxis dataKey="year" tick={{ fontSize: 11 }} minTickGap={24} />
-        <YAxis tick={{ fontSize: 11 }} width={56} tickFormatter={fmt} />
-        <Tooltip
-          formatter={(value, name) => [fmt(Number(value)), name as string]}
-          labelStyle={{ fontSize: 12 }}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        {data.series.map((s, i) => (
-          <Line
-            key={s.key}
-            type="monotone"
-            dataKey={s.key}
-            name={s.name}
-            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-            dot={false}
-            strokeWidth={2}
-            connectNulls
+    <div>
+      <ResponsiveContainer width="100%" height={360}>
+        <LineChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+          <XAxis dataKey="year" tick={{ fontSize: 11 }} minTickGap={24} />
+          <YAxis tick={{ fontSize: 11 }} width={56} tickFormatter={fmt} />
+          <Tooltip
+            formatter={(value, name) => [fmt(Number(value)), name as string]}
+            labelStyle={{ fontSize: 12 }}
           />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          {data.series.map((s, i) => (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              name={displayName(s)}
+              stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+              dot={false}
+              strokeWidth={2}
+              connectNulls
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      {hasApprox && (
+        <p style={{ fontSize: 11, color: '#888', margin: '4px 8px 0' }}>
+          {t('category.nonUsApprox')}
+        </p>
+      )}
+    </div>
   )
 }
