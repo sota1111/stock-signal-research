@@ -25,4 +25,7 @@ def create_paper(paper: schemas.PaperCreate):
 @router.get("/monthly", response_model=List[schemas.PaperMonthlyCountResponse])
 def read_paper_monthly_counts(theme_id: Optional[str] = None):
     repo = get_trend_repository()
-    return repo.list_monthly_counts(theme_id=theme_id)
+    # 単一テーマ指定時は月次系列全体を返す(10年=120ヶ月超でも切れないよう十分大きな limit)。
+    # 未指定時は既存の top movers(上位10件)。
+    limit = 600 if theme_id else 10
+    return repo.list_monthly_counts(theme_id=theme_id, limit=limit)

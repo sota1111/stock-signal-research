@@ -86,6 +86,7 @@ def _wire(monkeypatch, initial_themes=None):
     monkeypatch.setattr(scr, "get_supply_chain_repository", lambda *a, **k: supply)
     monkeypatch.setattr(ttr, "get_trend_repository", lambda *a, **k: trend)
     monkeypatch.setattr(sr, "get_score_repository", lambda *a, **k: score)
+    monkeypatch.setattr("firestore_client.delete_document", lambda *a, **k: True)
     return theme, company, paper, supply, trend, score
 
 
@@ -99,7 +100,11 @@ def test_seed_dashboard_data_firestore_inserts_all(monkeypatch):
     assert len(paper.saved) == len(seed._DASHBOARD_PAPERS)
     assert len(supply.saved) == len(seed._DASHBOARD_SUPPLY_CHAIN)
     assert len(score.saved) == len(seed._DASHBOARD_THEMES)
-    expected_counts = sum(len(pm["counts"]) for pm in seed._DASHBOARD_MONTHLY_COUNTS)
+    expected_counts = (
+        len(seed._DASHBOARD_MONTHLY_REAL)
+        if seed._DASHBOARD_MONTHLY_REAL
+        else sum(len(pm["counts"]) for pm in seed._DASHBOARD_MONTHLY_COUNTS)
+    )
     assert len(trend.saved) == expected_counts
 
 

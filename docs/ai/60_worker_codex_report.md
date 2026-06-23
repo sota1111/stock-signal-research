@@ -1,32 +1,47 @@
 # Worker Report
 
 ## Summary
-`frontend/src/App.tsx` の lazy route tree を `RouteErrorBoundary` で包み、ページ遷移時の lazy chunk ロード失敗や遷移先ページの描画例外が root route tree を空白化しないようにしました。
+SOT-1118 の検証を実施。backend 全体の pytest は初回 1 fail / 100 pass で、失敗原因は `tests/test_dashboard_seed_firestore.py` が旧 3 テーマ合成月次データ 360 件を期待していたため。今回の全100テーマ実データ集計では 12,000 件が正しいため、テスト期待値を `_DASHBOARD_MONTHLY_REAL` 優先へ最小修正した。
 
-Chunk stale 系エラー（`ChunkLoadError` / dynamic import failure / `Loading chunk` など）は、`sessionStorage` の `ssr_chunk_reload` に pathname 単位で記録し、同一パスでは一度だけ自動 reload します。再失敗または通常の描画例外では、既存 `PageError` と同系統の中央寄せ fallback UI と「再読み込み」ボタンを表示するため、ブラックアウトを回避できます。
+同テストでは旧 3 テーマ合成月次 doc の冪等 delete が実 Firestore クライアントへ流れていたため、オフライン fake repo 検証として `firestore_client.delete_document` を monkeypatch した。
+
+修正後、backend pytest は 101 pass。SQLite seed は `paper_monthly_counts` を 100 テーマ x 120 か月 = 12,000 行生成することを一時 DB で確認。`theme_id` 指定時は単一テーマ 120 か月の `year_month` 昇順系列、未指定時は mom 降順 top movers 10 件を返すことを repository と router limit の軽量確認で検証した。frontend は `npm run build` pass。
 
 ## Changed Files
-- `frontend/src/components/RouteErrorBoundary.tsx` — route 用 Error Boundary を新規追加。stale chunk 判定、一度だけの自動 reload、i18n 対応 fallback UI を実装。
-- `frontend/src/App.tsx` — `RouteErrorBoundary` を import し、`key={location.pathname}` で `<Suspense><Routes /></Suspense>` をラップ。既存 nav/layout/route 定義は維持。
-- `frontend/src/i18n/messages.ts` — ja/en に `error.routeTitle`、`error.routeBody`、`error.reload` を追加。
+- `backend/tests/test_dashboard_seed_firestore.py` — 月次件数の期待値を実データ集計時は `_DASHBOARD_MONTHLY_REAL` に合わせ、旧月次 doc delete をオフライン stub 化。
+- `docs/ai/60_worker_codex_report.md` — 本検証レポートを作成。
 
 ## Commands Run
-- `cd frontend && npm run lint` — exit 0。
-- `cd frontend && npm run build` — exit 0。`tsc -b && vite build` 成功。
-- `git diff --stat main...HEAD` — 空出力。未コミットの作業ツリー変更はこの形式には出ない状態。
-- `git status --short` — app 実装差分は `frontend/src/App.tsx`、`frontend/src/i18n/messages.ts`、`frontend/src/components/RouteErrorBoundary.tsx` の3ファイル。加えて、このレポート `docs/ai/60_worker_codex_report.md` を更新。
-- `git diff --stat` — tracked 差分は `docs/ai/60_worker_codex_report.md`、`frontend/src/App.tsx`、`frontend/src/i18n/messages.ts`。新規 `RouteErrorBoundary.tsx` は untracked として確認。
-- `git diff --name-only -- frontend/dist` — 空出力。build による tracked `frontend/dist` 差分なし。
+`cd /workspaces/stock-signal-research/backend && python -m pytest tests/test_dashboard_seed_firestore.py -q`
+
+Result: pass, 8 passed, 2 warnings.
+
+`cd /workspaces/stock-signal-research/backend && python -m pytest -q`
+
+Initial result: fail, 1 failed / 100 passed. Failure was `test_seed_dashboard_data_firestore_inserts_all`, expected old 360 monthly rows but actual was 12,000 rows.
+
+After test fix: pass, 101 passed, 2 warnings.
+
+`cd /workspaces/stock-signal-research/backend && tmpdb=$(mktemp /tmp/sot1118-XXXXXX.db); APP_ENV=test DATABASE_URL="sqlite:///$tmpdb" python - <<'PY' ...`
+
+Result: pass. Confirmed `monthly_total=12000`, `distinct_themes=100`, `distinct_keywords=100`, single theme series `120` rows from `2017-01` to `2026-12`, sorted ascending, top movers `10` rows sorted by `mom_change_pct` descending, router calls `('theme-x', 600)` and `(None, 10)`.
+
+`cd /workspaces/stock-signal-research/frontend && npm run build`
+
+Result: pass. `tsc -b && vite build` completed successfully.
+
+Backend lint/typecheck: no backend `pyproject.toml`, `ruff.toml`, `setup.cfg`, `tox.ini`, `.flake8`, or backend package script was present, so no explicit backend lint/typecheck gate was run.
 
 ## Acceptance Criteria
-- [x] ルートに Error Boundary 追加、chunk失敗で一度だけ自動リロード（ループ防止）
-- [x] それ以外/再失敗時は回復UI（再読み込みボタン）でブラックアウト回避
-- [x] lint pass / build pass
-- [x] 変更3ファイル限定・デスクトップ不変
+- [x] backend pytest 全 pass
+- [x] 月次が全100テーマで生成(約12,000行)
+- [x] `/monthly?theme_id=` が系列全体、未指定が top movers
+- [x] 既存挙動に回帰なし
 
 ## Risks
-- `ssr_chunk_reload` は pathname 単位でセッション中保持します。Suspense fallback の正常描画だけで早期クリアすると再 reload ループの余地があるため、ループ防止を優先しました。
-- 実機スマホでの手動確認は未実施です。lint/build とコード上の回復経路は確認済みです。
+`/api/papers/monthly` の FastAPI `response_model` は `id` 必須だが repository は dict に `id` を含めない既存仕様が残っている。本 Issue のスコープ外という指示のため修正していない。今回の確認は repository の返却内容と router の `limit` 分岐で実施した。
+
+pytest warning として `python_multipart` の deprecation warning と `pytest.ini` の unknown `asyncio_mode` warning が残っているが、今回変更による新規失敗ではない。
 
 ## Next Action
 READY_FOR_REVIEW
