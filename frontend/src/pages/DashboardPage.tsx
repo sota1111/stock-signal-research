@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
@@ -11,6 +11,8 @@ import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
 import ResearchToPerformanceChart from '../components/charts/ResearchToPerformanceChart'
 import RnDIntensityScatter from '../components/charts/RnDIntensityScatter'
+import SmartMoneyFlowBar from '../components/charts/SmartMoneyFlowBar'
+import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
 import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, GRAPH_FROM_YEAR } from './dashboardData'
@@ -116,6 +118,14 @@ export default function DashboardPage() {
     enabled: !!data && !!queryCategory,
   })
 
+  // 機関投資家（13F 実データ）— G3 スマートマネー・フロー / G4 保有推移（SOT-1126 子2）。
+  const { data: investorsData } = useQuery({
+    queryKey: ['investors'],
+    queryFn: fetchInvestors,
+    staleTime: 1000 * 60 * 30,
+    enabled: !!data,
+  })
+
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
 
@@ -169,6 +179,52 @@ export default function DashboardPage() {
   // G1: 研究→業績連鎖は年レンジ選択にも追随させる（散布図 G2 は最新年スナップショットなので非追随）。
   const filteredResearchPerformance = researchPerformance.filter(r => inRange(r.year))
   const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
+
+  // === 13F 機関投資家（G3 スマートマネー・フロー / G4 保有推移, SOT-1126 子2） ===
+  // 選択中の大カテゴリに属する企業（scopedCompanies）に 13F 行を絞る。ticker 一致を優先し company_name で補完。
+  const scopedTickers = new Set(scopedCompanies.map(c => c.ticker).filter(Boolean) as string[])
+  const scopedNames = new Set(scopedCompanies.map(c => c.name))
+  const allInvestors = investorsData ?? []
+  const scopedInvestors = queryCategory
+    ? allInvestors.filter(inv => (inv.ticker && scopedTickers.has(inv.ticker)) || (inv.company_name != null && scopedNames.has(inv.company_name)))
+    : allInvestors
+  const investorCompanyKey = (inv: (typeof allInvestors)[number]) => inv.company_name ?? inv.ticker ?? ''
+  // G3: (投資家×企業) ごとの最新報告の四半期Δを企業単位で合計し、増減の発散棒にする。
+  const latestInvestorByPair = new Map<string, (typeof allInvestors)[number]>()
+  for (const inv of scopedInvestors) {
+    const key = `${inv.investor_name}__${investorCompanyKey(inv)}`
+    const cur = latestInvestorByPair.get(key)
+    if (!cur || inv.report_date > cur.report_date) latestInvestorByPair.set(key, inv)
+  }
+  const smartMoneyDeltaByCompany = new Map<string, number>()
+  for (const inv of latestInvestorByPair.values()) {
+    if (inv.quarter_delta != null && inv.quarter_delta !== 0) {
+      const co = investorCompanyKey(inv)
+      smartMoneyDeltaByCompany.set(co, (smartMoneyDeltaByCompany.get(co) ?? 0) + inv.quarter_delta)
+    }
+  }
+  const smartMoneyFlow = [...smartMoneyDeltaByCompany.entries()]
+    .filter(([, d]) => d !== 0)
+    .map(([name, delta]) => ({ name, delta }))
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 12)
+  // G4: 報告期が最も多い企業を保有推移の対象にする（複数期あるほど推移が見える）。
+  const investorDatesByCompany = new Map<string, Set<string>>()
+  for (const inv of scopedInvestors) {
+    const co = investorCompanyKey(inv)
+    const s = investorDatesByCompany.get(co) ?? new Set<string>()
+    s.add(inv.report_date)
+    investorDatesByCompany.set(co, s)
+  }
+  let holdingsCompany = ''
+  let holdingsDates = 0
+  for (const [co, s] of investorDatesByCompany) {
+    if (s.size > holdingsDates) {
+      holdingsDates = s.size
+      holdingsCompany = co
+    }
+  }
+  const holdingsRows = scopedInvestors.filter(inv => investorCompanyKey(inv) === holdingsCompany)
 
   // クロス分析（指数）の基準年セレクタ（SOT-1014）。
   // 基準にできるのは「論文件数・時価総額がともに正」の年だけなので、その年だけを選択肢にする。
@@ -236,6 +292,8 @@ export default function DashboardPage() {
     { id: 'rndScatter', label: t('chart.rndScatter.title') },
     { id: 'categoryAvg', label: t('chart.categoryAvg.title') },
     { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
+    { id: 'smartMoney', label: t('chart.smartMoney.title') },
+    { id: 'holdings', label: t('chart.holdings.title') },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
   ]
   const isCardVisible = (id: string) => !hiddenCards[id]
@@ -490,6 +548,28 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} />}
         >
           <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
+        </ChartCard>
+        )}
+
+        {/* G3 スマートマネー・フロー（13F 最新四半期Δ, SOT-1126 子2） */}
+        {isCardVisible('smartMoney') && (
+        <ChartCard
+          title={t('chart.smartMoney.title')}
+          subtitle={`${t('chart.smartMoney.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
+        >
+          <SmartMoneyFlowBar items={smartMoneyFlow} />
+        </ChartCard>
+        )}
+
+        {/* G4 機関投資家 保有推移（13F, SOT-1126 子2） */}
+        {isCardVisible('holdings') && (
+        <ChartCard
+          title={t('chart.holdings.title')}
+          subtitle={`${t('chart.holdings.subtitle')}${holdingsCompany ? ` / ${holdingsCompany}` : ''}`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
+        >
+          <HoldingsTrendLines rows={holdingsRows} />
         </ChartCard>
         )}
 
