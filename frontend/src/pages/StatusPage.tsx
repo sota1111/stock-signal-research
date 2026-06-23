@@ -93,19 +93,19 @@ export default function StatusPage() {
     <div className="space-y-8">
       <section className="space-y-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('status.page.title')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('status.page.subtitle')}</p>
-          <p className="text-xs text-gray-400 mt-1">{t('dashboard.lastAnalyzed')}: {lastAnalyzed}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('status.page.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('status.page.subtitle')}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('dashboard.lastAnalyzed')}: {lastAnalyzed}</p>
         </div>
 
-        <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${status.border}`}>
+        <div className={`bg-surface rounded-lg shadow p-4 border-l-4 ${status.border}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="flex items-center gap-2 font-semibold text-gray-800">
+              <p className="flex items-center gap-2 font-semibold text-foreground">
                 <span className={`inline-block h-2.5 w-2.5 rounded-full ${status.dot}`} aria-hidden />
                 {t('status.label')}: {status.label}
               </p>
-              <p className="text-sm text-gray-500 mt-1">{status.message}</p>
+              <p className="text-sm text-muted-foreground mt-1">{status.message}</p>
             </div>
             <div className="shrink-0">{status.action}</div>
           </div>
@@ -113,10 +113,10 @@ export default function StatusPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {kpis.map(kpi => (
-            <div key={kpi.label} className="bg-white rounded-lg shadow p-3">
-              <p className="text-xs text-gray-500">{kpi.label}</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-800 mt-1 truncate" title={kpi.value}>{kpi.value}</p>
-              {kpi.hint && <p className="text-xs text-gray-400 mt-0.5">{kpi.hint}</p>}
+            <div key={kpi.label} className="bg-surface rounded-lg shadow p-3">
+              <p className="text-xs text-muted-foreground">{kpi.label}</p>
+              <p className="text-lg sm:text-xl font-bold text-foreground mt-1 truncate" title={kpi.value}>{kpi.value}</p>
+              {kpi.hint && <p className="text-xs text-muted-foreground mt-0.5">{kpi.hint}</p>}
             </div>
           ))}
         </div>

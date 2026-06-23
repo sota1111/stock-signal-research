@@ -11,11 +11,11 @@ export default function LanguageToggle({ variant = 'dark' }: { variant?: 'dark' 
       ? {
           wrap: 'border-slate-300 bg-slate-100',
           active: 'bg-slate-800 text-white',
-          inactive: 'text-slate-500 hover:text-slate-800',
+          inactive: 'text-muted-foreground hover:text-foreground',
         }
       : {
           wrap: 'border-white/30 bg-white/10',
-          active: 'bg-white text-slate-900',
+          active: 'bg-surface text-foreground',
           inactive: 'text-slate-300 hover:text-white',
         }
 

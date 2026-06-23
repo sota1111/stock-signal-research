@@ -109,43 +109,43 @@ export default function SupplyChainPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-800">{t('supplyChain.title')}</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{t('supplyChain.subtitle')}</p>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('supplyChain.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('supplyChain.subtitle')}</p>
       </div>
 
       {/* 絞り込み */}
-      <div className="flex flex-wrap items-center gap-3 bg-surface rounded-xl border border-slate-200/80 shadow-card p-3">
+      <div className="flex flex-wrap items-center gap-3 bg-surface rounded-xl border border-border/80 shadow-card p-3">
         <div className="flex items-center gap-2">
-          <label htmlFor="sc-category" className="shrink-0 text-sm text-gray-600">{t('supplyChain.filterCategory')}</label>
+          <label htmlFor="sc-category" className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.filterCategory')}</label>
           <select
             id="sc-category"
             value={category}
             onChange={e => { setCategory(e.target.value); resetSelection() }}
-            className="min-w-0 max-w-[14rem] truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="min-w-0 max-w-[14rem] truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <option value="">{t('supplyChain.all')}</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="sc-theme" className="shrink-0 text-sm text-gray-600">{t('supplyChain.filterTheme')}</label>
+          <label htmlFor="sc-theme" className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.filterTheme')}</label>
           <select
             id="sc-theme"
             value={themeId}
             onChange={e => { setThemeId(e.target.value); resetSelection() }}
-            className="min-w-0 max-w-[16rem] truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="min-w-0 max-w-[16rem] truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <option value="">{t('supplyChain.all')}</option>
             {themeOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="sc-company" className="shrink-0 text-sm text-gray-600">{t('supplyChain.filterCompany')}</label>
+          <label htmlFor="sc-company" className="shrink-0 text-sm text-muted-foreground">{t('supplyChain.filterCompany')}</label>
           <select
             id="sc-company"
             value={companyId}
             onChange={e => { setCompanyId(e.target.value); resetSelection() }}
-            className="min-w-0 max-w-[16rem] truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="min-w-0 max-w-[16rem] truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <option value="">{t('supplyChain.all')}</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -160,7 +160,7 @@ export default function SupplyChainPage() {
             {t('supplyChain.clear')}
           </button>
         )}
-        <span className="ml-auto text-xs text-slate-500">{t('supplyChain.edgeCount')}: {items.length}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{t('supplyChain.edgeCount')}: {items.length}</span>
       </div>
 
       <ChartCard title={t('supplyChain.graphTitle')} subtitle={t('supplyChain.graphHint')}>
@@ -182,26 +182,26 @@ export default function SupplyChainPage() {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded">{selected.from_theme_name}</span>
-              <span className="text-gray-400">→</span>
+              <span className="text-muted-foreground">→</span>
               <span className="bg-green-50 text-green-800 px-2 py-1 rounded">{selected.to_theme_name}</span>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 max-w-md">
-              <span className="text-gray-500">{t('supplyChain.relationType')}</span>
+              <span className="text-muted-foreground">{t('supplyChain.relationType')}</span>
               <span className="font-medium">{relLabel(selected.relation_type)}</span>
-              <span className="text-gray-500">{t('supplyChain.confidence')}</span>
+              <span className="text-muted-foreground">{t('supplyChain.confidence')}</span>
               <span className="font-medium">{fmtConfidence(selected.confidence)}</span>
-              <span className="text-gray-500">{t('supplyChain.createdAt')}</span>
+              <span className="text-muted-foreground">{t('supplyChain.createdAt')}</span>
               <span className="font-medium">{selected.created_at ?? '—'}</span>
             </div>
             {selected.evidence && selected.evidence.length > 0 && (
               <div>
-                <p className="text-gray-500">{t('supplyChain.evidence')}</p>
-                <ul className="list-disc list-inside text-gray-700">
+                <p className="text-muted-foreground">{t('supplyChain.evidence')}</p>
+                <ul className="list-disc list-inside text-foreground">
                   {selected.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
                 </ul>
               </div>
             )}
-            {selected.relationship && <p className="text-gray-500 text-xs">{selected.relationship}</p>}
+            {selected.relationship && <p className="text-muted-foreground text-xs">{selected.relationship}</p>}
           </div>
         </ChartCard>
       )}
@@ -214,7 +214,7 @@ export default function SupplyChainPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-200">
+                <tr className="text-left text-muted-foreground border-b border-border">
                   <th className="py-2 pr-3">{t('supplyChain.colFrom')}</th>
                   <th className="py-2 pr-3">{t('supplyChain.colTo')}</th>
                   <th className="py-2 pr-3">{t('supplyChain.relationType')}</th>
@@ -228,14 +228,14 @@ export default function SupplyChainPage() {
                   <tr
                     key={e.id}
                     onClick={() => setSelectedEdge(i)}
-                    className={`border-b border-gray-100 cursor-pointer hover:bg-slate-50 ${selectedEdge === i ? 'bg-sky-50' : ''}`}
+                    className={`border-b border-gray-100 cursor-pointer hover:bg-surface-muted ${selectedEdge === i ? 'bg-sky-50' : ''}`}
                   >
                     <td className="py-2 pr-3 whitespace-nowrap">{e.from_theme_name}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">{e.to_theme_name}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">{relLabel(e.relation_type)}</td>
                     <td className="py-2 pr-3 nums">{fmtConfidence(e.confidence)}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">{e.created_at ?? '—'}</td>
-                    <td className="py-2 pr-3 text-gray-600">{(e.evidence ?? []).join(' / ') || '—'}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">{(e.evidence ?? []).join(' / ') || '—'}</td>
                   </tr>
                 ))}
               </tbody>

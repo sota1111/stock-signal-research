@@ -23,6 +23,15 @@
   --surface-muted: #f1f5f9;
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
   --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.10);
+  /*
+   * Foreground (text) tokens (SOT-1137). These swap with the theme so text
+   * contrast always holds: near-black text on light surfaces, near-white text on
+   * dark surfaces. `--muted-foreground` is for secondary/labels, `--border` for
+   * hairlines that must stay visible in both themes.
+   */
+  --foreground: #0f172a;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
   /* Recharts grid/axis tuning (lower data-ink for gridlines). */
   --chart-grid: #e2e8f0;
   --chart-axis: #94a3b8;
@@ -39,6 +48,9 @@
     --surface-muted: #0e1117;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-card-hover: 0 6px 18px rgba(0, 0, 0, 0.55);
+    --foreground: #e6edf3;
+    --muted-foreground: #9aa7b4;
+    --border: #283041;
     --chart-grid: #283041;
     --chart-axis: #64748b;
     color-scheme: dark;
@@ -54,6 +66,9 @@
   --surface-muted: #0e1117;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-card-hover: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --foreground: #e6edf3;
+  --muted-foreground: #9aa7b4;
+  --border: #283041;
   --chart-grid: #283041;
   --chart-axis: #64748b;
   color-scheme: dark;
@@ -64,6 +79,16 @@ html {
   font-family: 'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * Base page surface + text color (SOT-1137). Default text follows the theme so
+ * any element without an explicit color inherits readable contrast: dark text on
+ * a light page, light text on a dark page.
+ */
+body {
+  background-color: var(--surface-muted);
+  color: var(--foreground);
 }
 
 /* `.nums` aligns digits in tables/metrics; `.font-mono` maps to JetBrains Mono. */
@@ -146,7 +171,7 @@ canvas {
     padding: 0.625rem 0.25rem;
   }
   table.responsive-table tr + tr {
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--border);
   }
   table.responsive-table td {
     display: flex;
@@ -163,7 +188,7 @@ canvas {
     content: attr(data-label);
     flex: 0 0 auto;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--muted-foreground);
     text-align: left;
     white-space: nowrap;
   }

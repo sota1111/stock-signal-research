@@ -23,14 +23,14 @@ export default function ChartCard({
 }) {
   return (
     <div
-      className={`bg-surface rounded-xl border border-slate-200/80 shadow-card transition-shadow hover:shadow-card-hover ${
+      className={`bg-surface rounded-xl border border-border/80 shadow-card transition-shadow hover:shadow-card-hover ${
         dense ? 'p-3' : 'p-4'
       }`}
     >
       <div className={`flex items-start justify-between gap-3 ${dense ? 'mb-2' : 'mb-3'}`}>
         <div className="min-w-0">
-          <p className="font-semibold tracking-tight text-slate-800">{title}</p>
-          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+          <p className="font-semibold tracking-tight text-foreground">{title}</p>
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
         {actions && <div className="flex-shrink-0">{actions}</div>}
       </div>
@@ -41,5 +41,5 @@ export default function ChartCard({
 
 export function EmptyChart({ message }: { message?: string }) {
   const { t } = useI18n()
-  return <p className="text-sm text-gray-400 py-8 text-center">{message ?? t('chart.empty.default')}</p>
+  return <p className="text-sm text-muted-foreground py-8 text-center">{message ?? t('chart.empty.default')}</p>
 }

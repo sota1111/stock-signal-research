@@ -63,25 +63,25 @@ export default function InvestmentCandidatesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('candidates.title')}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{t('candidates.subtitle')}</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('candidates.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('candidates.subtitle')}</p>
       </div>
 
       {/* 提案3: リードラグ分析 */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-gray-700">{t('candidates.leadlag.title')}</h2>
-            <p className="text-sm text-gray-500">{t('candidates.leadlag.subtitle')}</p>
+            <h2 className="text-lg font-semibold text-foreground">{t('candidates.leadlag.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('candidates.leadlag.subtitle')}</p>
           </div>
           {themeOptions.length > 0 && (
             <div className="flex items-center gap-2">
-              <label htmlFor="leadlag-theme" className="shrink-0 text-sm text-gray-600">{t('candidates.leadlag.selectTheme')}</label>
+              <label htmlFor="leadlag-theme" className="shrink-0 text-sm text-muted-foreground">{t('candidates.leadlag.selectTheme')}</label>
               <select
                 id="leadlag-theme"
                 value={effThemeId}
                 onChange={e => setThemeId(e.target.value)}
-                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
               >
                 {themeOptions.map(th => <option key={th.id} value={th.id}>{th.name}</option>)}
               </select>
@@ -108,8 +108,8 @@ export default function InvestmentCandidatesPage() {
       {/* 提案4: 複合スコア投資候補ランキング */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">{t('candidates.ranking.title')}</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-foreground">{t('candidates.ranking.title')}</h2>
+          <p className="text-sm text-muted-foreground">
             {t('candidates.ranking.subtitle', {
               paper: Math.round(COMPOSITE_WEIGHTS.paper * 100),
               patent: Math.round(COMPOSITE_WEIGHTS.patent * 100),
@@ -118,11 +118,11 @@ export default function InvestmentCandidatesPage() {
           </p>
         </div>
         {ranking.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('candidates.ranking.empty')}</p>
+          <p className="text-sm text-muted-foreground">{t('candidates.ranking.empty')}</p>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <div className="bg-surface rounded-lg shadow overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="bg-surface-muted text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 text-right">#</th>
                   <th className="px-4 py-2 text-left">{t('candidates.ranking.col.company')}</th>
@@ -134,18 +134,18 @@ export default function InvestmentCandidatesPage() {
               </thead>
               <tbody>
                 {ranking.map(row => (
-                  <tr key={row.company.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-right text-gray-500" data-label="#">{row.rank}</td>
+                  <tr key={row.company.id} className="border-t hover:bg-surface-muted">
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label="#">{row.rank}</td>
                     <td className="px-4 py-2" data-label={t('candidates.ranking.col.company')}>
-                      <span className="font-medium text-gray-800">{row.company.name}</span>
-                      {row.company.ticker && <span className="ml-2 text-xs text-gray-500">{row.company.ticker}</span>}
+                      <span className="font-medium text-foreground">{row.company.name}</span>
+                      {row.company.ticker && <span className="ml-2 text-xs text-muted-foreground">{row.company.ticker}</span>}
                     </td>
-                    <td className="px-4 py-2 text-right font-bold text-gray-800" data-label={t('candidates.ranking.col.composite')}>
+                    <td className="px-4 py-2 text-right font-bold text-foreground" data-label={t('candidates.ranking.col.composite')}>
                       {row.composite.toFixed(1)}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-600" data-label={t('candidates.ranking.col.paper')}>{row.paper.toFixed(0)}</td>
-                    <td className="px-4 py-2 text-right text-gray-600" data-label={t('candidates.ranking.col.patent')}>{row.patent.toFixed(0)}</td>
-                    <td className="px-4 py-2 text-right text-gray-600" data-label={t('candidates.ranking.col.investor')}>{row.investor.toFixed(0)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.paper')}>{row.paper.toFixed(0)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.patent')}>{row.patent.toFixed(0)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.investor')}>{row.investor.toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>

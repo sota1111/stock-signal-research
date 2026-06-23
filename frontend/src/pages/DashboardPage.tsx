@@ -408,31 +408,31 @@ export default function DashboardPage() {
       {/* === ヘッダ + テーマ/年レンジ選択 + グラフ === */}
       <section className="space-y-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('dashboard.title')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('dashboard.subtitle')}</p>
-          <p className="text-xs text-gray-400 mt-1">{t('dashboard.lastAnalyzed')}: {lastAnalyzed}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('dashboard.subtitle')}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('dashboard.lastAnalyzed')}: {lastAnalyzed}</p>
         </div>
 
         {/* 各機能ページへのナビゲーション（選択中テーマを query で引き継ぐ, SOT-997/999） */}
         <div className="flex flex-wrap gap-2">
-          <Link to={`/stock?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewStock')}</Link>
-          <Link to={`/papers?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewPapers')}</Link>
-          <Link to={`/investors?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.viewInvestors')}</Link>
-          <Link to={`/signals?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.signals')}</Link>
-          <Link to="/research-seeds" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.registerSeed')}</Link>
-          <Link to="/input" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.registerTheme')}</Link>
-          <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{t('btn.refetch')}</button>
+          <Link to={`/stock?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.viewStock')}</Link>
+          <Link to={`/papers?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.viewPapers')}</Link>
+          <Link to={`/investors?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.viewInvestors')}</Link>
+          <Link to={`/signals?theme=${encodeURIComponent(reportQuery)}`} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.signals')}</Link>
+          <Link to="/research-seeds" className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.registerSeed')}</Link>
+          <Link to="/input" className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.registerTheme')}</Link>
+          <button onClick={refetchAll} className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">{t('btn.refetch')}</button>
         </div>
 
         {/* 大カテゴリ → テーマ の順次選択 + テーマ検索（SOT-1002 / 提案B 3） */}
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           {/* 大カテゴリ */}
-          <label htmlFor="category-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.categoryLabel')}</label>
+          <label htmlFor="category-select" className="shrink-0 text-sm text-muted-foreground">{t('dashboard.categoryLabel')}</label>
           <select
             id="category-select"
             value={effectiveCategory}
             onChange={e => onSelectCategory(e.target.value)}
-            className="min-w-0 max-w-[12rem] truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="min-w-0 max-w-[12rem] truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <option value="">{t('dashboard.allCategories')}</option>
             {categories.map(c => (
@@ -446,15 +446,15 @@ export default function DashboardPage() {
             onChange={e => setThemeSearch(e.target.value)}
             placeholder={t('dashboard.themeSearch')}
             aria-label={t('dashboard.themeSearch')}
-            className="min-w-0 max-w-[12rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="min-w-0 max-w-[12rem] rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
           />
           {/* テーマ（カテゴリ） */}
-          <label htmlFor="theme-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.themeLabel')}</label>
+          <label htmlFor="theme-select" className="shrink-0 text-sm text-muted-foreground">{t('dashboard.themeLabel')}</label>
           <select
             id="theme-select"
             value={reportQuery}
             onChange={e => setTheme(e.target.value)}
-            className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
+            className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
           >
             {(selectableThemes.length > 0 ? selectableThemes : [reportQuery]).map(name => (
               <option key={name} value={name}>{name}</option>
@@ -464,9 +464,9 @@ export default function DashboardPage() {
 
         {/* 表示カードの ON/OFF（SOT-1002 / 提案B 5） */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
-          <span className="shrink-0 text-sm text-gray-600">{t('dashboard.cardsLabel')}</span>
+          <span className="shrink-0 text-sm text-muted-foreground">{t('dashboard.cardsLabel')}</span>
           {CARDS.map(card => (
-            <label key={card.id} className="flex items-center gap-1.5 text-sm text-gray-600">
+            <label key={card.id} className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={isCardVisible(card.id)}
@@ -481,7 +481,7 @@ export default function DashboardPage() {
         {/* 表示年レンジ選択（論文件数・時価総額・クロス分析グラフに反映） */}
         {showYearRange && (
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <span className="shrink-0 text-sm text-gray-600">{t('dashboard.yearRangeLabel')}</span>
+            <span className="shrink-0 text-sm text-muted-foreground">{t('dashboard.yearRangeLabel')}</span>
             <label htmlFor="year-from-select" className="sr-only">{t('dashboard.yearFrom')}</label>
             <select
               id="year-from-select"
@@ -490,13 +490,13 @@ export default function DashboardPage() {
                 const v = Number(e.target.value)
                 setYearRange(v, effEnd != null && v > effEnd ? v : effEnd)
               }}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               {availableYears.map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            <span className="shrink-0 text-sm text-gray-500">–</span>
+            <span className="shrink-0 text-sm text-muted-foreground">–</span>
             <label htmlFor="year-to-select" className="sr-only">{t('dashboard.yearTo')}</label>
             <select
               id="year-to-select"
@@ -505,7 +505,7 @@ export default function DashboardPage() {
                 const v = Number(e.target.value)
                 setYearRange(effStart != null && v < effStart ? v : effStart, v)
               }}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               {availableYears.map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -517,12 +517,12 @@ export default function DashboardPage() {
         {/* 指数の基準年選択（クロス分析グラフに反映, SOT-1014） */}
         {isCardVisible('cross') && baseYearOptions.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <label htmlFor="base-year-select" className="shrink-0 text-sm text-gray-600">{t('dashboard.baseYearLabel')}</label>
+            <label htmlFor="base-year-select" className="shrink-0 text-sm text-muted-foreground">{t('dashboard.baseYearLabel')}</label>
             <select
               id="base-year-select"
               value={effectiveBaseYear ?? ''}
               onChange={e => setBaseYear(Number(e.target.value))}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               {baseYearOptions.map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -550,7 +550,7 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="approx" note={t('provenance.cross.note')} asOf={lastAnalyzed} />}
         >
           {isCrossLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.papers.loading')}</p>
             </div>
@@ -573,12 +573,12 @@ export default function DashboardPage() {
             categoryPaperCounts && categoryPaperCounts.series.length > 0 ? (
               <CategoryPaperCountsChart data={categoryPaperCounts} fromYear={effStart} toYear={effEnd} />
             ) : (isCatPapersLoading || isCatPapersFetching) && !categoryPaperCounts ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
                 <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
                 <p>{t('chart.papers.loading')}</p>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
                 <p>{t('chart.papers.empty')}</p>
                 <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
               </div>
@@ -586,12 +586,12 @@ export default function DashboardPage() {
           ) : filteredPaperCounts.length > 0 ? (
             <PapersCountChart counts={filteredPaperCounts} />
           ) : isPapersLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.papers.loading')}</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <p>{t('chart.papers.empty')}</p>
               <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
             </div>
@@ -607,7 +607,7 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
         >
           {isFundamentalsLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.research.loading')}</p>
             </div>
@@ -625,7 +625,7 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
         >
           {isFundamentalsLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.research.loading')}</p>
             </div>
@@ -645,7 +645,7 @@ export default function DashboardPage() {
           {categoryAverages ? (
             <CategoryAvgPapersChart data={categoryAverages} fromYear={effStart} toYear={effEnd} />
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
               <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
               <p>{t('chart.categoryAvg.loading')}</p>
             </div>
@@ -718,7 +718,7 @@ export default function DashboardPage() {
           {displayCitationMatrix ? (
             <ThemeCitationMatrix data={displayCitationMatrix} />
           ) : (
-            <p className="text-sm text-gray-400">{t('chart.citationMatrix.loading')}</p>
+            <p className="text-sm text-muted-foreground">{t('chart.citationMatrix.loading')}</p>
           )}
         </ChartCard>
         )}
@@ -726,7 +726,7 @@ export default function DashboardPage() {
 
       <div className="border-t pt-4 space-y-2">
         <DataProvenanceLegend />
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted-foreground">
           {t('dashboard.disclaimer')}
         </p>
       </div>

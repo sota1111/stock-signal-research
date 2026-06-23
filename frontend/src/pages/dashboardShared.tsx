@@ -18,9 +18,9 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
   const { t } = useI18n()
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4 animate-pulse">
-        <p className="font-semibold text-gray-800">{company.name}</p>
-        <p className="text-xs text-gray-400 mt-2">{t('stock.loadingPrice')}</p>
+      <div className="bg-surface rounded-lg shadow p-4 animate-pulse">
+        <p className="font-semibold text-foreground">{company.name}</p>
+        <p className="text-xs text-muted-foreground mt-2">{t('stock.loadingPrice')}</p>
       </div>
     )
   }
@@ -31,12 +31,12 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
   if (isFetchError || isNoData) {
     const errorBorder = isFetchError
     return (
-      <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${errorBorder ? 'border-amber-400' : 'border-gray-200'}`}>
+      <div className={`bg-surface rounded-lg shadow p-4 border-l-4 ${errorBorder ? 'border-amber-400' : 'border-border'}`}>
         <div className="flex justify-between items-start">
-          <p className="font-semibold text-gray-800">{company.name}</p>
-          {company.ticker && <span className="text-xs text-gray-500">{company.ticker}</span>}
+          <p className="font-semibold text-foreground">{company.name}</p>
+          {company.ticker && <span className="text-xs text-muted-foreground">{company.ticker}</span>}
         </div>
-        <p className={`text-xs mt-2 ${errorBorder ? 'text-amber-600' : 'text-gray-400'}`}>
+        <p className={`text-xs mt-2 ${errorBorder ? 'text-amber-600' : 'text-muted-foreground'}`}>
           {errorBorder
             ? `${t('stock.fetchFailed')}${stock?.error ? `（${stock.error}）` : ''}`
             : t('stock.noPriceData')}
@@ -51,22 +51,22 @@ export function StockEvalCard({ company, stock, isLoading, isError }: { company:
   const changeColor = changePct >= 0 ? 'text-red-600' : 'text-blue-600'
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
+    <div className="bg-surface rounded-lg shadow p-4 border-l-4 border-emerald-500">
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-semibold text-gray-800">{company.name}</p>
-          <p className="text-xs text-gray-500">{stock.ticker}</p>
+          <p className="font-semibold text-foreground">{company.name}</p>
+          <p className="text-xs text-muted-foreground">{stock.ticker}</p>
         </div>
         <div className="text-right">
-          <p className="font-bold text-gray-800">{formatPrice(last, stock.currency)}</p>
-          <p className="text-xs text-gray-400">{t('stock.latestClose')}</p>
+          <p className="font-bold text-foreground">{formatPrice(last, stock.currency)}</p>
+          <p className="text-xs text-muted-foreground">{t('stock.latestClose')}</p>
         </div>
       </div>
       <div className="flex justify-between items-center mt-3 text-sm">
-        <span className="text-gray-500">{t('stock.tenYearReturn')}</span>
+        <span className="text-muted-foreground">{t('stock.tenYearReturn')}</span>
         <span className={`font-bold ${changeColor}`}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%</span>
       </div>
-      <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+      <div className="flex justify-between items-center mt-1 text-xs text-muted-foreground">
         <span>{t('stock.marketCap')} {formatMarketCap(stock.financials.market_cap)}</span>
         <span>PER {stock.financials.trailing_pe != null ? stock.financials.trailing_pe.toFixed(1) : '-'}</span>
       </div>

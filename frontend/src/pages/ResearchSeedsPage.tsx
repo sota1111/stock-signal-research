@@ -10,7 +10,7 @@ const paperHref = (p: ResearchSeedPaper): string | undefined =>
   p.url ?? (p.doi ? `https://doi.org/${p.doi}` : p.arxivId ? `https://arxiv.org/abs/${p.arxivId}` : undefined)
 
 const CONFIDENCE_STYLE: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-600 border-gray-300',
+  low: 'bg-gray-100 text-muted-foreground border-gray-300',
   medium: 'bg-amber-100 text-amber-700 border-amber-300',
   high: 'bg-green-100 text-green-700 border-green-300',
 }
@@ -32,18 +32,18 @@ function SeedCard({ seed, adopted }: { seed: ResearchSeed; adopted: boolean }) {
   const hypothesis = en?.hypothesis ?? seed.hypothesis
   const reason = en?.reason ?? seed.reason_to_track
   return (
-    <div className="bg-white rounded-lg shadow p-5">
+    <div className="bg-surface rounded-lg shadow p-5">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{theme}</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-foreground">{theme}</h2>
+          <p className="text-sm text-muted-foreground">
             {seed.symbol && <span className="font-mono mr-2">{seed.symbol}</span>}
             {seed.company_name}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           {/* 採用状況バッジ（テーマ化済/未着手, SOT-995 /research-seeds-3） */}
-          <span className={`text-xs font-medium px-2 py-0.5 rounded border ${adopted ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded border ${adopted ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-muted-foreground border-gray-300'}`}>
             {adopted ? t('seeds.adopted') : t('seeds.notAdopted')}
           </span>
           <ConfidenceBadge confidence={seed.confidence} />
@@ -58,33 +58,33 @@ function SeedCard({ seed, adopted }: { seed: ResearchSeed; adopted: boolean }) {
         </div>
       )}
 
-      {summary && <p className="text-sm text-gray-700 mb-3">{summary}</p>}
+      {summary && <p className="text-sm text-foreground mb-3">{summary}</p>}
 
       <dl className="space-y-1 text-sm">
         {hypothesis && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.hypothesis')}</dt>
-            <dd className="text-gray-700">{hypothesis}</dd>
+            <dt className="text-muted-foreground shrink-0 w-20">{t('seeds.hypothesis')}</dt>
+            <dd className="text-foreground">{hypothesis}</dd>
           </div>
         )}
         {reason && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.reason')}</dt>
-            <dd className="text-gray-700">{reason}</dd>
+            <dt className="text-muted-foreground shrink-0 w-20">{t('seeds.reason')}</dt>
+            <dd className="text-foreground">{reason}</dd>
           </div>
         )}
         {seed.source_reference && (
           <div className="flex gap-2">
-            <dt className="text-gray-500 shrink-0 w-20">{t('seeds.source')}</dt>
-            <dd className="text-gray-600">{seed.source_reference}</dd>
+            <dt className="text-muted-foreground shrink-0 w-20">{t('seeds.source')}</dt>
+            <dd className="text-muted-foreground">{seed.source_reference}</dd>
           </div>
         )}
       </dl>
 
       {seed.papers?.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-gray-500 mb-1">{t('seeds.relatedPapers')}</p>
-          <ul className="list-disc list-inside text-xs text-gray-600">
+          <p className="text-xs text-muted-foreground mb-1">{t('seeds.relatedPapers')}</p>
+          <ul className="list-disc list-inside text-xs text-muted-foreground">
             {seed.papers.map((p, i) => {
               const href = paperHref(p)
               return (
@@ -100,7 +100,7 @@ function SeedCard({ seed, adopted }: { seed: ResearchSeed; adopted: boolean }) {
         </div>
       )}
 
-      <div className="mt-3 pt-2 border-t flex items-center justify-between gap-2 text-xs text-gray-400">
+      <div className="mt-3 pt-2 border-t flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{t('seeds.registeredAt')}: {seed.created_at ?? '—'}</span>
         {/* シード→関連テーマ分析への導線（SOT-995 /research-seeds-2,5） */}
         <Link to={`/papers?theme=${encodeURIComponent(seed.theme)}`} className="text-blue-600 hover:underline">{t('seeds.analyze')}</Link>
@@ -128,8 +128,8 @@ export default function ResearchSeedsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('seeds.title')}</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <h1 className="text-2xl font-bold text-foreground mb-2">{t('seeds.title')}</h1>
+      <p className="text-sm text-muted-foreground mb-4">
         {t('seeds.subtitle')}
       </p>
 
@@ -141,21 +141,21 @@ export default function ResearchSeedsPage() {
           onChange={e => setSearch(e.target.value)}
           placeholder={t('seeds.search')}
           aria-label={t('seeds.search')}
-          className="min-w-0 w-full sm:w-72 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="min-w-0 w-full sm:w-72 rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
         />
-        <Link to="/input" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+        <Link to="/input" className="rounded-md border border-gray-300 bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted">
           {t('seeds.register')}
         </Link>
       </div>
 
-      {isLoading && <p className="text-gray-500">{t('common.loading')}</p>}
+      {isLoading && <p className="text-muted-foreground">{t('common.loading')}</p>}
       {isError && <p className="text-red-600">{t('common.loadError')}</p>}
 
       {seeds && seeds.length === 0 && (
-        <p className="text-gray-500">{t('seeds.empty')}</p>
+        <p className="text-muted-foreground">{t('seeds.empty')}</p>
       )}
       {seeds && seeds.length > 0 && filteredSeeds.length === 0 && (
-        <p className="text-gray-500">{t('seeds.noMatch')}</p>
+        <p className="text-muted-foreground">{t('seeds.noMatch')}</p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">

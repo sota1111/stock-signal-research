@@ -36,32 +36,32 @@ export default function EvidenceTimeline({ items, max = 20 }: { items: ExternalI
     const k = TYPE_LABEL_KEYS[ty]
     return k ? t(k) : ty
   }
-  const typeBadge = (ty: string) => TYPE_BADGE[ty] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+  const typeBadge = (ty: string) => TYPE_BADGE[ty] ?? 'bg-surface-muted text-muted-foreground border-border'
 
   return (
-    <ol className="relative ml-2 space-y-4 border-l border-slate-200">
+    <ol className="relative ml-2 space-y-4 border-l border-border">
       {sorted.map(it => (
         <li key={it.id} className="ml-4">
           <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-sky-400" aria-hidden />
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full border px-2 py-0.5 text-xs ${typeBadge(it.info_type)}`}>{typeLabel(it.info_type)}</span>
-            <time className="text-xs text-slate-400">{it.published_at?.slice(0, 10)}</time>
-            {it.related_company && <span className="text-xs text-slate-500">{it.related_company}</span>}
+            <time className="text-xs text-muted-foreground">{it.published_at?.slice(0, 10)}</time>
+            {it.related_company && <span className="text-xs text-muted-foreground">{it.related_company}</span>}
           </div>
           {it.url ? (
             <a
               href={it.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-0.5 block text-sm font-medium text-slate-800 hover:text-sky-600 hover:underline"
+              className="mt-0.5 block text-sm font-medium text-foreground hover:text-sky-600 hover:underline"
             >
               {it.title}
             </a>
           ) : (
-            <p className="mt-0.5 text-sm font-medium text-slate-800">{it.title}</p>
+            <p className="mt-0.5 text-sm font-medium text-foreground">{it.title}</p>
           )}
-          {it.summary && <p className="mt-0.5 text-xs text-slate-500">{it.summary}</p>}
-          {it.source_name && <p className="mt-0.5 text-xs text-slate-400">{it.source_name}</p>}
+          {it.summary && <p className="mt-0.5 text-xs text-muted-foreground">{it.summary}</p>}
+          {it.source_name && <p className="mt-0.5 text-xs text-muted-foreground">{it.source_name}</p>}
         </li>
       ))}
     </ol>

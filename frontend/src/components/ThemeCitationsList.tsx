@@ -12,20 +12,20 @@ function ThemeBlock({ theme }: { theme: ThemeCitationSummary }) {
   const visible = expanded ? theme.top_papers : theme.top_papers.slice(0, 5)
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div className="bg-surface rounded-lg shadow p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-semibold text-gray-800 truncate" title={theme.theme_name}>{theme.theme_name}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{t('citations.topPapers', { n: theme.paper_count })}</p>
+          <p className="font-semibold text-foreground truncate" title={theme.theme_name}>{theme.theme_name}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('citations.topPapers', { n: theme.paper_count })}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-lg font-bold text-sky-700">{theme.total_citations.toLocaleString()}</p>
-          <p className="text-xs text-gray-400">{t('citations.total')}</p>
+          <p className="text-xs text-muted-foreground">{t('citations.total')}</p>
         </div>
       </div>
 
       {theme.top_papers.length === 0 ? (
-        <p className="text-xs text-gray-400 mt-3">{t('citations.noCitedPapers')}</p>
+        <p className="text-xs text-muted-foreground mt-3">{t('citations.noCitedPapers')}</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {visible.map((p, i) => (
@@ -40,9 +40,9 @@ function ThemeBlock({ theme }: { theme: ThemeCitationSummary }) {
                 >
                   {p.title || t('citations.untitled')}
                 </a>
-                <span className="shrink-0 text-xs font-semibold text-gray-600">{p.citation_count.toLocaleString()} {t('citations.citationsSuffix')}</span>
+                <span className="shrink-0 text-xs font-semibold text-muted-foreground">{p.citation_count.toLocaleString()} {t('citations.citationsSuffix')}</span>
               </div>
-              {p.abstract && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.abstract}</p>}
+              {p.abstract && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.abstract}</p>}
             </li>
           ))}
         </ul>
@@ -64,7 +64,7 @@ export default function ThemeCitationsList({ themes }: { themes: ThemeCitationSu
   const { t } = useI18n()
   if (!themes || themes.length === 0) {
     return (
-      <p className="text-sm text-gray-400">{t('citations.noData')}</p>
+      <p className="text-sm text-muted-foreground">{t('citations.noData')}</p>
     )
   }
   return (

@@ -10,7 +10,7 @@ export type ProvenanceKind = 'measured' | 'approx' | 'uncollected'
 const KIND_STYLES: Record<ProvenanceKind, string> = {
   measured: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   approx: 'bg-amber-50 text-amber-700 border-amber-200',
-  uncollected: 'bg-slate-100 text-slate-500 border-slate-200',
+  uncollected: 'bg-slate-100 text-muted-foreground border-border',
 }
 
 export default function DataProvenanceBadge({
@@ -52,8 +52,8 @@ export default function DataProvenanceBadge({
 export function DataProvenanceLegend() {
   const { t } = useI18n()
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-      <span className="font-medium text-slate-600">{t('provenance.legend.title')}:</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <span className="font-medium text-muted-foreground">{t('provenance.legend.title')}:</span>
       <DataProvenanceBadge kind="measured" />
       <span>{t('provenance.measured.desc')}</span>
       <DataProvenanceBadge kind="approx" />

@@ -34,9 +34,9 @@ export default function SignalBacktestTable({ data }: { data?: BacktestResponse 
   const signalLabel = (label: string) => (SIGNAL_LABEL_KEY[label] ? t(SIGNAL_LABEL_KEY[label]) : label)
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-x-auto">
+    <div className="bg-surface rounded-lg shadow overflow-x-auto">
       <table className="w-full min-w-[560px] text-sm responsive-table">
-        <thead className="bg-gray-50 text-gray-600">
+        <thead className="bg-surface-muted text-muted-foreground">
           <tr>
             <th className="px-4 py-2 text-left">{t('backtest.col.signal')}</th>
             <th className="px-4 py-2 text-right whitespace-nowrap">{t('backtest.col.occurrences')}</th>
@@ -47,18 +47,18 @@ export default function SignalBacktestTable({ data }: { data?: BacktestResponse 
         </thead>
         <tbody>
           {data.signals.map(sig => (
-            <tr key={sig.key} className="border-t hover:bg-gray-50">
+            <tr key={sig.key} className="border-t hover:bg-surface-muted">
               <td className="px-4 py-2 font-medium" data-label={t('backtest.col.signal')}>
                 {signalLabel(sig.label)}
                 <span className={`ml-2 text-xs ${sig.direction === 'bullish' ? 'text-red-500' : 'text-blue-500'}`}>
                   {sig.direction === 'bullish' ? t('backtest.dir.bullish') : t('backtest.dir.bearish')}
                 </span>
               </td>
-              <td className="px-4 py-2 text-right text-gray-600" data-label={t('backtest.col.occurrences')}>{sig.occurrences}</td>
+              <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('backtest.col.occurrences')}>{sig.occurrences}</td>
               {windows.map(w => {
                 const wr = sig.windows.find(x => x.window_days === w)
                 if (!wr || wr.evaluated === 0) {
-                  return <td key={w} className="px-4 py-2 text-right text-gray-400" data-label={t('backtest.col.window', { n: w })}>-</td>
+                  return <td key={w} className="px-4 py-2 text-right text-muted-foreground" data-label={t('backtest.col.window', { n: w })}>-</td>
                 }
                 return (
                   <td key={w} className="px-4 py-2 text-right whitespace-nowrap" data-label={t('backtest.col.window', { n: w })}>
@@ -72,7 +72,7 @@ export default function SignalBacktestTable({ data }: { data?: BacktestResponse 
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-gray-400 px-4 py-2 border-t">
+      <p className="text-xs text-muted-foreground px-4 py-2 border-t">
         {t('backtest.footer', {
           smaShort: data.params.sma_short,
           smaLong: data.params.sma_long,

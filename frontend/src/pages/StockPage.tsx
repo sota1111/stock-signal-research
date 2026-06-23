@@ -88,23 +88,23 @@ export default function StockPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('nav.stock')}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{t('stock.subtitle')}</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('nav.stock')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('stock.subtitle')}</p>
       </div>
 
       {/* === カテゴリ別 時価総額推移（SOT-1056 / A-1 + B-3） === */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">{t('category.section.title')}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{t('category.section.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-foreground">{t('category.section.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('category.section.subtitle')}</p>
         </div>
         {mcapCategories.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('category.noData')}</p>
+          <p className="text-sm text-muted-foreground">{t('category.noData')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
-                <span className="text-xs text-gray-500">{t('category.selectLabel')}</span>
+              <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">{t('category.selectLabel')}</span>
                 <select
                   value={effectiveTheme}
                   onChange={e => setSelectedTheme(e.target.value)}
@@ -117,8 +117,8 @@ export default function StockPage() {
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
-                <span className="text-xs text-gray-500">{t('category.topNLabel')}</span>
+              <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">{t('category.topNLabel')}</span>
                 <select
                   value={topN}
                   onChange={e => setTopN(Number(e.target.value))}
@@ -135,12 +135,12 @@ export default function StockPage() {
               subtitle={categoryMcap?.theme_name ?? undefined}
             >
               {isCategoryLoading ? (
-                <p className="py-16 text-center text-sm text-gray-400">{t('category.loading')}</p>
+                <p className="py-16 text-center text-sm text-muted-foreground">{t('category.loading')}</p>
               ) : (
                 <CategoryMarketCapChart data={categoryMcap} />
               )}
             </ChartCard>
-            <p className="text-xs text-gray-400">{t('category.note', { n: topN })}</p>
+            <p className="text-xs text-muted-foreground">{t('category.note', { n: topN })}</p>
           </>
         )}
       </section>
@@ -148,16 +148,16 @@ export default function StockPage() {
       {/* === 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL） === */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-700">{t('fundamentals.section.title')}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{t('fundamentals.section.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-foreground">{t('fundamentals.section.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('fundamentals.section.subtitle')}</p>
         </div>
         {fundTickers.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('fundamentals.noData')}</p>
+          <p className="text-sm text-muted-foreground">{t('fundamentals.noData')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
-                <span className="text-xs text-gray-500">{t('fundamentals.selectLabel')}</span>
+              <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">{t('fundamentals.selectLabel')}</span>
                 <select
                   value={effectiveFundTicker}
                   onChange={e => setSelectedFundTicker(e.target.value)}
@@ -176,12 +176,12 @@ export default function StockPage() {
               subtitle={fundamentals?.name ?? effectiveFundTicker}
             >
               {isFundLoading ? (
-                <p className="py-16 text-center text-sm text-gray-400">{t('fundamentals.loading')}</p>
+                <p className="py-16 text-center text-sm text-muted-foreground">{t('fundamentals.loading')}</p>
               ) : (
                 <FinancialFundamentalsChart data={fundamentals} />
               )}
             </ChartCard>
-            <p className="text-xs text-gray-400">{t('fundamentals.note')}</p>
+            <p className="text-xs text-muted-foreground">{t('fundamentals.note')}</p>
           </>
         )}
       </section>
@@ -189,15 +189,15 @@ export default function StockPage() {
       {/* === ページ上部: 概観グラフ + 表示/非表示トグル（SOT-1003） === */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-gray-700">{t('stock.overview.title')}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t('stock.overview.title')}</h2>
           {tickerCompanies.length > 0 && (
-            <span className="text-xs text-gray-400">{t('stock.coverage', { ok: loadedCount, total: tickerCompanies.length })}</span>
+            <span className="text-xs text-muted-foreground">{t('stock.coverage', { ok: loadedCount, total: tickerCompanies.length })}</span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="shrink-0 text-sm text-gray-600">{t('stock.graphsLabel')}</span>
+          <span className="shrink-0 text-sm text-muted-foreground">{t('stock.graphsLabel')}</span>
           {GRAPHS.map(g => (
-            <label key={g.id} className="flex items-center gap-1.5 text-sm text-gray-600">
+            <label key={g.id} className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={isGraphVisible(g.id)}
@@ -233,9 +233,9 @@ export default function StockPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('stock.eval.title')}</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-3">{t('stock.eval.title')}</h2>
         {tickerCompanies.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('stock.noTicker')}</p>
+          <p className="text-sm text-muted-foreground">{t('stock.noTicker')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {tickerCompanies.map((company, i) => {
@@ -255,12 +255,12 @@ export default function StockPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">{t('stock.backtest.title')}</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-3">{t('stock.backtest.title')}</h2>
         {!backtestTicker ? (
-          <p className="text-sm text-gray-400">{t('stock.noTicker')}</p>
+          <p className="text-sm text-muted-foreground">{t('stock.noTicker')}</p>
         ) : (
           <>
-            <p className="text-xs text-gray-400 mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               {t('stock.backtest.target', { ticker: backtest?.ticker ?? backtestTicker })}
             </p>
             <SignalBacktestTable data={backtest} />
