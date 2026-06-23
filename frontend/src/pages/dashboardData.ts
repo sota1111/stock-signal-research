@@ -43,28 +43,55 @@ export function useAllThemes() {
 }
 
 /**
- * 注目企業を選択中の大カテゴリ（Theme.category）に絞り込む（SOT-1081 要件⑤）。
+ * 企業のタグ付けテーマ群から「最も多く属する大カテゴリ（dominant category）」を1つ返す。
+ *
+ * SOT-1127: 「いずれかのテーマが該当する大カテゴリ」すべてに企業を含めると、付随的にタグ付け
+ * されたメガキャップ（例: NVIDIA / Alphabet）が本来の領域でない大カテゴリの上位を占有してしまう
+ * （Biotech に NVIDIA/Alphabet が出る等）。各企業を代表する大カテゴリ1つに絞るための判定。
+ * 同数タイは大カテゴリ名の昇順で決定的に解決する。該当する大カテゴリが無ければ null。
+ */
+function dominantCategory(company: Company, categoryByThemeId: Map<string, string>): string | null {
+  if (!company.theme_ids) return null
+  let ids: string[] = []
+  try {
+    const parsed = JSON.parse(company.theme_ids)
+    if (Array.isArray(parsed)) ids = parsed.map(String)
+  } catch {
+    return null
+  }
+  const counts = new Map<string, number>()
+  for (const id of ids) {
+    const cat = categoryByThemeId.get(id)
+    if (!cat) continue
+    counts.set(cat, (counts.get(cat) ?? 0) + 1)
+  }
+  let best: string | null = null
+  let bestCount = 0
+  // 大カテゴリ名の昇順で走査し、より多い件数のものだけ採用 → 同数タイは昇順先頭が残る（決定的）。
+  for (const cat of [...counts.keys()].sort()) {
+    const n = counts.get(cat) as number
+    if (n > bestCount) {
+      best = cat
+      bestCount = n
+    }
+  }
+  return best
+}
+
+/**
+ * 注目企業を選択中の大カテゴリ（Theme.category）に絞り込む（SOT-1081 要件⑤ / SOT-1127）。
  *
  * 各 `Company.theme_ids`（theme_id 配列の JSON 文字列）を theme_id→category マップで大カテゴリに
- * 解決し、いずれかが選択中の大カテゴリに一致する企業のみ残す。`category` が空（全カテゴリ）の
- * 場合は全件をそのまま返す。
+ * 解決し、企業の代表（dominant）大カテゴリが選択中の大カテゴリと一致する企業のみ残す。
+ * 付随的に別領域テーマへタグ付けされたメガキャップが無関係な大カテゴリの上位を占有するのを防ぐ。
+ * `category` が空（全カテゴリ）の場合は全件をそのまま返す。
  */
 export function filterCompaniesByCategory(companies: Company[], category: string, themes: Theme[]): Company[] {
   if (!category) return companies
   const categoryByThemeId = new Map<string, string>(
     themes.filter(th => th.id && th.category).map(th => [th.id, th.category]),
   )
-  return companies.filter(c => {
-    if (!c.theme_ids) return false
-    let ids: string[] = []
-    try {
-      const parsed = JSON.parse(c.theme_ids)
-      if (Array.isArray(parsed)) ids = parsed.map(String)
-    } catch {
-      ids = []
-    }
-    return ids.some(id => categoryByThemeId.get(id) === category)
-  })
+  return companies.filter(c => dominantCategory(c, categoryByThemeId) === category)
 }
 
 /**
