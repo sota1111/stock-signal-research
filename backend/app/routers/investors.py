@@ -14,11 +14,20 @@ def read_investors():
 
     results = repo.list_all()
 
+    # 企業名は一括取得した辞書から引く。投資家1件ごとに company_repo.get_by_id を
+    # 呼ぶと、デプロイ環境(Firestore)では投資家件数ぶんの逐次ドキュメント読み取り
+    # (N+1)になりタイムアウト→読み込み失敗の原因になる。companies を1回だけ
+    # 取得して id→name のマップで解決する。SOT-1168
+    company_names = {
+        company["id"]: company.get("name")
+        for company in company_repo.list_all()
+        if company.get("id")
+    }
+
     response = []
     for item in results:
-        company = company_repo.get_by_id(item["company_id"])
         res_item = schemas.InstitutionalInvestorResponse.model_validate(item)
-        res_item.company_name = company["name"] if company else None
+        res_item.company_name = company_names.get(item["company_id"])
         response.append(res_item)
 
     return response
