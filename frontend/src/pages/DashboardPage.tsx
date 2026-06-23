@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors } from '../api'
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors, fetchSupplyChain } from '../api'
+import type { SupplyChainGraphNode, SupplyChainGraphEdge } from '../types'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
 import PapersCountChart from '../components/charts/PapersCountChart'
@@ -13,6 +14,7 @@ import ResearchToPerformanceChart from '../components/charts/ResearchToPerforman
 import RnDIntensityScatter from '../components/charts/RnDIntensityScatter'
 import SmartMoneyFlowBar from '../components/charts/SmartMoneyFlowBar'
 import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
+import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
 import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, GRAPH_FROM_YEAR } from './dashboardData'
@@ -126,6 +128,18 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
+  // サプライチェーン依存関係（G5, SOT-1126 子3）。大カテゴリ選択時はカテゴリで、未選択時は選択テーマで絞る。
+  const selectedThemeId = queryThemes.find(th => th.name === reportQuery)?.id ?? ''
+  const { data: supplyChainEdges } = useQuery({
+    queryKey: ['supply-chain', 'dashboard', queryCategory, selectedThemeId],
+    queryFn: () =>
+      fetchSupplyChain(
+        queryCategory ? { category: queryCategory } : selectedThemeId ? { theme_id: selectedThemeId } : undefined,
+      ),
+    staleTime: 1000 * 60 * 10,
+    enabled: !!data,
+  })
+
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
 
@@ -226,6 +240,24 @@ export default function DashboardPage() {
   }
   const holdingsRows = scopedInvestors.filter(inv => investorCompanyKey(inv) === holdingsCompany)
 
+  // === サプライチェーン依存関係グラフ（G5, SOT-1126 子3） ===
+  // 構造化 edge（SupplyChainItem[]）を node.type=大カテゴリ で色分けする nodes/edges に変換。
+  // 円形レイアウトが破綻しないよう edge 数を上限で抑える。
+  const SC_MAX_EDGES = 24
+  const cappedScEdges = (supplyChainEdges ?? []).slice(0, SC_MAX_EDGES)
+  const scNodeMap = new Map<string, SupplyChainGraphNode>()
+  const scGraphEdges: SupplyChainGraphEdge[] = []
+  for (const e of cappedScEdges) {
+    if (!scNodeMap.has(e.from_theme_id)) {
+      scNodeMap.set(e.from_theme_id, { id: e.from_theme_id, type: e.from_category ?? 'theme', label: e.from_theme_name ?? e.from_theme_id })
+    }
+    if (!scNodeMap.has(e.to_theme_id)) {
+      scNodeMap.set(e.to_theme_id, { id: e.to_theme_id, type: e.to_category ?? 'theme', label: e.to_theme_name ?? e.to_theme_id })
+    }
+    scGraphEdges.push({ source: e.from_theme_id, target: e.to_theme_id, relation: e.relation_type, evidence: e.evidence ?? [] })
+  }
+  const scNodes = [...scNodeMap.values()]
+
   // クロス分析（指数）の基準年セレクタ（SOT-1014）。
   // 基準にできるのは「論文件数・時価総額がともに正」の年だけなので、その年だけを選択肢にする。
   const filteredPaperPos = new Set(filteredPaperCounts.filter(c => c.count > 0).map(c => c.year))
@@ -294,6 +326,7 @@ export default function DashboardPage() {
     { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
     { id: 'smartMoney', label: t('chart.smartMoney.title') },
     { id: 'holdings', label: t('chart.holdings.title') },
+    { id: 'supplyChain', label: t('chart.supplyChainPanel.title') },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
   ]
   const isCardVisible = (id: string) => !hiddenCards[id]
@@ -570,6 +603,17 @@ export default function DashboardPage() {
           actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
         >
           <HoldingsTrendLines rows={holdingsRows} />
+        </ChartCard>
+        )}
+
+        {/* G5 サプライチェーン依存関係ネットワーク（SOT-1126 子3） */}
+        {isCardVisible('supplyChain') && (
+        <ChartCard
+          title={t('chart.supplyChainPanel.title')}
+          subtitle={`${t('chart.supplyChainPanel.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ` / ${reportQuery}`}`}
+          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
+        >
+          <SupplyChainGraphView nodes={scNodes} edges={scGraphEdges} />
         </ChartCard>
         )}
 

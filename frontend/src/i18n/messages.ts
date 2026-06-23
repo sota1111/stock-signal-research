@@ -129,6 +129,9 @@ export const messages = {
     'chart.smartMoney.unit': '株',
     'chart.holdings.title': '機関投資家 保有推移',
     'chart.holdings.subtitle': '対象企業に対する各投資家の保有比率(%)の四半期推移（13F）',
+    // G5 サプライチェーン依存関係（SOT-1126 子3）
+    'chart.supplyChainPanel.title': 'サプライチェーン依存関係',
+    'chart.supplyChainPanel.subtitle': '選択テーマ/カテゴリに連なる供給・依存関係（大カテゴリで色分け）',
     'provenance.measured': '実測',
     'provenance.approx': '近似',
     'provenance.uncollected': '未収集',
@@ -663,6 +666,9 @@ export const messages = {
     'chart.smartMoney.unit': 'shares',
     'chart.holdings.title': 'Institutional holdings trend',
     'chart.holdings.subtitle': "Each investor's ownership (%) over quarters for the target company (13F)",
+    // G5 supply-chain dependencies (SOT-1126 child 3)
+    'chart.supplyChainPanel.title': 'Supply-chain dependencies',
+    'chart.supplyChainPanel.subtitle': 'Supply/dependency edges linked to the selected theme/category (colored by category)',
     'provenance.measured': 'Measured',
     'provenance.approx': 'Approx.',
     'provenance.uncollected': 'Not collected',
