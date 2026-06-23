@@ -103,3 +103,62 @@ export function trailingIncreasingMonths(series: PrecursorSeriesPoint[]): number
   }
   return run
 }
+
+export interface SignalEvent {
+  year_month: string
+  count: number
+  /** MoM% at the firing month (null when not computable). */
+  mom: number | null
+  /** True when MoM% > 20 at this month. */
+  momFired: boolean
+  /** True when this month closes a strictly-increasing 3-month run (m-2 < m-1 < m). */
+  streakFired: boolean
+  /** Follow-up counts for up to the next 3 months after the firing month. */
+  followUp: { year_month: string; count: number }[]
+  /** Count change from the firing month to the last available follow-up month (null when no follow-up). */
+  followUpDelta: number | null
+  /** Percent change firing→last follow-up month (null when firing count is 0 or no follow-up). */
+  followUpPct: number | null
+}
+
+/**
+ * SOT-1162 (案D): walk the aggregated monthly series and emit a SignalEvent for every month that
+ * "fires": MoM% > 20 OR it closes a strictly-increasing 3-month run. For each firing month, capture
+ * the next up-to-3 months as follow-up so the UI can show 前兆→その後 (post-firing trajectory).
+ * Returns [] for an empty/short series. Pure; no side effects.
+ *
+ * The MoM>20 threshold is kept consistent with computePrecursorBreakdown's +25 tier (momPct > 20).
+ */
+export function detectSignalEvents(series: PrecursorSeriesPoint[]): SignalEvent[] {
+  if (!series || series.length === 0) return []
+
+  const events: SignalEvent[] = []
+  for (let i = 0; i < series.length; i++) {
+    const point = series[i]
+    const mom = point.mom
+    const momFired = mom !== null && mom > 20
+    const streakFired =
+      i >= 2 && series[i].count > series[i - 1].count && series[i - 1].count > series[i - 2].count
+    if (!momFired && !streakFired) continue
+
+    const followUp = series
+      .slice(i + 1, i + 4)
+      .map(p => ({ year_month: p.year_month, count: p.count }))
+    const last = followUp[followUp.length - 1]
+    const followUpDelta = last ? last.count - point.count : null
+    const followUpPct =
+      last && point.count > 0 ? ((last.count - point.count) / point.count) * 100 : null
+
+    events.push({
+      year_month: point.year_month,
+      count: point.count,
+      mom,
+      momFired,
+      streakFired,
+      followUp,
+      followUpDelta,
+      followUpPct,
+    })
+  }
+  return events
+}
