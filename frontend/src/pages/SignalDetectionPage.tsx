@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchDashboard, fetchSignalReport, fetchMonthlyData } from '../api'
 import ScoreBadge from '../components/ScoreBadge'
@@ -8,10 +8,11 @@ import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
 import PrecursorOverlayLine from '../components/charts/PrecursorOverlayLine'
 import PrecursorScoreBreakdown from '../components/charts/PrecursorScoreBreakdown'
+import ThemeMomentumScatter, { type ThemeMomentumPoint } from '../components/charts/ThemeMomentumScatter'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
 import CompanyScoreBar from '../components/charts/CompanyScoreBar'
 import { GRAPH_FROM_YEAR } from './dashboardData'
-import { aggregateMonthly, computePrecursorBreakdown } from './precursorScore'
+import { aggregateMonthly, computePrecursorBreakdown, trailingIncreasingMonths } from './precursorScore'
 import { useI18n } from '../i18n/useI18n'
 
 // SOT-945/SOT-987/SOT-1069: keep the paper graph on the same 2009 history floor as DashboardPage.
@@ -49,6 +50,36 @@ export default function SignalDetectionPage() {
     staleTime: 1000 * 60 * 30,
     retry: 1,
     enabled: !!data && !!overlayThemeId,
+  })
+
+  // SOT-1161 (案C): 全テーマ俯瞰のモメンタム散布図。前兆スコア上位N件の月次系列を並列取得して指標化する。
+  const scatterThemes = [...(data?.trending_themes ?? [])]
+    .sort((a, b) => b.precursor_score - a.precursor_score)
+    .slice(0, 12)
+  const momentumQueries = useQueries({
+    queries: scatterThemes.map(theme => ({
+      queryKey: ['momentum-monthly', theme.id],
+      queryFn: () => fetchMonthlyData(theme.id),
+      staleTime: 1000 * 60 * 30,
+      retry: 1,
+      enabled: !!data,
+    })),
+  })
+  const momentumLoading = momentumQueries.some(q => q.isLoading)
+  const momentumPoints: ThemeMomentumPoint[] = scatterThemes.flatMap((theme, i) => {
+    const rows = momentumQueries[i]?.data
+    if (!rows) return []
+    const series = aggregateMonthly(rows)
+    if (series.length === 0) return []
+    const breakdown = computePrecursorBreakdown(series)
+    return [{
+      id: theme.id,
+      name: theme.name,
+      momPct: breakdown.momPct ?? 0,
+      streakMonths: trailingIncreasingMonths(series),
+      latestCount: series[series.length - 1]?.count ?? 0,
+      score: theme.precursor_score,
+    }]
   })
 
   if (isLoading) return (
@@ -174,6 +205,24 @@ export default function SignalDetectionPage() {
             breakdown={overlayBreakdown}
             alignmentScore={alignmentMap.get(overlayThemeId)}
           />
+        </ChartCard>
+      </section>
+
+      {/* === モメンタム散布図（案C, SOT-1161）: 全テーマを前兆ゾーンで俯瞰 === */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">{t('signals.momentumScatter.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('signals.momentumScatter.subtitle')}</p>
+        </div>
+        <ChartCard title={t('signals.momentumScatter.title')} subtitle={t('signals.momentumScatter.subtitle')}>
+          {momentumLoading && momentumPoints.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
+              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+              <p>{t('signals.momentumScatter.loading')}</p>
+            </div>
+          ) : (
+            <ThemeMomentumScatter points={momentumPoints} />
+          )}
         </ChartCard>
       </section>
 
