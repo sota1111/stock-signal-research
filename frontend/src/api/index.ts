@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap } from '../types'
+import type { Theme, Paper, PaperMonthlyCount, Patent, PatentYearlyCount, PatentTopAssignee, Company, SupplyChainItem, InstitutionalInvestor, DashboardData, ThemeExternalInfos, AlignmentScore, SignalAlignmentResponse, ResearchSeed, StockData, SignalReport, BacktestResponse, ThemeCitations, ThemeCitationMatrix, CategoryPaperAverages, CategoryPaperCounts, CategoryListResponse, CategoryMarketCap, FinancialFundamentals, FundamentalsCompaniesResponse } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -109,6 +109,15 @@ export const fetchCategories = () =>
 export const fetchCategoryMarketCap = (themeId: string, topN = 10) =>
   api
     .get<CategoryMarketCap>('/dashboard/category-market-cap', { params: { theme_id: themeId, top_n: topN } })
+    .then(r => r.data)
+
+// 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL）
+export const fetchFundamentalsCompanies = () =>
+  api.get<FundamentalsCompaniesResponse>('/dashboard/fundamentals-companies').then(r => r.data)
+
+export const fetchFinancialFundamentals = (ticker: string) =>
+  api
+    .get<FinancialFundamentals>('/dashboard/financial-fundamentals', { params: { ticker } })
     .then(r => r.data)
 
 export const fetchThemeExternalInfos = (themeId: string) =>
