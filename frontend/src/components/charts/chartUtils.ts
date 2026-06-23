@@ -9,6 +9,23 @@ export interface StockItem {
 /** 多系列チャート用のカラーパレット */
 export const SERIES_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
+/** SOT-1142: サプライチェーンの relation_type を一貫した色で表す（Sankey/スイムレーン/凡例で共有）。 */
+export const RELATION_COLORS: Record<string, string> = {
+  supplies: '#3b82f6',
+  enables: '#10b981',
+  depends_on: '#f59e0b',
+  complements: '#8b5cf6',
+  competes: '#ef4444',
+}
+
+export const RELATION_TYPES = ['supplies', 'enables', 'depends_on', 'complements', 'competes'] as const
+
+/** relation_type の描画色（未知は中立グレー）。 */
+export const relationColor = (rt: string): string => RELATION_COLORS[rt] ?? '#94a3b8'
+
+/** confidence(0..1) を線幅にマッピングする（最小でも視認できる太さを確保）。 */
+export const confidenceStroke = (confidence: number): number => 1.2 + Math.max(0, Math.min(1, confidence ?? 0)) * 6
+
 export function yearOf(date: string): number {
   return Number(date.slice(0, 4))
 }
