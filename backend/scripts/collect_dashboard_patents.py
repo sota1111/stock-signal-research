@@ -80,6 +80,70 @@ THEME_QUERIES: dict[str, str] = {
     "flash controller": '("flash memory" AND "controller") OR "flash translation layer"',
 }
 
+# SOT-1119: 論文側 (_DASHBOARD_THEMES) は100テーマだが特許は上記30テーマのみだった。
+# `sot994_universe.json` の70テーマを merge して特許も100テーマ化する。
+# universe の `query` は arXiv 向けのキーワード列(例: "digital payment processing fintech
+# transaction")で PPUBS BRS 構文ではない。そのまま _field_restrict に渡すと既定AND結合で
+# 過剰に絞られ false な「該当なし」が増えるため、`_to_ppubs_brs()` で **再現率を優先した
+# OR-of-phrases** な BRS クエリへ機械変換する(決定的=テスト可能)。
+_BRS_STOPWORDS = {
+    "a", "an", "and", "or", "the", "of", "for", "to", "in", "on", "with",
+    "based", "using", "via", "system", "systems", "method", "methods",
+}
+
+
+def _to_ppubs_brs(name: str, query: str) -> str:
+    """arXiv 風キーワード列 `query` を、再現率重視の PPUBS BRS クエリへ変換する。
+
+    生成方針(決定的):
+      - 多語のテーマ名はフレーズとして 1 つ採用("digital payments infrastructure")。
+      - `query` の意味語(ストップワード除外)から隣接バイグラムをフレーズ化して列挙。
+      - 大文字略語(CRISPR/CBDC/API 等)は単独フレーズとして追加。
+    これらを OR 連結する。OR 主体にすることで既定AND結合による過剰絞り込みを避ける。
+    """
+    terms: list[str] = []
+    if len([w for w in name.split() if w]) >= 2:
+        terms.append(f'"{name.strip()}"')
+
+    tokens = [w for w in re.split(r"\s+", query.strip()) if w]
+    meaningful = [w for w in tokens if w.lower() not in _BRS_STOPWORDS]
+    for a, b in zip(meaningful, meaningful[1:]):
+        terms.append(f'"{a} {b}"')
+    for w in meaningful:
+        if len(w) >= 2 and w.isupper():  # acronyms: CRISPR, CBDC, API, LiDAR(部分大文字は除外)
+            terms.append(f'"{w}"')
+
+    # de-dup(順序保持・大小無視)
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for term in terms:
+        key = term.lower()
+        if key not in seen:
+            seen.add(key)
+            uniq.append(term)
+    if not uniq:  # query が空/全てストップワード等の保険
+        uniq = [f'"{name.strip()}"']
+    return " OR ".join(uniq)
+
+
+def _merge_sot994_queries() -> None:
+    """SOT-1119: sot994_universe.json の70テーマ分の PPUBS クエリを THEME_QUERIES に追加する。
+    既存30テーマは温存(setdefault)。これにより1回の実行で合計100テーマの特許を収集できる。"""
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "sot994_universe.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return
+    for t in data.get("themes", []):
+        name = t.get("name")
+        query = t.get("query")
+        if name and query:
+            THEME_QUERIES.setdefault(name, _to_ppubs_brs(name, query))
+
+
+_merge_sot994_queries()
+
 PPUBS_BASE = os.getenv("PPUBS_BASE_URL", "https://ppubs.uspto.gov")
 USER_AGENT = "stock-signal-research/SOT-960 (research; contact via repo)"
 
@@ -248,20 +312,64 @@ def _normalize(raw: dict, theme: str) -> dict | None:
     }
 
 
+def _write_payload(out_path: str, all_patents: list[dict], theme_yearly: dict[str, dict[str, int]]) -> None:
+    """現時点の収集結果を JSON に書き出す(チェックポイント兼最終出力)。"""
+    payload = {
+        "generated_at": _now_iso(),
+        "source": "ppubs",
+        "min_year": MIN_YEAR,
+        "patents": all_patents,
+        "theme_yearly_counts": theme_yearly,
+    }
+    tmp_path = f"{out_path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, out_path)  # 原子的に置換(途中切断でも壊れない)
+
+
 def main() -> int:
     out_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "data", "collected-patents.json")
     )
+    # SOT-1119: 100テーマ収集は ~2800 リクエスト(70新規テーマでも ~2000)になり外部APIの
+    # レート制限/切断に晒される。途中再開できるよう、既存JSONを起点に **未収集テーマだけ**を
+    # 収集し、各テーマ完了ごとにチェックポイント保存する。`--force`(または PATENT_COLLECT_FORCE)
+    # で全テーマ再収集。
+    force = ("--force" in sys.argv) or os.getenv("PATENT_COLLECT_FORCE", "").lower() in ("1", "true", "yes", "on")
+
+    all_patents: list[dict] = []
+    seen: set[str] = set()
+    theme_yearly: dict[str, dict[str, int]] = {}
+    done_themes: set[str] = set()
+    if not force and os.path.exists(out_path):
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                prev = json.load(f)
+            theme_yearly = dict(prev.get("theme_yearly_counts") or {})
+            done_themes = set(theme_yearly.keys())
+            for rec in prev.get("patents") or []:
+                pid = rec.get("patent_id")
+                if pid and pid not in seen:
+                    seen.add(pid)
+                    all_patents.append(rec)
+            print(f"[resume] carried over {len(all_patents)} patents / {len(done_themes)} themes "
+                  f"from existing JSON", file=sys.stderr)
+        except (OSError, ValueError):
+            pass
+
+    pending = [(t, q) for t, q in THEME_QUERIES.items() if force or t not in done_themes]
+    print(f"[ppubs] {len(THEME_QUERIES)} total themes, {len(pending)} to collect "
+          f"({len(done_themes)} already done)", file=sys.stderr)
+    if not pending:
+        _write_payload(out_path, all_patents, theme_yearly)
+        print(f"All {len(THEME_QUERIES)} themes already collected; nothing to do.")
+        return 0
 
     ppubs = Ppubs()
     ppubs.session()
     print(f"[ppubs] session caseId={ppubs.case_id}", file=sys.stderr)
 
-    all_patents: list[dict] = []
-    seen: set[str] = set()
-    theme_yearly: dict[str, dict[str, int]] = {}
-
-    for theme, base_q in THEME_QUERIES.items():
+    for theme, base_q in pending:
         field_q = _field_restrict(base_q)
         ranged = f'{field_q} AND @pd>="{MIN_YEAR}0101"<="{MAX_YEAR}1231"'
         # 1) 代表特許(直近 PER_THEME 件)
@@ -290,19 +398,14 @@ def main() -> int:
                 yearly[str(year)] = 0
             time.sleep(REQUEST_SLEEP)
         theme_yearly[theme] = yearly
-        print(f"[ppubs] {theme}: kept {kept} patents, total numFound={num_found}", file=sys.stderr)
+        # 各テーマ完了ごとにチェックポイント保存(途中切断でも進捗を失わない)。
+        _write_payload(out_path, all_patents, theme_yearly)
+        print(f"[ppubs] {theme}: kept {kept} patents, total numFound={num_found} "
+              f"(checkpoint: {len(theme_yearly)} themes)", file=sys.stderr)
 
     ppubs.close()
 
-    payload = {
-        "generated_at": _now_iso(),
-        "source": "ppubs",
-        "min_year": MIN_YEAR,
-        "patents": all_patents,
-        "theme_yearly_counts": theme_yearly,
-    }
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    _write_payload(out_path, all_patents, theme_yearly)
     print(f"Wrote {len(all_patents)} patents across {len(theme_yearly)} themes to {out_path}")
     return 0
 

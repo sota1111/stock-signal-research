@@ -67,11 +67,36 @@ export default function PatentsPage() {
       .sort((a, b) => a.year.localeCompare(b.year))
   }, [yearly, selectedTheme])
 
-  // 特許データのあるテーマだけをセレクトの選択肢にする。
-  const themesWithData = useMemo(() => {
-    const ids = new Set(yearly.map(r => r.theme_id))
-    return themes.filter(th => ids.has(th.id))
-  }, [themes, yearly])
+  // SOT-1119: 100テーマ全てをセレクトに出し、テーマごとの収集状態を区別表示する。
+  //   data        : 年次件数があり合計 > 0(実データあり)
+  //   nomatch     : 収集済みだが全年 0 件(該当特許なし)
+  //   uncollected : 年次行が無い(まだ収集していない)
+  const { collectedIds, dataIds } = useMemo(() => {
+    const collected = new Set<string>()
+    const sums = new Map<string, number>()
+    for (const r of yearly) {
+      collected.add(r.theme_id)
+      sums.set(r.theme_id, (sums.get(r.theme_id) ?? 0) + (r.count || 0))
+    }
+    const data = new Set<string>()
+    for (const [id, s] of sums) if (s > 0) data.add(id)
+    return { collectedIds: collected, dataIds: data }
+  }, [yearly])
+
+  const themeStatus = useMemo(
+    () => (id: string): 'data' | 'nomatch' | 'uncollected' =>
+      dataIds.has(id) ? 'data' : collectedIds.has(id) ? 'nomatch' : 'uncollected',
+    [dataIds, collectedIds],
+  )
+
+  // 実データのあるテーマを先頭に、未収集を末尾に並べる(選びやすさ優先・安定ソート)。
+  const sortedThemes = useMemo(() => {
+    const rank = { data: 0, nomatch: 1, uncollected: 2 } as const
+    return themes
+      .map((th, i) => ({ th, i }))
+      .sort((a, b) => rank[themeStatus(a.th.id)] - rank[themeStatus(b.th.id)] || a.i - b.i)
+      .map(x => x.th)
+  }, [themes, themeStatus])
 
   const maxAssignee = topAssignees.reduce((m, a) => Math.max(m, a.count), 0)
 
@@ -94,11 +119,21 @@ export default function PatentsPage() {
           className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
         >
           <option value="">{t('patents.allThemes')}</option>
-          {themesWithData.map(th => (
-            <option key={th.id} value={th.id}>{th.name}</option>
-          ))}
+          {sortedThemes.map(th => {
+            const status = themeStatus(th.id)
+            const suffix =
+              status === 'nomatch' ? ` ${t('patents.status.nomatch')}`
+              : status === 'uncollected' ? ` ${t('patents.status.uncollected')}`
+              : ''
+            return (
+              <option key={th.id} value={th.id}>{th.name}{suffix}</option>
+            )
+          })}
         </select>
       </div>
+
+      {/* 収集状態の凡例（SOT-1119: 100テーマ化に伴い 未収集/該当なし を区別） */}
+      <p className="-mt-4 text-xs text-gray-400">{t('patents.status.legend')}</p>
 
       {/* テーマ未選択時の空状態ガイド（SOT-995 /patents-5） */}
       {!selectedTheme && (

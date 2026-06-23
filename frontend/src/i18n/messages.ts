@@ -164,7 +164,7 @@ export const messages = {
     'level.low': '低',
     // patents page
     'patents.title': '特許',
-    'patents.subtitle': 'USPTO Patent Public Search から収集した30テーマ・2000年以降の実特許データ（論文と並ぶ前兆指標）。',
+    'patents.subtitle': 'USPTO Patent Public Search から収集した100テーマ・2000年以降の実特許データ（論文と並ぶ前兆指標）。',
     'patents.themeLabel': 'テーマ',
     'patents.allThemes': '全テーマ',
     'patents.loading': '特許データを読み込み中…',
@@ -191,6 +191,9 @@ export const messages = {
     'patents.overlay.empty': '重ね合わせに必要なデータがありません。テーマを選択してください。',
     'patents.overlay.papersLegend': '論文件数',
     'patents.selectThemeGuide': 'テーマを選択すると、特許×論文トレンドの重ね合わせなどテーマ別の分析が表示されます。',
+    'patents.status.nomatch': '（該当なし）',
+    'patents.status.uncollected': '（未収集）',
+    'patents.status.legend': '（該当なし）= 収集済みだが特許マッチ0件 / （未収集）= まだ特許を収集していないテーマ。',
     // investors page
     'investors.title': '投資家',
     'investors.subtitle': '注目企業と恩恵の連鎖（サプライチェーン）',
@@ -673,7 +676,7 @@ export const messages = {
     'level.low': 'Low',
     // patents page
     'patents.title': 'Patents',
-    'patents.subtitle': 'Real patent data for 30 themes since 2000, collected from USPTO Patent Public Search (an early signal alongside papers).',
+    'patents.subtitle': 'Real patent data for 100 themes since 2000, collected from USPTO Patent Public Search (an early signal alongside papers).',
     'patents.themeLabel': 'Theme',
     'patents.allThemes': 'All themes',
     'patents.loading': 'Loading patent data…',
@@ -700,6 +703,9 @@ export const messages = {
     'patents.overlay.empty': 'No data for the overlay. Please select a theme.',
     'patents.overlay.papersLegend': 'Papers',
     'patents.selectThemeGuide': 'Select a theme to see theme-specific analysis, such as the patents × papers trend overlay.',
+    'patents.status.nomatch': '(no matches)',
+    'patents.status.uncollected': '(not collected)',
+    'patents.status.legend': '(no matches) = collected but zero patent matches / (not collected) = theme not yet collected.',
     // investors page
     'investors.title': 'Investors',
     'investors.subtitle': 'Notable companies and the benefit chain (supply chain)',
