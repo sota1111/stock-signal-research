@@ -17,6 +17,10 @@ class InvestorRepository(ABC):
     def save(self, investor_data: Dict[str, Any]) -> bool:
         ...
 
+    @abstractmethod
+    def delete_all(self) -> int:
+        ...
+
 
 class SQLiteInvestorRepository(InvestorRepository):
     def __init__(self, session_factory=None):
@@ -74,6 +78,20 @@ class SQLiteInvestorRepository(InvestorRepository):
         finally:
             db.close()
 
+    def delete_all(self) -> int:
+        from app.models import InstitutionalInvestor
+        db = self._session_factory()
+        try:
+            deleted = db.query(InstitutionalInvestor).delete()
+            db.commit()
+            return int(deleted or 0)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"SQLite delete_all investors failed: {e}")
+            return 0
+        finally:
+            db.close()
+
 
 class FirestoreInvestorRepository(InvestorRepository):
     def list_all(self) -> List[Dict[str, Any]]:
@@ -122,6 +140,29 @@ class FirestoreInvestorRepository(InvestorRepository):
         except Exception as e:
             logger.error(f"Firestore save investor failed: {e}")
             return False
+
+    def delete_all(self) -> int:
+        try:
+            from firestore_client import get_db
+            db = get_db()
+            coll = db.collection("institutional_investors")
+            deleted = 0
+            batch = db.batch()
+            ops = 0
+            for doc in coll.stream():
+                batch.delete(doc.reference)
+                ops += 1
+                deleted += 1
+                if ops >= 400:  # Firestore batch limit is 500; stay well under it.
+                    batch.commit()
+                    batch = db.batch()
+                    ops = 0
+            if ops:
+                batch.commit()
+            return deleted
+        except Exception as e:
+            logger.error(f"Firestore delete_all investors failed: {e}")
+            return 0
 
 
 def get_investor_repository(session_factory=None) -> InvestorRepository:

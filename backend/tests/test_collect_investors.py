@@ -163,3 +163,68 @@ def test_load_collected_investors_present(tmp_path):
     assert len(records) == 1
     assert records[0]["investor_name"] == "Vanguard Group"
     assert records[0]["company_name"] == "NVIDIA"
+
+
+# SOT-1201: production seed must RECONCILE (refresh stale Firestore data), not skip-if-any-exist.
+class _FakeInvestorRepo:
+    """In-memory stand-in for the investor repository (no Firestore)."""
+
+    def __init__(self, preloaded=None):
+        self._rows = list(preloaded or [])
+        self.delete_all_calls = 0
+        self.save_calls = 0
+
+    def list_all(self):
+        return list(self._rows)
+
+    def save(self, data):
+        self.save_calls += 1
+        self._rows.append(dict(data))
+        return True
+
+    def delete_all(self):
+        n = len(self._rows)
+        self._rows = []
+        self.delete_all_calls += 1
+        return n
+
+
+_NEW_JSON = [
+    {"investor_name": "BlackRock", "company_name": "NVIDIA", "report_date": "2025-12-31", "value_usd": 100},
+    {"investor_name": "Goldman Sachs", "company_name": "NVIDIA", "report_date": "2025-12-31", "value_usd": 200},
+]
+
+
+def test_seed_investors_firestore_refreshes_stale_data(monkeypatch):
+    # Old production data: only 1 investor, differs from the new 2-investor JSON.
+    repo = _FakeInvestorRepo(preloaded=[{"investor_name": "Vanguard Group", "company_id": "company-nvidia"}])
+    monkeypatch.setattr(seed, "_load_collected_investors", lambda: list(_NEW_JSON))
+    monkeypatch.setattr(seed, "get_investor_repository", lambda *a, **k: repo, raising=False)
+    # get_investor_repository is imported inside the function from .repositories.investor_repository
+    import app.repositories.investor_repository as inv_repo
+    monkeypatch.setattr(inv_repo, "get_investor_repository", lambda *a, **k: repo)
+
+    seed.seed_investors_firestore()
+
+    assert repo.delete_all_calls == 1  # stale data wiped before reseed
+    names = {r["investor_name"] for r in repo.list_all()}
+    assert names == {"BlackRock", "Goldman Sachs"}
+    assert len(repo.list_all()) == 2
+
+
+def test_seed_investors_firestore_skips_when_current(monkeypatch):
+    # Existing data already matches the JSON (same investor set and count) -> no churn.
+    current = [
+        {"investor_name": "BlackRock", "company_id": "company-nvidia"},
+        {"investor_name": "Goldman Sachs", "company_id": "company-nvidia"},
+    ]
+    repo = _FakeInvestorRepo(preloaded=current)
+    monkeypatch.setattr(seed, "_load_collected_investors", lambda: list(_NEW_JSON))
+    import app.repositories.investor_repository as inv_repo
+    monkeypatch.setattr(inv_repo, "get_investor_repository", lambda *a, **k: repo)
+
+    seed.seed_investors_firestore()
+
+    assert repo.delete_all_calls == 0
+    assert repo.save_calls == 0
+    assert len(repo.list_all()) == 2
