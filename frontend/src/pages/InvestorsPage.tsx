@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchInvestors } from '../api'
 import ChartCard from '../components/charts/ChartCard'
 import InvestorHoldingsPie from '../components/charts/InvestorHoldingsPie'
+import HoldingsValueTrendLines from '../components/charts/HoldingsValueTrendLines'
+import { formatCompact } from '../components/charts/chartUtils'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -62,14 +64,30 @@ export default function InvestorsPage() {
           <p className="text-sm text-muted-foreground">{t('investors.noInstitutional')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {investorCharts.map(({ investor, slices }) => (
-              <ChartCard key={investor} title={investor}>
+            {investorCharts.map(({ investor, slices, total }) => (
+              <ChartCard
+                key={investor}
+                title={investor}
+                subtitle={`${t('investors.byInvestor.total')}: $${formatCompact(total)}`}
+              >
                 <InvestorHoldingsPie data={slices} />
               </ChartCard>
             ))}
           </div>
         )}
       </section>
+
+      {investorCharts.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{t('investors.valueTrend.title')}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{t('investors.valueTrend.subtitle')}</p>
+          </div>
+          <ChartCard title={t('investors.valueTrend.title')}>
+            <HoldingsValueTrendLines rows={allInvestors} />
+          </ChartCard>
+        </section>
+      )}
     </div>
   )
 }
