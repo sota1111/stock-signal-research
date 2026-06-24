@@ -173,6 +173,7 @@ class _FakeInvestorRepo:
         self._rows = list(preloaded or [])
         self.delete_all_calls = 0
         self.save_calls = 0
+        self.save_many_calls = 0
 
     def list_all(self):
         return list(self._rows)
@@ -181,6 +182,14 @@ class _FakeInvestorRepo:
         self.save_calls += 1
         self._rows.append(dict(data))
         return True
+
+    def save_many(self, rows):
+        self.save_many_calls += 1
+        n = 0
+        for data in rows:
+            self._rows.append(dict(data))
+            n += 1
+        return n
 
     def delete_all(self):
         n = len(self._rows)
@@ -207,6 +216,9 @@ def test_seed_investors_firestore_refreshes_stale_data(monkeypatch):
     seed.seed_investors_firestore()
 
     assert repo.delete_all_calls == 1  # stale data wiped before reseed
+    # SOT-1201: reseed must use a batched write (save_many), not per-record set().
+    assert repo.save_many_calls == 1
+    assert repo.save_calls == 0
     names = {r["investor_name"] for r in repo.list_all()}
     assert names == {"BlackRock", "Goldman Sachs"}
     assert len(repo.list_all()) == 2

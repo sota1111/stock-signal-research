@@ -18,6 +18,10 @@ class InvestorRepository(ABC):
         ...
 
     @abstractmethod
+    def save_many(self, investors_data: List[Dict[str, Any]]) -> int:
+        ...
+
+    @abstractmethod
     def delete_all(self) -> int:
         ...
 
@@ -75,6 +79,26 @@ class SQLiteInvestorRepository(InvestorRepository):
             db.rollback()
             logger.error(f"SQLite save investor failed: {e}")
             return False
+        finally:
+            db.close()
+
+    def save_many(self, investors_data: List[Dict[str, Any]]) -> int:
+        from app.models import InstitutionalInvestor
+        db = self._session_factory()
+        saved = 0
+        try:
+            for investor_data in investors_data:
+                row = dict(investor_data)
+                if not row.get("id"):
+                    row["id"] = str(uuid.uuid4())
+                db.merge(InstitutionalInvestor(**row))
+                saved += 1
+            db.commit()
+            return saved
+        except Exception as e:
+            db.rollback()
+            logger.error(f"SQLite save_many investors failed: {e}")
+            return 0
         finally:
             db.close()
 
@@ -140,6 +164,37 @@ class FirestoreInvestorRepository(InvestorRepository):
         except Exception as e:
             logger.error(f"Firestore save investor failed: {e}")
             return False
+
+    @staticmethod
+    def _doc_id_for(investor_data: Dict[str, Any]) -> str:
+        # {investor_name}_{company_id}_{report_date}（スペースはアンダースコアに変換）
+        doc_id = investor_data.get("id")
+        if not doc_id:
+            name = investor_data["investor_name"].replace(" ", "_")
+            doc_id = f"{name}_{investor_data['company_id']}_{investor_data['report_date']}"
+        return doc_id
+
+    def save_many(self, investors_data: List[Dict[str, Any]]) -> int:
+        """複数の投資家レコードを WriteBatch でまとめて冪等 upsert する(SOT-1201)。
+
+        本番シードは13Fの実データ約2000件を投入するが、1件ずつの `.set()` は
+        1書き込み=1往復のため、Cloud Run のバックグラウンドスレッド(CPUスロットリング下)で
+        完了する前にインスタンスがスケールゼロし、旧データが洗い替えされずに残っていた。
+        バッチ化で往復を約1/500に圧縮し、確実に投入されるようにする。"""
+        try:
+            from firestore_client import batch_upsert_documents
+
+            items = []
+            for investor_data in investors_data:
+                doc_id = self._doc_id_for(investor_data)
+                data = dict(investor_data)
+                data["id"] = doc_id
+                data.pop("_sa_instance_state", None)
+                items.append((doc_id, data))
+            return batch_upsert_documents("institutional_investors", items)
+        except Exception as e:
+            logger.error(f"Firestore save_many investors failed: {e}")
+            return 0
 
     def delete_all(self) -> int:
         try:
