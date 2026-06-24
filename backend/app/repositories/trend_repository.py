@@ -1,5 +1,4 @@
 import logging
-import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -92,12 +91,24 @@ class FirestoreTrendRepository(TrendRepository):
             query = db.collection("paper_monthly_counts")
 
             if theme_id:
-                # 単一テーマ指定時はその月次トレンド系列を時系列(year_month 昇順)で返す。
-                query = query.where("theme_id", "==", theme_id)
-                docs = query.order_by("year_month", direction=firestore.Query.ASCENDING).limit(limit).stream()
+                # 単一テーマ指定時はその月次トレンド系列を返す。
+                # SOT-1209: 以前は where("theme_id","==") + order_by("year_month") を発行していたが、
+                # これは別フィールドの等価フィルタ + 並び替えのため Firestore の複合インデックス
+                # (theme_id ASC, year_month ASC) を要求する。本番に当該インデックスが無いと
+                # FAILED_PRECONDITION で失敗し、except で握りつぶされて空配列を返していた。その結果、
+                # 投資候補ページの「ラグ別 相関」「論文 × 株価（正規化）」が
+                # 「相関を算出するデータが不足しています」となっていた。
+                # インデックス非依存にするため、等価フィルタのみで取得し year_month 昇順は Python 側で
+                # ソートする(単一テーマの月次は ~120 件で十分小さい)。limit はソート後に適用する。
+                docs = query.where("theme_id", "==", theme_id).stream()
+                rows = [d for doc in docs if (d := doc.to_dict())]
+                rows.sort(key=lambda r: r.get("year_month") or "")
+                rows = rows[:limit]
             else:
-                # theme_id 未指定時は全テーマの top movers(mom降順)。
+                # theme_id 未指定時は全テーマの top movers(mom降順)。単一フィールドの order_by のみで
+                # 複合インデックス不要のためサーバ側ソートのまま。
                 docs = query.order_by("mom_change_pct", direction=firestore.Query.DESCENDING).limit(limit).stream()
+                rows = [d for doc in docs if (d := doc.to_dict())]
             return [
                 {
                     "theme_id": d.get("theme_id"),
@@ -109,7 +120,7 @@ class FirestoreTrendRepository(TrendRepository):
                     "mom_change_pct": d.get("mom_change_pct", 0.0),
                     "yoy_change_pct": d.get("yoy_change_pct", 0.0),
                 }
-                for doc in docs if (d := doc.to_dict())
+                for d in rows
             ]
         except Exception as e:
             logger.error(f"Firestore list_monthly_counts failed: {e}")
