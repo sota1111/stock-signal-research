@@ -49,6 +49,35 @@ METRICS: List[Tuple[str, List[Tuple[str, str]]]] = [
 ]
 METRIC_KEYS: List[str] = [m[0] for m in METRICS]
 
+# 個別株のカテゴリ分類（SOT-1208）。financial-fundamentals.json の DEFAULT_TICKERS に対応。
+# 未分類ティッカーは DEFAULT_CATEGORY("other") にフォールバックする。
+TICKER_CATEGORY: Dict[str, str] = {
+    # semiconductor
+    "NVDA": "semiconductor", "AMD": "semiconductor", "INTC": "semiconductor",
+    "QCOM": "semiconductor", "MU": "semiconductor", "AVGO": "semiconductor",
+    "AMAT": "semiconductor", "LRCX": "semiconductor", "KLAC": "semiconductor",
+    "MRVL": "semiconductor", "ARM": "semiconductor", "TXN": "semiconductor",
+    # software & cloud
+    "MSFT": "software", "ORCL": "software", "CRM": "software", "ADBE": "software",
+    "NOW": "software", "IBM": "software", "CSCO": "software",
+    # internet & platform
+    "GOOGL": "internet", "AMZN": "internet", "META": "internet",
+    # hardware & consumer
+    "AAPL": "hardware", "TSLA": "hardware",
+}
+DEFAULT_CATEGORY = "other"
+
+
+def category_for_ticker(ticker: str) -> str:
+    """ティッカーのカテゴリキーを返す（大文字化＋サフィックス除去で照合）。無ければ DEFAULT_CATEGORY。"""
+    if not ticker:
+        return DEFAULT_CATEGORY
+    for c in (ticker, ticker.upper(), ticker.upper().split(".")[0]):
+        cat = TICKER_CATEGORY.get(c)
+        if cat:
+            return cat
+    return DEFAULT_CATEGORY
+
 
 # --- 純粋なXBRL正規化（ネットワーク非依存・テスト対象） ----------------------
 
@@ -232,11 +261,13 @@ def list_fundamentals_companies() -> List[Dict[str, Any]]:
             continue
         metrics = entry.get("metrics", {}) or {}
         metric_count = sum(1 for k in METRIC_KEYS if (metrics.get(k) or {}).get("points"))
+        ticker = (entry.get("ticker") or key).upper()
         out.append({
-            "ticker": (entry.get("ticker") or key).upper(),
+            "ticker": ticker,
             "name": entry.get("name"),
             "metric_count": metric_count,
             "has_data": metric_count > 0,
+            "category": category_for_ticker(ticker),
         })
     out.sort(key=lambda r: (not r["has_data"], -r["metric_count"], str(r["ticker"])))
     return out
