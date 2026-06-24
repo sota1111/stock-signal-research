@@ -2,7 +2,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { fetchDashboard, fetchStock, fetchThemes, fetchFinancialFundamentals, fetchPatentYearly } from '../api'
 import type { Company, Theme, FinancialFundamentals } from '../types'
 import type { StockItem } from '../components/charts/chartUtils'
-import { toYearly, yearOf, pctReturn } from '../components/charts/chartUtils'
+import { toYearly, yearOf, pctReturn, marketCapUsd } from '../components/charts/chartUtils'
 
 // SOT-1069: 全グラフ・年セレクタの可視下限を 2009 年に統一する共有定数。
 // 実時価総額(SOT-1056)が2009起点であるのに合わせ、論文/特許/株価のグラフ起点もここに揃える。
@@ -147,7 +147,7 @@ export function buildTopMarketCapYearly(
         it.stock.prices.length > 0 &&
         it.stock.financials.market_cap != null,
     )
-    .sort((a, b) => (b.stock.financials.market_cap ?? 0) - (a.stock.financials.market_cap ?? 0))
+    .sort((a, b) => (marketCapUsd(b.stock) ?? 0) - (marketCapUsd(a.stock) ?? 0))
     .slice(0, topN)
 
   const totals = new Map<number, number>()
@@ -157,7 +157,7 @@ export function buildTopMarketCapYearly(
     const latestYear = Math.max(...yearly.keys())
     const closeLatest = yearly.get(latestYear)!
     if (!closeLatest) continue
-    const mcapNow = it.stock.financials.market_cap!
+    const mcapNow = marketCapUsd(it.stock)!
     for (const [year, close] of yearly) {
       const mcap = mcapNow * (close / closeLatest)
       totals.set(year, (totals.get(year) ?? 0) + mcap)
@@ -188,7 +188,7 @@ export function buildTopMarketCapCompanyYearly(
         it.stock.prices.length > 0 &&
         it.stock.financials.market_cap != null,
     )
-    .sort((a, b) => (b.stock.financials.market_cap ?? 0) - (a.stock.financials.market_cap ?? 0))
+    .sort((a, b) => (marketCapUsd(b.stock) ?? 0) - (marketCapUsd(a.stock) ?? 0))
     .slice(0, topN)
 
   const series: { key: string; name: string }[] = []
@@ -199,7 +199,7 @@ export function buildTopMarketCapCompanyYearly(
     const latestYear = Math.max(...yearly.keys())
     const closeLatest = yearly.get(latestYear)!
     if (!closeLatest) continue
-    const mcapNow = it.stock.financials.market_cap!
+    const mcapNow = marketCapUsd(it.stock)!
     series.push({ key: it.ticker, name: it.name })
     for (const [year, close] of yearly) {
       const row = byYear.get(year) ?? ({ year } as { year: number } & Record<string, number>)
