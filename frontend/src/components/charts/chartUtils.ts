@@ -9,6 +9,48 @@ export interface StockItem {
 /** 多系列チャート用のカラーパレット */
 export const SERIES_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
+/** SOT-1239: 集約スライス/系列「その他」を表す色キー。 */
+export const OTHERS_KEY = '__others__'
+
+/** その他/未指定の中立グレー（円グラフ・線グラフ共通）。 */
+const OTHERS_COLOR = '#94a3b8'
+
+/**
+ * SOT-1239: 投資対象(ticker/企業名)を一貫した色で表す。
+ * 全投資家の円グラフ・線グラフで「同じ投資対象=同じ色」にし、AMDは常に赤・NVIDIAは常に緑のように、
+ * 投資家を跨いでも同一銘柄が同じ色になるようにする。
+ */
+const HOLDING_COLOR_OVERRIDES: Record<string, string> = {
+  amd: '#ef4444', // 赤
+  nvda: '#10b981', // 緑
+  nvidia: '#10b981', // 緑（社名表記ゆれ対応）
+  [OTHERS_KEY]: OTHERS_COLOR,
+}
+
+/**
+ * override に無い投資対象は、キーのハッシュからこのパレットへ安定割当する。
+ * AMD(#ef4444)/NVIDIA(#10b981) と被らないよう、それらの色は含めない。
+ */
+const HOLDING_PALETTE = [
+  '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6',
+  '#f97316', '#6366f1', '#84cc16', '#eab308', '#a855f7', '#0ea5e9',
+  '#d946ef', '#22d3ee', '#fb7185', '#65a30d',
+]
+
+/**
+ * 投資対象(ticker または企業名)の描画色を返す（SOT-1239）。
+ * override(AMD/NVIDIA/その他)を優先し、それ以外はキーの安定ハッシュでパレットから決定論的に割り当てる。
+ * 同じキーは常に同じ色になるため、複数の円グラフ/線グラフで色が一致する。
+ */
+export function holdingColor(key: string): string {
+  const k = (key ?? '').trim().toLowerCase()
+  if (!k) return OTHERS_COLOR
+  if (HOLDING_COLOR_OVERRIDES[k]) return HOLDING_COLOR_OVERRIDES[k]
+  let h = 0
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0
+  return HOLDING_PALETTE[h % HOLDING_PALETTE.length]
+}
+
 /** SOT-1142: サプライチェーンの relation_type を一貫した色で表す（Sankey/スイムレーン/凡例で共有）。 */
 export const RELATION_COLORS: Record<string, string> = {
   supplies: '#3b82f6',

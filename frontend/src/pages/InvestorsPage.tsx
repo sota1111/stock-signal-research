@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchInvestors } from '../api'
 import ChartCard from '../components/charts/ChartCard'
 import InvestorHoldingsPie from '../components/charts/InvestorHoldingsPie'
-import HoldingsValueTrendLines from '../components/charts/HoldingsValueTrendLines'
+import HoldingsShareTrendLines from '../components/charts/HoldingsShareTrendLines'
 import { formatCompact } from '../components/charts/chartUtils'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
@@ -33,10 +33,11 @@ export default function InvestorsPage() {
   }
 
   // 投資家ごとに保有企業の内訳（円グラフ用）を集計する。
-  const byInvestor = new Map<string, { company: string; value: number }[]>()
+  // colorKey は ticker 優先（SOT-1239: 同一銘柄を全投資家で同じ色にするため）。
+  const byInvestor = new Map<string, { company: string; colorKey: string; value: number }[]>()
   for (const inv of latestByPair.values()) {
     const list = byInvestor.get(inv.investor_name) ?? []
-    list.push({ company: companyKey(inv), value: sliceValue(inv) })
+    list.push({ company: companyKey(inv), colorKey: inv.ticker ?? companyKey(inv), value: sliceValue(inv) })
     byInvestor.set(inv.investor_name, list)
   }
 
@@ -60,8 +61,9 @@ export default function InvestorsPage() {
         <p className="text-sm text-muted-foreground">{t('investors.noInstitutional')}</p>
       ) : (
         <div className="space-y-8">
-          {/* SOT-1201: 投資家ごとに円グラフ(構成比)と線グラフ(保有額の推移)を1組にまとめ、
-              PCでは横並び・スマホでは縦積みで表示する。線グラフはSOT-1187で投資家ごと独立Y軸。 */}
+          {/* SOT-1201: 投資家ごとに円グラフ(構成比)と線グラフを1組にまとめ、
+              PCでは横並び・スマホでは縦積みで表示する。
+              SOT-1239: 線グラフは投資対象ごとの構成比(%)の推移とし、色は円グラフと共通化。 */}
           {investorCharts.map(({ investor, slices, total }) => (
             <section key={investor} className="space-y-3">
               <h2 className="text-lg font-semibold text-foreground">{investor}</h2>
@@ -72,8 +74,8 @@ export default function InvestorsPage() {
                 >
                   <InvestorHoldingsPie data={slices} />
                 </ChartCard>
-                <ChartCard title={t('investors.valueTrend.title')}>
-                  <HoldingsValueTrendLines rows={allInvestors.filter(inv => inv.investor_name === investor)} />
+                <ChartCard title={t('investors.shareTrend.title')}>
+                  <HoldingsShareTrendLines rows={allInvestors.filter(inv => inv.investor_name === investor)} />
                 </ChartCard>
               </div>
             </section>
