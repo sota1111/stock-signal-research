@@ -6,11 +6,19 @@ from ..repositories.trend_repository import get_trend_repository
 
 router = APIRouter(prefix="/papers", tags=["papers"])
 
+# SOT-1213: theme_id 未指定(全カテゴリ・全テーマ)時に全論文(本番Firestoreで1万件超)を
+# 取得すると応答に数十秒かかりタイムアウトし、論文一覧が空表示になる。引用数上位 N 件に
+# 限定して応答を有界化する。フロントは引用数降順・20件/ページ表示なので体感は不変、
+# 上位1000件で98/100テーマをカバーするためカテゴリ絞り込みも維持できる。
+ALL_PAPERS_LIMIT = 1000
+
 
 @router.get("/", response_model=List[schemas.PaperResponse])
 def read_papers(theme_id: Optional[str] = None):
     repo = get_paper_repository()
-    return repo.list_all(theme_id=theme_id)
+    # テーマ指定時は対象が少数のため全件、未指定時のみ上位 N 件に制限する。
+    limit = None if theme_id else ALL_PAPERS_LIMIT
+    return repo.list_all(theme_id=theme_id, limit=limit)
 
 
 @router.post("/", response_model=schemas.PaperResponse)
