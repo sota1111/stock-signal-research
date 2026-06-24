@@ -34,7 +34,7 @@ export default function SignalDetectionPage() {
     retry: 1,
     enabled: !!data,
   })
-  const { data: monthly } = useQuery({
+  const { data: monthly, isLoading: isMonthlyLoading, isFetching: isMonthlyFetching } = useQuery({
     queryKey: ['papers-monthly'],
     queryFn: () => fetchMonthlyData(),
     staleTime: 1000 * 60 * 30,
@@ -45,7 +45,7 @@ export default function SignalDetectionPage() {
   // SOT-1159 (案A): 前兆判定オーバーレイ。選択テーマの月次系列を取得し加点根拠を可視化する。
   const [selectedThemeId, setSelectedThemeId] = useState('')
   const overlayThemeId = selectedThemeId || data?.trending_themes?.[0]?.id || ''
-  const { data: overlayMonthly } = useQuery({
+  const { data: overlayMonthly, isLoading: isOverlayLoading, isFetching: isOverlayFetching } = useQuery({
     queryKey: ['precursor-monthly', overlayThemeId],
     queryFn: () => fetchMonthlyData(overlayThemeId),
     staleTime: 1000 * 60 * 30,
@@ -107,6 +107,17 @@ export default function SignalDetectionPage() {
   const overlaySeries = aggregateMonthly(overlayMonthly ?? [])
   const overlayBreakdown = computePrecursorBreakdown(overlaySeries)
 
+  // SOT-1180: 「読み込み中」と「データなし」を区別できるよう、各グラフの取得中はスピナーを出す。
+  // データ未取得（in-flight）かつ手元に行がまだ無いときだけ読み込み中表示にする。
+  const isOverlayBusy = (isOverlayLoading || isOverlayFetching) && (overlayMonthly?.length ?? 0) === 0
+  const isMonthlyBusy = (isMonthlyLoading || isMonthlyFetching) && (monthly?.length ?? 0) === 0
+  const renderChartLoading = (label: string) => (
+    <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
+      <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+      <p>{label}</p>
+    </div>
+  )
+
   return (
     <div className="space-y-8">
       <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('signals.title')}</h1>
@@ -151,7 +162,9 @@ export default function SignalDetectionPage() {
         </div>
         <ChartCard
           title={
-            overlayBreakdown.total > 0
+            isOverlayBusy
+              ? t('signals.precursorOverlay.loading')
+              : overlayBreakdown.total > 0
               ? t('signals.precursorOverlay.formula', {
                   total: overlayBreakdown.total,
                   mom: `+${overlayBreakdown.momPoints}`,
@@ -161,17 +174,23 @@ export default function SignalDetectionPage() {
           }
           subtitle={t('signals.precursorOverlay.thresholdNote')}
         >
-          <PrecursorOverlayLine data={overlayMonthly ?? []} />
+          {isOverlayBusy
+            ? renderChartLoading(t('signals.precursorOverlay.loading'))
+            : <PrecursorOverlayLine data={overlayMonthly ?? []} />}
         </ChartCard>
         {/* 案B (SOT-1160): 前兆スコアを加点要素（MoM寄与・連続増寄与）に分解した積み上げ内訳 */}
         <ChartCard
           title={t('signals.precursorBreakdown.title')}
           subtitle={t('signals.precursorBreakdown.subtitle')}
         >
-          <PrecursorScoreBreakdown
-            breakdown={overlayBreakdown}
-            alignmentScore={alignmentMap.get(overlayThemeId)}
-          />
+          {isOverlayBusy ? (
+            renderChartLoading(t('signals.precursorBreakdown.loading'))
+          ) : (
+            <PrecursorScoreBreakdown
+              breakdown={overlayBreakdown}
+              alignmentScore={alignmentMap.get(overlayThemeId)}
+            />
+          )}
         </ChartCard>
       </section>
 
@@ -234,7 +253,9 @@ export default function SignalDetectionPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('signals.signalTimeline.subtitle')}</p>
         </div>
         <ChartCard title={t('signals.signalTimeline.title')}>
-          <SignalTimeline data={overlayMonthly ?? []} />
+          {isOverlayBusy
+            ? renderChartLoading(t('signals.signalTimeline.loading'))
+            : <SignalTimeline data={overlayMonthly ?? []} />}
         </ChartCard>
         <div className="flex flex-col gap-1">
           <Link to="/evaluation" className="text-sm font-medium text-sky-700 hover:underline">
@@ -343,7 +364,9 @@ export default function SignalDetectionPage() {
             )}
           </ChartCard>
           <ChartCard title={t('signals.b2')} subtitle={t('signals.b2.subtitle')}>
-            <MonthlyPapersLine data={monthly ?? []} />
+            {isMonthlyBusy
+              ? renderChartLoading(t('signals.monthly.loading'))
+              : <MonthlyPapersLine data={monthly ?? []} />}
           </ChartCard>
           <ChartCard title={t('signals.b3')} subtitle={t('signals.b3.subtitle')}>
             <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />
