@@ -830,33 +830,11 @@ def seed_dashboard_data_firestore():
                 "confidence": 0.6,
             })
 
-        # 3 & 5. Papers + monthly counts: idempotent top-up that ALWAYS runs (repos upsert by
-        # paper_id / theme_id+keyword+year_month). This lets an already-seeded prod Firestore
-        # gain the full 10-year dataset on the next deploy without overwriting other data.
-        paper_repo = get_paper_repository()
-        # SOT-1180: 数千件の論文を1件ずつ書き込むと本番(Cloud Run背景スレッド)で
-        # 完了前にスケールゼロし投入が欠落するため、まとめて(WriteBatch)投入する。
-        paper_rows = []
-        for p in _DASHBOARD_PAPERS:
-            tid = theme_ids.get(p["theme"])
-            if not tid:
-                continue
-            paper_rows.append({
-                "paper_id": p["pid"],
-                "title": p["title"],
-                "url": p.get("url"),
-                "abstract": p.get("abstract"),
-                "published_at": p["pub"],
-                "theme_id": tid,
-                "citation_count": p.get("citation", 0),
-                "source": p.get("source", "arxiv" if p.get("url") else "manual"),
-            })
-        paper_repo.save_many(paper_rows)
-
-        # Monthly counts — SOT-1111(B): 実データがあれば全テーマを実論文から集計して冪等 upsert。
-        # SOT-1180: 前兆検知ページが必要とする月次データは「最重要」なので、後段の reconcile 削除
-        # (旧合成doc掃除・数千〜万件)より前に書き込む。こうすれば Cloud Run のCPUスロットリングで
-        # バックグラウンドseedが途中で止まっても、月次データは先に確実に永続化される(多重防御)。
+        # 5. Monthly counts — SOT-1111(B): 実データがあれば全テーマを実論文から集計して冪等 upsert。
+        # SOT-1180: 前兆検知ページが必要とする月次データは「最重要」なので、本番(Cloud Run背景スレッド)の
+        # CPUスロットリング下でも最初に永続化されるよう、数千件の論文一括書き込みより「前」(scores直後)に
+        # 書き込む。こうすればスレッドが論文書き込みやreconcile削除の途中で止まっても、月次データは
+        # 先に確実に永続化される(多重防御)。
         trend_repo = get_trend_repository()
         if _DASHBOARD_MONTHLY_REAL:
             # 旧3テーマ合成の月次doc(keyword=GPU memory/HBM/NVMe)が本番に残ると、同一テーマで
@@ -906,6 +884,28 @@ def seed_dashboard_data_firestore():
                     })
                     prev_count = count
             trend_repo.save_monthly_counts_many(monthly_rows)
+
+        # 3. Papers: idempotent top-up that ALWAYS runs (repos upsert by paper_id). This lets an
+        # already-seeded prod Firestore gain the full 10-year dataset on the next deploy without
+        # overwriting other data. SOT-1180: 数千件の論文を1件ずつ書き込むと本番(Cloud Run背景スレッド)で
+        # 完了前にスケールゼロし投入が欠落するため、まとめて(WriteBatch)投入する。月次は上で先に投入済み。
+        paper_repo = get_paper_repository()
+        paper_rows = []
+        for p in _DASHBOARD_PAPERS:
+            tid = theme_ids.get(p["theme"])
+            if not tid:
+                continue
+            paper_rows.append({
+                "paper_id": p["pid"],
+                "title": p["title"],
+                "url": p.get("url"),
+                "abstract": p.get("abstract"),
+                "published_at": p["pub"],
+                "theme_id": tid,
+                "citation_count": p.get("citation", 0),
+                "source": p.get("source", "arxiv" if p.get("url") else "manual"),
+            })
+        paper_repo.save_many(paper_rows)
 
         # Reconcile (冪等・無ければno-op):
         # - 実データ移行時(_USING_REAL_PAPERS): 本番に残る旧合成doc(paper-<slug>-<year>-NN)を全削除し、
