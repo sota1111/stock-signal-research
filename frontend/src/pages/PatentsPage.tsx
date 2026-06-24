@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchThemes, fetchPatents, fetchPatentYearly, fetchPatentTopAssignees, fetchSignalReport } from '../api'
 import { useFilters } from '../contexts/useFilters'
@@ -19,6 +19,8 @@ export default function PatentsPage() {
   const { t } = useI18n()
   // テーマ選択(theme_id)はグローバルフィルタ(URL永続化)を参照する（SOT-997）。'' = 全テーマ
   const { themeId: selectedTheme, setThemeId } = useFilters()
+  // カテゴリ絞り込み(SOT-1212)はこのページ内のローカル状態。'' = 全カテゴリ
+  const [category, setCategory] = useState('')
 
   const themeArg = selectedTheme || undefined
   const { data: themes = [] } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes })
@@ -54,10 +56,14 @@ export default function PatentsPage() {
   }, [themes])
 
   // 年次トレンド: theme_id×year の件数を、選択テーマ(未選択なら全テーマ)で年ごとに合算する。
+  // SOT-1212: テーマ未選択かつカテゴリ選択時は、そのカテゴリのテーマだけを合算する。
   const yearlyChart = useMemo(() => {
+    const catIds = category ? new Set(themes.filter(th => th.category === category).map(th => th.id)) : null
+    const restrictToCategory = !selectedTheme && catIds
     const byYear = new Map<string, number>()
     for (const row of yearly) {
       if (selectedTheme && row.theme_id !== selectedTheme) continue
+      if (restrictToCategory && !catIds!.has(row.theme_id)) continue
       // SOT-1069: 特許の年次トレンドも 2009 起点に揃える（2000–2008 を除外）。
       if (Number(row.year) < GRAPH_FROM_YEAR) continue
       byYear.set(row.year, (byYear.get(row.year) ?? 0) + (row.count || 0))
@@ -65,7 +71,7 @@ export default function PatentsPage() {
     return [...byYear.entries()]
       .map(([year, count]) => ({ year, count }))
       .sort((a, b) => a.year.localeCompare(b.year))
-  }, [yearly, selectedTheme])
+  }, [yearly, selectedTheme, themes, category])
 
   // SOT-1119: 100テーマ全てをセレクトに出し、テーマごとの収集状態を区別表示する。
   //   data        : 年次件数があり合計 > 0(実データあり)
@@ -98,6 +104,33 @@ export default function PatentsPage() {
       .map(x => x.th)
   }, [themes, themeStatus])
 
+  // SOT-1212: カテゴリで絞り込む。テーマのドロップダウンは選択カテゴリのテーマだけに絞る。
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    for (const th of themes) if (th.category) set.add(th.category)
+    return [...set].sort()
+  }, [themes])
+
+  const themesInCategory = useMemo(
+    () => (category ? sortedThemes.filter(th => th.category === category) : sortedThemes),
+    [sortedThemes, category],
+  )
+
+  // カテゴリ選択中(テーマ未選択)に、表示データを当該カテゴリのテーマ集合へ絞り込むための id 集合。
+  const categoryThemeIds = useMemo(() => new Set(themesInCategory.map(th => th.id)), [themesInCategory])
+  const filterByCategory = !selectedTheme && !!category
+
+  const onCategoryChange = (value: string) => {
+    setCategory(value)
+    setThemeId('') // カテゴリを変えたらテーマ選択はリセット
+  }
+
+  // SOT-1212: テーマ未選択かつカテゴリ選択時は、特許リストも当該カテゴリのテーマに絞り込む。
+  const filteredPatents = useMemo(
+    () => (filterByCategory ? patents.filter(p => p.theme_id && categoryThemeIds.has(p.theme_id)) : patents),
+    [patents, filterByCategory, categoryThemeIds],
+  )
+
   const maxAssignee = topAssignees.reduce((m, a) => Math.max(m, a.count), 0)
 
   return (
@@ -107,19 +140,36 @@ export default function PatentsPage() {
         <p className="text-sm text-muted-foreground mt-0.5">{t('patents.subtitle')}</p>
       </div>
 
-      {/* テーマ選択 */}
-      <div className="flex items-center gap-2 min-w-0">
-        <label htmlFor="patents-theme-select" className="shrink-0 text-sm text-muted-foreground">
-          {t('patents.themeLabel')}
-        </label>
-        <select
-          id="patents-theme-select"
-          value={selectedTheme}
-          onChange={e => setThemeId(e.target.value)}
-          className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
-        >
-          <option value="">{t('patents.allThemes')}</option>
-          {sortedThemes.map(th => {
+      {/* カテゴリ / テーマ選択（SOT-1212: カテゴリでテーマを絞り込む） */}
+      <div className="flex flex-wrap items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <label htmlFor="patents-category-select" className="shrink-0 text-sm text-muted-foreground">
+            {t('dashboard.categoryLabel')}
+          </label>
+          <select
+            id="patents-category-select"
+            value={category}
+            onChange={e => onCategoryChange(e.target.value)}
+            className="min-w-0 max-w-full truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
+          >
+            <option value="">{t('dashboard.allCategories')}</option>
+            {categories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-none">
+          <label htmlFor="patents-theme-select" className="shrink-0 text-sm text-muted-foreground">
+            {t('patents.themeLabel')}
+          </label>
+          <select
+            id="patents-theme-select"
+            value={selectedTheme}
+            onChange={e => setThemeId(e.target.value)}
+            className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
+          >
+            <option value="">{t('patents.allThemes')}</option>
+            {themesInCategory.map(th => {
             const status = themeStatus(th.id)
             const suffix =
               status === 'nomatch' ? ` ${t('patents.status.nomatch')}`
@@ -129,7 +179,8 @@ export default function PatentsPage() {
               <option key={th.id} value={th.id}>{th.name}{suffix}</option>
             )
           })}
-        </select>
+          </select>
+        </div>
       </div>
 
       {/* 収集状態の凡例（SOT-1119: 100テーマ化に伴い 未収集/該当なし を区別） */}
@@ -196,11 +247,11 @@ export default function PatentsPage() {
         </div>
         {isLoading ? (
           <PageLoading message={t('patents.loading')} />
-        ) : patents.length === 0 ? (
+        ) : filteredPatents.length === 0 ? (
           <PageEmpty message={t('patents.list.empty')} />
         ) : (
           <div className="space-y-2">
-            {patents.slice(0, 60).map(p => (
+            {filteredPatents.slice(0, 60).map(p => (
               <a
                 key={p.patent_id}
                 href={p.url || googlePatentsUrl(p.patent_number || p.title)}
