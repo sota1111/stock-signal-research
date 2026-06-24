@@ -54,6 +54,14 @@ class FakeSaveRepo:
         self._saved[self._key(data)] = dict(data)
         return True
 
+    def save_many(self, items):
+        # SOT-1180: バッチ投入APIをfakeでも提供(逐次saveに委譲)。
+        written = 0
+        for item in items:
+            if self.save(dict(item)):
+                written += 1
+        return written
+
     def delete(self, paper_id):
         self.deleted.append(paper_id)
         return True
@@ -71,6 +79,14 @@ class FakeTrendRepo:
         key = f"{data['theme_id']}_{data['keyword']}_{data['year_month']}"
         self._saved[key] = dict(data)
         return True
+
+    def save_monthly_counts_many(self, rows):
+        # SOT-1180: バッチ投入APIをfakeでも提供(逐次save_monthly_countに委譲)。
+        written = 0
+        for row in rows:
+            if self.save_monthly_count(dict(row)):
+                written += 1
+        return written
 
 
 def _wire(monkeypatch, initial_themes=None):

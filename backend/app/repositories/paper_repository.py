@@ -25,6 +25,12 @@ class PaperRepository(ABC):
         (a missing paper is treated as success so reconcile stays idempotent)."""
         ...
 
+    @abstractmethod
+    def save_many(self, papers: List[Dict[str, Any]]) -> int:
+        """Save many papers idempotently in as few round-trips as possible.
+        Returns the number of papers written."""
+        ...
+
 
 class SQLitePaperRepository(PaperRepository):
     def __init__(self, session_factory=None):
@@ -152,6 +158,14 @@ class SQLitePaperRepository(PaperRepository):
             logger.error(f"SQLite repository error: {e}")
             return False
 
+    def save_many(self, papers: List[Dict[str, Any]]) -> int:
+        # SQLite(local/test)はバッチ最適化不要なので逐次保存に委譲する。
+        written = 0
+        for paper in papers:
+            if self.save(dict(paper)):
+                written += 1
+        return written
+
 
 class FirestorePaperRepository(PaperRepository):
     def save(self, paper: Dict[str, Any]) -> bool:
@@ -177,6 +191,37 @@ class FirestorePaperRepository(PaperRepository):
         except Exception as e:
             logger.error(f"Firestore save failed for paper {paper.get('paper_id')}: {e}")
             return False
+
+    def save_many(self, papers: List[Dict[str, Any]]) -> int:
+        # SOT-1180: 数千件の論文を WriteBatch でまとめて投入する。
+        # doc_id / data 整形は save と同一に保つ(paper_id の "/" を "_" に、authors /
+        # extracted_keywords は JSON 文字列化)。
+        from firestore_client import batch_upsert_documents
+        now = datetime.now(timezone.utc)
+        items = []
+        for paper in papers:
+            try:
+                doc_id = paper["paper_id"].replace("/", "_")
+            except KeyError:
+                logger.error(f"Firestore save_many skip paper missing paper_id: {paper}")
+                continue
+            data = {
+                **paper,
+                "authors": (
+                    json.dumps(paper.get("authors", []))
+                    if isinstance(paper.get("authors"), list)
+                    else paper.get("authors", "[]")
+                ),
+                "extracted_keywords": (
+                    json.dumps(paper.get("extracted_keywords", []))
+                    if isinstance(paper.get("extracted_keywords"), list)
+                    else paper.get("extracted_keywords", "[]")
+                ),
+                "createdAt": now,
+                "source": paper.get("source", "arxiv"),
+            }
+            items.append((doc_id, data))
+        return batch_upsert_documents("papers", items)
 
     def list_all(self, theme_id: str = None) -> List[Dict[str, Any]]:
         try:

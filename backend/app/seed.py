@@ -834,11 +834,14 @@ def seed_dashboard_data_firestore():
         # paper_id / theme_id+keyword+year_month). This lets an already-seeded prod Firestore
         # gain the full 10-year dataset on the next deploy without overwriting other data.
         paper_repo = get_paper_repository()
+        # SOT-1180: 数千件の論文を1件ずつ書き込むと本番(Cloud Run背景スレッド)で
+        # 完了前にスケールゼロし投入が欠落するため、まとめて(WriteBatch)投入する。
+        paper_rows = []
         for p in _DASHBOARD_PAPERS:
             tid = theme_ids.get(p["theme"])
             if not tid:
                 continue
-            paper_repo.save({
+            paper_rows.append({
                 "paper_id": p["pid"],
                 "title": p["title"],
                 "url": p.get("url"),
@@ -848,6 +851,7 @@ def seed_dashboard_data_firestore():
                 "citation_count": p.get("citation", 0),
                 "source": p.get("source", "arxiv" if p.get("url") else "manual"),
             })
+        paper_repo.save_many(paper_rows)
 
         # Reconcile (冪等・無ければno-op):
         # - 実データ移行時(_USING_REAL_PAPERS): 本番に残る旧合成doc(paper-<slug>-<year>-NN)を全削除し、
@@ -876,11 +880,13 @@ def seed_dashboard_data_firestore():
                 for i in range(len(pm["counts"])):
                     month = _month_str(_DECADE_FROM_YEAR, i)
                     delete_document("paper_monthly_counts", f"{tid}_{pm['keyword']}_{month}")
+            # SOT-1180: 月次カウント(万件規模)も WriteBatch でまとめて投入する。
+            monthly_rows = []
             for row in _DASHBOARD_MONTHLY_REAL:
                 tid = theme_ids.get(row["theme"])
                 if not tid:
                     continue
-                trend_repo.save_monthly_count({
+                monthly_rows.append({
                     "theme_id": tid,
                     "keyword": row["keyword"],
                     "year_month": row["year_month"],
@@ -890,13 +896,15 @@ def seed_dashboard_data_firestore():
                     "mom_change_pct": row["mom_change_pct"],
                     "yoy_change_pct": row["yoy_change_pct"],
                 })
+            trend_repo.save_monthly_counts_many(monthly_rows)
         else:
+            monthly_rows = []
             for pm in _DASHBOARD_MONTHLY_COUNTS:
                 prev_count = 0
                 for i, count in enumerate(pm["counts"]):
                     month = _month_str(_DECADE_FROM_YEAR, i)
                     mom_change = ((count - prev_count) / prev_count * 100) if prev_count > 0 else 0.0
-                    trend_repo.save_monthly_count({
+                    monthly_rows.append({
                         "theme_id": theme_ids[pm["theme"]],
                         "keyword": pm["keyword"],
                         "year_month": month,
@@ -905,6 +913,7 @@ def seed_dashboard_data_firestore():
                         "mom_change_pct": mom_change,
                     })
                     prev_count = count
+            trend_repo.save_monthly_counts_many(monthly_rows)
 
         logger.info(
             "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers "

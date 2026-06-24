@@ -16,6 +16,11 @@ class TrendRepository(ABC):
     def save_monthly_count(self, count_data: Dict[str, Any]) -> bool:
         ...
 
+    @abstractmethod
+    def save_monthly_counts_many(self, rows: List[Dict[str, Any]]) -> int:
+        """月次カウントをまとめて冪等保存し、保存件数を返す。"""
+        ...
+
 
 class SQLiteTrendRepository(TrendRepository):
     def __init__(self, session_factory=None):
@@ -81,6 +86,14 @@ class SQLiteTrendRepository(TrendRepository):
         finally:
             db.close()
 
+    def save_monthly_counts_many(self, rows: List[Dict[str, Any]]) -> int:
+        # SQLite(local/test)はバッチ最適化不要なので逐次保存に委譲する。
+        written = 0
+        for row in rows:
+            if self.save_monthly_count(dict(row)):
+                written += 1
+        return written
+
 
 class FirestoreTrendRepository(TrendRepository):
     def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -141,6 +154,22 @@ class FirestoreTrendRepository(TrendRepository):
         except Exception as e:
             logger.error(f"Firestore save monthly count failed: {e}")
             return False
+
+    def save_monthly_counts_many(self, rows: List[Dict[str, Any]]) -> int:
+        # SOT-1180: 万件規模の月次カウントを WriteBatch でまとめて投入する。
+        # doc_id 規約は save_monthly_count と同一: {theme_id}_{keyword}_{year_month}。
+        from firestore_client import batch_upsert_documents
+        items = []
+        for row in rows:
+            try:
+                doc_id = f"{row['theme_id']}_{row['keyword']}_{row['year_month']}"
+            except KeyError as e:
+                logger.error(f"Firestore save_monthly_counts_many skip row missing {e}: {row}")
+                continue
+            data = dict(row)
+            data.pop("_sa_instance_state", None)
+            items.append((doc_id, data))
+        return batch_upsert_documents("paper_monthly_counts", items)
 
 
 def get_trend_repository(session_factory=None) -> TrendRepository:

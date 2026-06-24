@@ -41,6 +41,43 @@ def upsert_document(collection: str, doc_id: str, data: Dict[str, Any]) -> bool:
         return False
 
 
+def batch_upsert_documents(collection: str, items) -> int:
+    """複数ドキュメントを WriteBatch でまとめて冪等 upsert する。
+
+    items は (doc_id, data) タプルの反復可能オブジェクト。500件ごと(Firestoreの
+    バッチ上限)に commit する。merge=True で `upsert_document` と同じ冪等挙動。
+
+    本番シードは数千〜万件の論文/月次カウントを投入するが、1件ずつの `.set()` は
+    1書き込み=1往復のため、Cloud Run のバックグラウンドスレッド(CPUスロットリング下)で
+    完了する前にインスタンスがスケールゼロし、データが入りきらなかった。バッチ化で
+    往復回数を約1/500に圧縮し、確実に投入されるようにする(SOT-1180)。
+
+    書き込めた件数を返す。例外時はログを出し、その時点までの件数を返す(起動を妨げない)。"""
+    written = 0
+    try:
+        db = get_db()
+        from datetime import datetime, timezone
+        batch = db.batch()
+        pending = 0
+        for doc_id, data in items:
+            now = datetime.now(timezone.utc)
+            doc_ref = db.collection(collection).document(doc_id)
+            batch.set(doc_ref, {**data, "updatedAt": now}, merge=True)
+            pending += 1
+            if pending >= 500:
+                batch.commit()
+                written += pending
+                batch = db.batch()
+                pending = 0
+        if pending:
+            batch.commit()
+            written += pending
+        return written
+    except Exception as e:
+        logger.error(f"Failed to batch upsert {collection} ({written} written before error): {e}")
+        return written
+
+
 def delete_document(collection: str, doc_id: str) -> bool:
     """ドキュメントを削除（存在しなくても成功扱い）。冪等な再投入で余剰データを掃除するために使う。"""
     try:
