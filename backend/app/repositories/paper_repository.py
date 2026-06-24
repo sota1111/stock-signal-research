@@ -31,6 +31,13 @@ class PaperRepository(ABC):
         Returns the number of papers written."""
         ...
 
+    @abstractmethod
+    def delete_many(self, paper_ids: List[str]) -> int:
+        """Delete many papers by paper_id in as few round-trips as possible.
+        Missing papers are treated as success (reconcile stays idempotent).
+        Returns the number of delete operations issued."""
+        ...
+
 
 class SQLitePaperRepository(PaperRepository):
     def __init__(self, session_factory=None):
@@ -166,6 +173,14 @@ class SQLitePaperRepository(PaperRepository):
                 written += 1
         return written
 
+    def delete_many(self, paper_ids: List[str]) -> int:
+        # SQLite(local/test)はバッチ最適化不要なので逐次削除に委譲する。
+        deleted = 0
+        for pid in paper_ids:
+            if self.delete(pid):
+                deleted += 1
+        return deleted
+
 
 class FirestorePaperRepository(PaperRepository):
     def save(self, paper: Dict[str, Any]) -> bool:
@@ -264,6 +279,13 @@ class FirestorePaperRepository(PaperRepository):
         except Exception as e:
             logger.error(f"Firestore delete failed for paper {paper_id}: {e}")
             return False
+
+    def delete_many(self, paper_ids: List[str]) -> int:
+        # SOT-1180: 数千〜万件の旧合成doc reconcile を WriteBatch でまとめて削除する。
+        # doc_id 規約は delete と同一(paper_id の "/" を "_" に置換)。
+        from firestore_client import batch_delete_documents
+        doc_ids = [pid.replace("/", "_") for pid in paper_ids]
+        return batch_delete_documents("papers", doc_ids)
 
 
 def get_paper_repository(session_factory=None) -> PaperRepository:

@@ -19,13 +19,20 @@ class _FakeBatch:
         self.ops = []
 
     def set(self, doc_ref, data, merge=False):
-        self.ops.append((doc_ref.doc_id, dict(data), merge))
+        self.ops.append(("set", doc_ref.doc_id, dict(data), merge))
+
+    def delete(self, doc_ref):
+        self.ops.append(("delete", doc_ref.doc_id, None, None))
 
     def commit(self):
-        # commit ごとの op 件数を記録し、書き込み内容を集約する。
+        # commit ごとの op 件数を記録し、書き込み/削除内容を集約する。
         self._recorder["commit_sizes"].append(len(self.ops))
-        for doc_id, data, merge in self.ops:
-            self._recorder["written"][doc_id] = (data, merge)
+        for op, doc_id, data, merge in self.ops:
+            if op == "delete":
+                self._recorder["deleted"].append(doc_id)
+                self._recorder["written"].pop(doc_id, None)
+            else:
+                self._recorder["written"][doc_id] = (data, merge)
 
 
 class _FakeCollection:
@@ -50,7 +57,7 @@ class _FakeDB:
 def _install_fake_firestore(monkeypatch):
     # batch_upsert_documents は自モジュールの get_db を参照するため、実モジュールの
     # get_db だけを fake DB に差し替える(他は本物のロジックをそのまま検証する)。
-    recorder = {"commit_sizes": [], "written": {}}
+    recorder = {"commit_sizes": [], "written": {}, "deleted": []}
     import importlib
     real = importlib.import_module("firestore_client")
     monkeypatch.setattr(real, "get_db", lambda: _FakeDB(recorder))
@@ -90,4 +97,40 @@ def test_batch_upsert_empty_is_noop(monkeypatch):
     written = fake_module.batch_upsert_documents("papers", [])
 
     assert written == 0
+    assert recorder["commit_sizes"] == []
+
+
+# --- SOT-1180: batch_delete_documents -------------------------------------------------
+# 旧合成doc(約12,000件)の reconcile を1件ずつ削除すると、Cloud Run のCPUスロットリング下で
+# 月次書き込みの前段に居座り scale-zero までに月次へ到達できなかった。WriteBatch でまとめて削除する。
+
+
+def test_batch_delete_removes_all(monkeypatch):
+    fake_module, recorder = _install_fake_firestore(monkeypatch)
+    doc_ids = [f"doc-{i}" for i in range(5)]
+
+    deleted = fake_module.batch_delete_documents("papers", doc_ids)
+
+    assert deleted == 5
+    assert sorted(recorder["deleted"]) == sorted(doc_ids)
+
+
+def test_batch_delete_commits_in_chunks_of_500(monkeypatch):
+    fake_module, recorder = _install_fake_firestore(monkeypatch)
+    doc_ids = [f"doc-{i}" for i in range(1001)]
+
+    deleted = fake_module.batch_delete_documents("papers", doc_ids)
+
+    assert deleted == 1001
+    # 1001件 -> 500/500/1 の3コミット(Firestoreバッチ上限500を超えない)
+    assert recorder["commit_sizes"] == [500, 500, 1]
+    assert len(recorder["deleted"]) == 1001
+
+
+def test_batch_delete_empty_is_noop(monkeypatch):
+    fake_module, recorder = _install_fake_firestore(monkeypatch)
+
+    deleted = fake_module.batch_delete_documents("papers", [])
+
+    assert deleted == 0
     assert recorder["commit_sizes"] == []

@@ -89,6 +89,41 @@ def delete_document(collection: str, doc_id: str) -> bool:
         return False
 
 
+def batch_delete_documents(collection: str, doc_ids) -> int:
+    """複数ドキュメントを WriteBatch でまとめて削除する。
+
+    doc_ids は doc_id 文字列の反復可能オブジェクト。500件ごと(Firestoreのバッチ上限)に
+    commit する。存在しない doc の削除は no-op(冪等)。
+
+    本番シードは旧合成doc(数千〜万件)を reconcile で掃除するが、1件ずつの `.delete()` は
+    1削除=1往復のため、Cloud Run のバックグラウンドスレッド(CPUスロットリング下)で完了する
+    前にインスタンスがスケールゼロし、後続の月次カウント投入に到達できなかった。バッチ化で
+    往復回数を約1/500に圧縮する(SOT-1180)。
+
+    削除できた件数を返す。例外時はログを出し、その時点までの件数を返す(起動を妨げない)。"""
+    written = 0
+    try:
+        db = get_db()
+        batch = db.batch()
+        pending = 0
+        for doc_id in doc_ids:
+            doc_ref = db.collection(collection).document(doc_id)
+            batch.delete(doc_ref)
+            pending += 1
+            if pending >= 500:
+                batch.commit()
+                written += pending
+                batch = db.batch()
+                pending = 0
+        if pending:
+            batch.commit()
+            written += pending
+        return written
+    except Exception as e:
+        logger.error(f"Failed to batch delete {collection} ({written} deleted before error): {e}")
+        return written
+
+
 def save_job_run(job_run_id: str, job_name: str, status: str, **kwargs):
     """ジョブ実行履歴をFirestoreに保存"""
     try:
