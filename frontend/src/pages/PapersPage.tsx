@@ -1,12 +1,5 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitations } from '../api'
 import { useFilters } from '../contexts/useFilters'
-import ChartCard from '../components/charts/ChartCard'
-import ThemeCitationsList from '../components/ThemeCitationsList'
-import PapersVsPriceComposed from '../components/charts/PapersVsPriceComposed'
-import { useDashboardQuery, useTickerStocks, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -15,29 +8,9 @@ export default function PapersPage() {
   // テーマ選択はグローバルフィルタ(URL永続化)を参照する（SOT-997）。
   const { theme: selectedTheme, setTheme } = useFilters()
   const { data, isLoading, error } = useDashboardQuery()
-  const { primaryStock } = useTickerStocks(data?.notable_companies ?? [])
 
-  // テーマ選択（C1 の論文件数を切り替える）。未選択時は注目テーマの先頭。
+  // 急増テーマのハイライト判定に使う現在のテーマ。
   const reportQuery = selectedTheme || data?.trending_themes?.[0]?.name || 'AI'
-  const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
-    queryKey: ['signal-report', reportQuery, GRAPH_FROM_YEAR],
-    queryFn: () => fetchSignalReport(reportQuery, GRAPH_FROM_YEAR),
-    staleTime: 1000 * 60 * 30,
-    retry: 1,
-    enabled: !!data,
-  })
-
-  // テーマ別 引用数（上位100論文の総引用数）
-  const { data: themeCitations } = useQuery({
-    queryKey: ['theme-citations'],
-    queryFn: () => fetchThemeCitations(100),
-    staleTime: 1000 * 60 * 30,
-    retry: 1,
-    enabled: !!data,
-  })
-
-  // テーマ別引用数リストのページネーション（SOT-995 /papers-5）。
-  const [citationsPage, setCitationsPage] = useState(0)
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -52,16 +25,6 @@ export default function PapersPage() {
     .filter(([, pct]) => pct > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-
-  // ページネーション対象（テーマ別引用数）。
-  const CITATIONS_PAGE_SIZE = 8
-  const allCitationThemes = themeCitations?.themes ?? []
-  const citationsPageCount = Math.max(1, Math.ceil(allCitationThemes.length / CITATIONS_PAGE_SIZE))
-  const pageClamped = Math.min(citationsPage, citationsPageCount - 1)
-  const pagedCitationThemes = allCitationThemes.slice(
-    pageClamped * CITATIONS_PAGE_SIZE,
-    pageClamped * CITATIONS_PAGE_SIZE + CITATIONS_PAGE_SIZE,
-  )
 
   return (
     <div className="space-y-8">
@@ -97,74 +60,6 @@ export default function PapersPage() {
             ))}
           </div>
         )}
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t('papers.citations.title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('papers.citations.subtitle')}</p>
-        </div>
-        <ThemeCitationsList themes={pagedCitationThemes} />
-        {citationsPageCount > 1 && (
-          <div className="flex items-center justify-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => setCitationsPage(p => Math.max(0, p - 1))}
-              disabled={pageClamped === 0}
-              className="rounded-md border border-gray-300 bg-surface px-3 py-1 text-sm text-foreground hover:bg-surface-muted disabled:opacity-40"
-            >
-              {t('common.prev')}
-            </button>
-            <span className="text-sm text-muted-foreground">{t('common.pageOf', { page: pageClamped + 1, total: citationsPageCount })}</span>
-            <button
-              type="button"
-              onClick={() => setCitationsPage(p => Math.min(citationsPageCount - 1, p + 1))}
-              disabled={pageClamped >= citationsPageCount - 1}
-              className="rounded-md border border-gray-300 bg-surface px-3 py-1 text-sm text-foreground hover:bg-surface-muted disabled:opacity-40"
-            >
-              {t('common.next')}
-            </button>
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">{t('papers.cross.title')}</h2>
-        <ChartCard
-          title={t('papers.c1.title')}
-          subtitle={`${t('papers.c1.subtitle')}${primaryStock ? ` / ${primaryStock.name}` : ''}`}
-        >
-          <div className="mb-3 flex items-center gap-2 min-w-0">
-            <label htmlFor="papers-theme-select" className="shrink-0 text-sm text-muted-foreground">{t('dashboard.themeLabel')}</label>
-            <select
-              id="papers-theme-select"
-              value={reportQuery}
-              onChange={e => setTheme(e.target.value)}
-              className="min-w-0 max-w-full flex-1 truncate rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400 sm:flex-none"
-            >
-              {(data.trending_themes.length > 0 ? data.trending_themes.map(t => t.name) : [reportQuery]).map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-          {(signalReport?.paper_counts_by_year ?? []).length > 0 ? (
-            <PapersVsPriceComposed
-              counts={signalReport?.paper_counts_by_year ?? []}
-              stock={primaryStock?.stock}
-              companyName={primaryStock?.name}
-            />
-          ) : (isReportLoading || isReportFetching) && !signalReport ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-              <p>{t('chart.papers.loading')}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <p>{t('chart.papers.empty')}</p>
-              <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
-            </div>
-          )}
-        </ChartCard>
       </section>
     </div>
   )
