@@ -13,6 +13,7 @@ import RouteErrorBoundary from './components/RouteErrorBoundary'
 // ページコンポーネントは React.lazy で動的 import し、ルート単位でチャンク分割する（SOT-1000 / 提案A-5）。
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const StockPage = lazy(() => import('./pages/StockPage'))
+const IndividualStockPage = lazy(() => import('./pages/IndividualStockPage'))
 const InvestorsPage = lazy(() => import('./pages/InvestorsPage'))
 const InvestmentCandidatesPage = lazy(() => import('./pages/InvestmentCandidatesPage'))
 const SignalDetectionPage = lazy(() => import('./pages/SignalDetectionPage'))
@@ -45,6 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   // テーマ・論文・特許を統一ページに集約（SOT-1145）。旧 themes/papers/patents の3項目を1つに。
   { to: '/research', label: 'nav.research' },
   { to: '/stock', label: 'nav.stock' },
+  { to: '/individual-stock', label: 'nav.individualStock' },
   { to: '/investors', label: 'nav.investors' },
   { to: '/candidates', label: 'nav.candidates' },
   { to: '/list', label: 'nav.list' },
@@ -140,6 +142,7 @@ function AppLayout() {
               {/* SOT-1148: 登録/初期リサーチ/状態 は「今は不要」のため非表示。ルートは / へリダイレクト。 */}
               <Route path="/status" element={<Navigate to="/" replace />} />
               <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
+              <Route path="/individual-stock" element={<PrivateRoute><IndividualStockPage /></PrivateRoute>} />
               <Route path="/research" element={<PrivateRoute><ResearchHubPage /></PrivateRoute>} />
               {/* 旧ルートは統一ページ(SOT-1145)へリダイレクトし、ディープリンク/既存導線を維持する。 */}
               <Route path="/papers" element={<Navigate to="/research?tab=papers" replace />} />

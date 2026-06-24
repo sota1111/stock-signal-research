@@ -1,37 +1,44 @@
 # Worker Report
 
 ## Summary
-Initial TASK CHECK for SOT-1148. Codex was non-responsive (usage-limit cooldown,
-run_codex.sh exit 75), so Claude Code performed the task check directly under the
-Worker Non-Response Fallback Policy. SOT-1148 is actionable: a small frontend change
-to hide three pages (登録 / 初期リサーチ / 状態) from navigation.
+Initial task check for SOT-1178「個別株メニュー追加」.
 
-## Fallback Disclosure (audit)
-- Non-responsive worker: Codex CLI
-- Failure mode: CODEX_COOLDOWN_ACTIVE (usage limit) → run_codex.sh exit 75
-- Action: Claude Code performed the task check directly (read-only investigation).
+**Worker non-response (fallback disclosure):** `scripts/ai/run_codex.sh` exited with code 75
+(CODEX_COOLDOWN_ACTIVE — usage-limit cooldown). Per the Worker Non-Response Fallback Policy,
+Claude Code performed this task check directly.
 
-## Changed Files
-- none (read-only task check)
+SOT-1178 is actionable. It is a frontend-only change: add a new navigation menu item「個別株」
+(individual stock) with its own page, and MOVE the financial fundamentals time-series section
+(SOT-1121) out of `StockPage.tsx` into that new page.
 
 ## Findings
-- 登録 page:       nav label `nav.input` ('登録'/'Register'), route `/input`, component `frontend/src/pages/InputPage.tsx`
-- 初期リサーチ page: nav label `nav.researchSeeds` ('初期リサーチ'/'Research Seeds'), route `/research-seeds`, component `frontend/src/pages/ResearchSeedsPage.tsx`
-- 状態 page:       nav label `nav.status` ('状態'/'Status'), route `/status`, component `frontend/src/pages/StatusPage.tsx`
-- All three are defined in `frontend/src/App.tsx`: `NAV_ITEMS` array (nav entries) and the `<Routes>` block (route elements).
-- Recommended hide approach: remove the three `NAV_ITEMS` entries, and redirect the three routes to `/`
-  (`<Navigate to="/" replace />`) to keep deep links / bookmarks safe — consistent with the existing
-  `/evaluation` → `/candidates` and `/papers` → `/research` redirect pattern. Page components left in place.
-- Quality gate scripts (frontend/package.json): `npm run lint`, `npm run typecheck` (tsc), `npm run build`. No test/e2e script present.
+- Financial fundamentals section currently lives in `frontend/src/pages/StockPage.tsx`:
+  - state/query: lines 51–65 (`fundCompanies`, `selectedFundTicker`, `fundamentals`)
+  - JSX section: lines 159–198 (the `fundamentals.*` `<section>`)
+  - imports: `FinancialFundamentalsChart` (line 11), `fetchFundamentalsCompanies` / `fetchFinancialFundamentals` (line 3)
+- Navigation: `NAV_ITEMS` in `frontend/src/App.tsx` lines 41–53; routes in `<Routes>` ~lines 138–158.
+  `/stock` route → `StockPage`. Need a new nav item + route for the individual-stock page.
+- Component `FinancialFundamentalsChart` at `frontend/src/components/charts/FinancialFundamentalsChart.tsx` exists.
+- API helpers `fetchFundamentalsCompanies` / `fetchFinancialFundamentals` exist in `frontend/src/api/index.ts` (lines 121, 124).
+- i18n keys: `fundamentals.*` (ja: lines 489–500, en: 1109–1120); `nav.*` (ja: 7–29, en: 627–649) in `frontend/src/i18n/messages.ts`. Need a new `nav.individualStock` key (ja/en).
+- Build/lint: `frontend/package.json` scripts = `dev, build, lint, preview` (no typecheck/test script — gate = lint + build).
 
-## Acceptance Criteria (derived; issue has none explicit)
-- [ ] 登録・初期リサーチ・状態の3ページがナビゲーション（PC/モバイル両方）から消える
-- [ ] 各ルート(/input, /research-seeds, /status)が / へリダイレクトされる
-- [ ] lint / typecheck / build が通る
+## Changed Files
+- none (investigation only)
+
+## Commands Run
+- grep over StockPage.tsx, App.tsx, messages.ts, api/index.ts; read StockPage.tsx fully.
+
+## Acceptance Criteria
+- [x] Confirmed fundamentals section location in StockPage.tsx
+- [x] Confirmed NAV_ITEMS / Routes in App.tsx
+- [x] Confirmed chart component + API helpers exist
+- [x] Listed relevant i18n keys
+- [x] Decomposition recommendation: NOT needed (single small frontend move)
 
 ## Risks
-- These pages are admin/setup pages; hiding nav + redirecting is reversible. "今は不要" implies temporary hide,
-  so keeping the page components (not deleting) is the safer interpretation.
+- New menu label/route name not specified by the issue. Chosen: label「個別株」(nav.individualStock),
+  route `/individual-stock`, page `IndividualStockPage.tsx`. Reversible if human prefers otherwise.
 
 ## Next Action
 READY_FOR_REVIEW
