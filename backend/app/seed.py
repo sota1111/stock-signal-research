@@ -853,33 +853,25 @@ def seed_dashboard_data_firestore():
             })
         paper_repo.save_many(paper_rows)
 
-        # Reconcile (冪等・無ければno-op):
-        # - 実データ移行時(_USING_REAL_PAPERS): 本番に残る旧合成doc(paper-<slug>-<year>-NN)を全削除し、
-        #   ダッシュボードを実データのみにする。
-        # - 合成データ時: 年次可変化で不要になった余剰doc(index>=目標件数)だけを削除し、過去年バーの
-        #   底上げ(約10件)を防いで「年ごとの動き」を保つ。
-        if _USING_REAL_PAPERS:
-            stale_ids = _legacy_synthetic_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
-        else:
-            stale_ids = _stale_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
-        deleted = 0
-        for pid in stale_ids:
-            if paper_repo.delete(pid):
-                deleted += 1
-
         # Monthly counts — SOT-1111(B): 実データがあれば全テーマを実論文から集計して冪等 upsert。
+        # SOT-1180: 前兆検知ページが必要とする月次データは「最重要」なので、後段の reconcile 削除
+        # (旧合成doc掃除・数千〜万件)より前に書き込む。こうすれば Cloud Run のCPUスロットリングで
+        # バックグラウンドseedが途中で止まっても、月次データは先に確実に永続化される(多重防御)。
         trend_repo = get_trend_repository()
         if _DASHBOARD_MONTHLY_REAL:
             # 旧3テーマ合成の月次doc(keyword=GPU memory/HBM/NVMe)が本番に残ると、同一テーマで
             # keyword違いの系列が二重化する。実データ移行時は冪等に削除してから実データを投入する。
-            from firestore_client import delete_document
+            # SOT-1180: この掃除削除も WriteBatch でまとめて行う(逐次往復を排除)。
+            from firestore_client import batch_delete_documents
+            stale_monthly_ids = []
             for pm in _DASHBOARD_MONTHLY_COUNTS:
                 tid = theme_ids.get(pm["theme"])
                 if not tid:
                     continue
                 for i in range(len(pm["counts"])):
                     month = _month_str(_DECADE_FROM_YEAR, i)
-                    delete_document("paper_monthly_counts", f"{tid}_{pm['keyword']}_{month}")
+                    stale_monthly_ids.append(f"{tid}_{pm['keyword']}_{month}")
+            batch_delete_documents("paper_monthly_counts", stale_monthly_ids)
             # SOT-1180: 月次カウント(万件規模)も WriteBatch でまとめて投入する。
             monthly_rows = []
             for row in _DASHBOARD_MONTHLY_REAL:
@@ -914,6 +906,20 @@ def seed_dashboard_data_firestore():
                     })
                     prev_count = count
             trend_repo.save_monthly_counts_many(monthly_rows)
+
+        # Reconcile (冪等・無ければno-op):
+        # - 実データ移行時(_USING_REAL_PAPERS): 本番に残る旧合成doc(paper-<slug>-<year>-NN)を全削除し、
+        #   ダッシュボードを実データのみにする。
+        # - 合成データ時: 年次可変化で不要になった余剰doc(index>=目標件数)だけを削除し、過去年バーの
+        #   底上げ(約10件)を防いで「年ごとの動き」を保つ。
+        # SOT-1180: 旧シードは約12,000件を1件ずつ削除しており、Cloud Run のCPUスロットリング下で
+        # この逐次削除が月次書き込みの前段に居座り、scale-zero までに月次へ到達できなかった。
+        # 月次を先に書いたうえで、削除も WriteBatch (delete_many) でまとめて行う。
+        if _USING_REAL_PAPERS:
+            stale_ids = _legacy_synthetic_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
+        else:
+            stale_ids = _stale_paper_ids([t["name"] for t in _DASHBOARD_THEMES])
+        deleted = paper_repo.delete_many(stale_ids)
 
         logger.info(
             "Seeded dashboard core data to Firestore: %d themes, %d companies, %d papers "

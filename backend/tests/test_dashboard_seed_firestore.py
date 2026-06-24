@@ -34,9 +34,11 @@ class FakeThemeRepo:
 
 
 class FakeSaveRepo:
-    def __init__(self):
+    def __init__(self, events=None, label=None):
         self._saved = {}
         self.deleted = []
+        self._events = events
+        self._label = label
 
     @property
     def saved(self):
@@ -66,10 +68,21 @@ class FakeSaveRepo:
         self.deleted.append(paper_id)
         return True
 
+    def delete_many(self, paper_ids):
+        # SOT-1180: バッチ削除APIをfakeでも提供(逐次deleteに委譲)。
+        if self._events is not None:
+            self._events.append(f"delete_many:{self._label}")
+        deleted = 0
+        for pid in paper_ids:
+            if self.delete(pid):
+                deleted += 1
+        return deleted
+
 
 class FakeTrendRepo:
-    def __init__(self):
+    def __init__(self, events=None):
         self._saved = {}
+        self._events = events
 
     @property
     def saved(self):
@@ -82,6 +95,8 @@ class FakeTrendRepo:
 
     def save_monthly_counts_many(self, rows):
         # SOT-1180: バッチ投入APIをfakeでも提供(逐次save_monthly_countに委譲)。
+        if self._events is not None:
+            self._events.append("save_monthly")
         written = 0
         for row in rows:
             if self.save_monthly_count(dict(row)):
@@ -89,12 +104,12 @@ class FakeTrendRepo:
         return written
 
 
-def _wire(monkeypatch, initial_themes=None):
+def _wire(monkeypatch, initial_themes=None, events=None):
     theme = FakeThemeRepo(initial_themes)
     company = FakeSaveRepo()
-    paper = FakeSaveRepo()
+    paper = FakeSaveRepo(events=events, label="paper")
     supply = FakeSaveRepo()
-    trend = FakeTrendRepo()
+    trend = FakeTrendRepo(events=events)
     score = FakeSaveRepo()
     monkeypatch.setattr(tr, "get_theme_repository", lambda *a, **k: theme)
     monkeypatch.setattr(cr, "get_company_repository", lambda *a, **k: company)
@@ -103,6 +118,7 @@ def _wire(monkeypatch, initial_themes=None):
     monkeypatch.setattr(ttr, "get_trend_repository", lambda *a, **k: trend)
     monkeypatch.setattr(sr, "get_score_repository", lambda *a, **k: score)
     monkeypatch.setattr("firestore_client.delete_document", lambda *a, **k: True)
+    monkeypatch.setattr("firestore_client.batch_delete_documents", lambda *a, **k: 0)
     return theme, company, paper, supply, trend, score
 
 
@@ -208,6 +224,25 @@ def test_seed_dashboard_reconciles_stale_legacy_papers(monkeypatch):
     assert set(paper.deleted).isdisjoint(live_ids)
     # 少なくとも1件は掃除される
     assert len(paper.deleted) > 0
+
+
+def test_seed_writes_monthly_before_paper_reconcile(monkeypatch):
+    """SOT-1180 回帰: 月次カウントの書き込みは論文 reconcile 削除より前に走る。
+
+    旧実装は論文 save_many 直後に約12,000件の旧合成docを1件ずつ削除し、その後に月次を
+    書いていた。Cloud Run のCPUスロットリング下でこの逐次削除が完了せず scale-zero に至り、
+    本番だけ月次が空(前兆検知ページの散布図/月次が描けない)になっていた。最重要の月次を先に
+    書き、削除は WriteBatch (delete_many) でまとめて後段に回すことを順序で固定する。
+    """
+    events = []
+    theme, company, paper, supply, trend, score = _wire(monkeypatch, events=events)
+
+    seed.seed_dashboard_data_firestore()
+
+    assert "save_monthly" in events
+    assert "delete_many:paper" in events
+    # 月次保存が論文 reconcile 削除より前に実行される
+    assert events.index("save_monthly") < events.index("delete_many:paper")
 
 
 def test_collected_papers_loader_shape_and_filter():
