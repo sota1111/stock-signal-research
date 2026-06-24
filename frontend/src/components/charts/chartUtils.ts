@@ -72,6 +72,26 @@ export function formatCompact(value?: number | null): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
+/**
+ * 時価総額のクロス通貨比較用 静的FXテーブル（1単位通貨 = ? USD・2026-06スナップショット近似 / SOT-1207）。
+ * backend の非米国USD換算近似（SOT-1122, market-cap-history-nonus.json）と整合する近似値。
+ */
+const FX_TO_USD: Record<string, number> = { USD: 1, JPY: 1 / 155, KRW: 1 / 1360 }
+
+/**
+ * 時価総額(market_cap)を USD 換算して返す（SOT-1207）。
+ *
+ * stock-prices.json の market_cap は銘柄ごとの現地通貨(USD/JPY/KRW)で格納されているため、
+ * 散布図や時価総額系列で銘柄を跨いで比較する際は USD に揃える必要がある。
+ * market_cap が無効、または有限でない場合は null。未知通貨/未設定は USD とみなす（rate=1）。
+ */
+export function marketCapUsd(stock: StockData): number | null {
+  const mcap = stock.financials?.market_cap
+  if (mcap == null || !Number.isFinite(mcap)) return null
+  const rate = FX_TO_USD[(stock.currency ?? '').toUpperCase()] ?? 1
+  return mcap * rate
+}
+
 /** stock取得が有効（価格データあり）な item のみ返す。 */
 export function validStockItems(items: StockItem[]): (StockItem & { stock: StockData })[] {
   return items.filter(

@@ -1,6 +1,6 @@
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
-import { formatCompact, validStockItems, type StockItem } from './chartUtils'
+import { formatCompact, marketCapUsd, validStockItems, type StockItem } from './chartUtils'
 import { useI18n } from '../../i18n/useI18n'
 
 interface Point {
@@ -20,7 +20,8 @@ export default function ValuationScatter({ items }: { items: StockItem[] }) {
       return {
         name: item.name,
         pe: f.trailing_pe ?? NaN,
-        cap: f.market_cap ?? NaN,
+        // 時価総額は銘柄ごとに現地通貨。USD換算して通貨を揃える（SOT-1207）。
+        cap: marketCapUsd(item.stock) ?? NaN,
         yield: (f.dividend_yield ?? 0) * 100,
       }
     })
@@ -33,7 +34,7 @@ export default function ValuationScatter({ items }: { items: StockItem[] }) {
       <ScatterChart margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
         <XAxis type="number" dataKey="pe" name="PER" tick={{ fontSize: 11 }} label={{ value: 'PER', position: 'insideBottomRight', fontSize: 11, offset: -4 }} />
-        <YAxis type="number" dataKey="cap" name={t('stock.marketCap')} tick={{ fontSize: 11 }} width={56} tickFormatter={v => formatCompact(v)} />
+        <YAxis type="number" dataKey="cap" name={`${t('stock.marketCap')} (USD)`} tick={{ fontSize: 11 }} width={56} tickFormatter={v => formatCompact(v)} />
         <ZAxis type="number" dataKey="yield" range={[60, 400]} name={t('chart.dividendYield')} />
         <Tooltip
           cursor={{ strokeDasharray: '3 3' }}
@@ -44,7 +45,7 @@ export default function ValuationScatter({ items }: { items: StockItem[] }) {
               <div className="bg-surface border rounded shadow px-2 py-1 text-xs">
                 <p className="font-semibold">{p.name}</p>
                 <p>PER {p.pe.toFixed(1)}</p>
-                <p>{t('stock.marketCap')} {formatCompact(p.cap)}</p>
+                <p>{t('stock.marketCap')} {formatCompact(p.cap)} (USD)</p>
                 <p>{t('chart.dividendYield')} {p.yield.toFixed(2)}%</p>
               </div>
             )
