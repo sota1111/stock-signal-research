@@ -543,6 +543,7 @@ class FundamentalsCompanyItem(BaseModel):
     name: Optional[str] = None
     metric_count: int = 0
     has_data: bool = False
+    category: Optional[str] = None
 
 
 class FundamentalsCompaniesResponse(BaseModel):

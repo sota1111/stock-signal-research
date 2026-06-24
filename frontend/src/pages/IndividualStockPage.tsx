@@ -8,6 +8,9 @@ import { useI18n } from '../i18n/useI18n'
 
 const CATEGORY_STALE_TIME = 1000 * 60 * 30
 
+// SOT-1208: カテゴリ表示順（バックエンドの category キーに対応）。
+const CATEGORY_ORDER = ['semiconductor', 'software', 'internet', 'hardware', 'other'] as const
+
 export default function IndividualStockPage() {
   const { t } = useI18n()
 
@@ -19,8 +22,20 @@ export default function IndividualStockPage() {
     staleTime: CATEGORY_STALE_TIME,
   })
   const fundTickers = (fundCompanies?.companies ?? []).filter(c => c.has_data)
+
+  // SOT-1208: カテゴリ選択 → 当該カテゴリの銘柄に絞り込み → 表示。
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const categories = CATEGORY_ORDER.filter(cat =>
+    fundTickers.some(c => (c.category ?? 'other') === cat),
+  )
+  const effectiveCategory = selectedCategory || categories[0] || ''
+  const categoryTickers = fundTickers.filter(c => (c.category ?? 'other') === effectiveCategory)
+
   const [selectedFundTicker, setSelectedFundTicker] = useState<string>('')
-  const effectiveFundTicker = selectedFundTicker || fundTickers[0]?.ticker || ''
+  const effectiveFundTicker =
+    (categoryTickers.some(c => c.ticker === selectedFundTicker)
+      ? selectedFundTicker
+      : categoryTickers[0]?.ticker) || ''
   const { data: fundamentals, isLoading: isFundLoading } = useQuery({
     queryKey: ['financial-fundamentals', effectiveFundTicker],
     queryFn: () => fetchFinancialFundamentals(effectiveFundTicker),
@@ -49,13 +64,27 @@ export default function IndividualStockPage() {
           <>
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">{t('fundamentals.categoryLabel')}</span>
+                <select
+                  value={effectiveCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-sky-400 focus:ring-1 focus:ring-sky-400 max-w-[20rem]"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {t(`fundamentals.category.${cat}`) || cat}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-muted-foreground">
                 <span className="text-xs text-muted-foreground">{t('fundamentals.selectLabel')}</span>
                 <select
                   value={effectiveFundTicker}
                   onChange={e => setSelectedFundTicker(e.target.value)}
                   className="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-sky-400 focus:ring-1 focus:ring-sky-400 max-w-[20rem]"
                 >
-                  {fundTickers.map(c => (
+                  {categoryTickers.map(c => (
                     <option key={c.ticker} value={c.ticker}>
                       {c.ticker}{c.name ? ` — ${c.name}` : ''}
                     </option>

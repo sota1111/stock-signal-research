@@ -157,3 +157,21 @@ def test_list_fundamentals_companies_orders_by_metric_count():
     # データありが先頭、_meta は除外される
     assert companies[0]["ticker"] == "AAPL"
     assert all(c["ticker"] != "_META" for c in companies)
+
+
+def test_list_fundamentals_companies_includes_category():
+    """SOT-1208: 各社にカテゴリキーが付与される（未分類は other）。"""
+    ff._CACHE = _make_data()
+    companies = ff.list_fundamentals_companies()
+    by_ticker = {c["ticker"]: c for c in companies}
+    assert by_ticker["AAPL"]["category"] == "hardware"  # 既知マッピング
+    assert by_ticker["NODATA"]["category"] == "other"   # 未分類はフォールバック
+
+
+def test_category_for_ticker_normalizes_and_falls_back():
+    """SOT-1208: 大文字化・サフィックス除去で照合し、未知は other。"""
+    assert ff.category_for_ticker("nvda") == "semiconductor"
+    assert ff.category_for_ticker("MSFT") == "software"
+    assert ff.category_for_ticker("GOOGL.US") == "internet"
+    assert ff.category_for_ticker("ZZZZ") == "other"
+    assert ff.category_for_ticker("") == "other"

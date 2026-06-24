@@ -468,6 +468,7 @@ export interface FundamentalsCompanyItem {
   name?: string | null
   metric_count: number
   has_data: boolean
+  category?: string | null
 }
 
 export interface FundamentalsCompaniesResponse {
