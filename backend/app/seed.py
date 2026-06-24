@@ -967,12 +967,12 @@ def seed_investors_firestore():
                 removed, len(existing_names), len(expected_names),
             )
 
-        seeded = 0
-        for rec in seedable:
-            company_name = rec["company_name"]
-            data = {
+        # 1件ずつの set() は Cloud Run のバックグラウンド(CPUスロットリング下)で
+        # 完了しきれず本番が旧データのまま残るため、WriteBatch で一括投入する(SOT-1201)。
+        payload = [
+            {
                 "investor_name": rec["investor_name"],
-                "company_id": f"company-{_slug(company_name)}",
+                "company_id": f"company-{_slug(rec['company_name'])}",
                 "ownership_pct": rec.get("ownership_pct", 0.0),
                 "change_pct": rec.get("change_pct", 0.0),
                 "report_date": rec.get("report_date"),
@@ -984,8 +984,9 @@ def seed_investors_firestore():
                 "value_usd": rec.get("value_usd"),
                 "quarter_delta": rec.get("quarter_delta"),
             }
-            if repo.save(data):
-                seeded += 1
+            for rec in seedable
+        ]
+        seeded = repo.save_many(payload)
         logger.info(
             "Seeded %d institutional investors to Firestore (%d distinct investors)",
             seeded, len(expected_names),
