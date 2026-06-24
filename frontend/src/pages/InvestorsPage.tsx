@@ -56,42 +56,29 @@ export default function InvestorsPage() {
         <p className="text-sm text-muted-foreground mt-0.5">{t('investors.byInvestor.subtitle')}</p>
       </div>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t('investors.byInvestor.title')}</h2>
+      {investorCharts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('investors.noInstitutional')}</p>
+      ) : (
+        <div className="space-y-8">
+          {/* SOT-1201: 投資家ごとに円グラフ(構成比)と線グラフ(保有額の推移)を1組にまとめ、
+              PCでは横並び・スマホでは縦積みで表示する。線グラフはSOT-1187で投資家ごと独立Y軸。 */}
+          {investorCharts.map(({ investor, slices, total }) => (
+            <section key={investor} className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground">{investor}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ChartCard
+                  title={t('investors.byInvestor.title')}
+                  subtitle={`${t('investors.byInvestor.total')}: $${formatCompact(total)}`}
+                >
+                  <InvestorHoldingsPie data={slices} />
+                </ChartCard>
+                <ChartCard title={t('investors.valueTrend.title')}>
+                  <HoldingsValueTrendLines rows={allInvestors.filter(inv => inv.investor_name === investor)} />
+                </ChartCard>
+              </div>
+            </section>
+          ))}
         </div>
-        {investorCharts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('investors.noInstitutional')}</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {investorCharts.map(({ investor, slices, total }) => (
-              <ChartCard
-                key={investor}
-                title={investor}
-                subtitle={`${t('investors.byInvestor.total')}: $${formatCompact(total)}`}
-              >
-                <InvestorHoldingsPie data={slices} />
-              </ChartCard>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {investorCharts.length > 0 && (
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{t('investors.valueTrend.title')}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{t('investors.valueTrend.subtitle')}</p>
-          </div>
-          {/* SOT-1187: 投資家ごとにカードを分け、各カードを独立Y軸で描画する。 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {investorCharts.map(({ investor }) => (
-              <ChartCard key={investor} title={investor}>
-                <HoldingsValueTrendLines rows={allInvestors.filter(inv => inv.investor_name === investor)} />
-              </ChartCard>
-            ))}
-          </div>
-        </section>
       )}
     </div>
   )
