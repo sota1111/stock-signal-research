@@ -1,34 +1,33 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
 import { SERIES_COLORS, formatCompact } from './chartUtils'
 import type { InstitutionalInvestor } from '../../types'
 
 /**
- * 機関投資家の保有「金額(評価額 value_usd)」の推移（SOT-1177）。
- * 各 report_date における投資家ごとの保有額合計（全企業の value_usd 合算）を
- * 1本の線として重ねて描画する。保有比率(%)を描く HoldingsTrendLines とは別物。
+ * 1投資家分の保有「金額(評価額 value_usd)」の推移（SOT-1187: 投資家ごとに分割）。
+ * 渡された rows（=1投資家分）について、各 report_date の保有額合計（全企業の value_usd
+ * 合算）を1本の折れ線として描画する。Y軸はこのカード単独でオートスケールするため、
+ * 投資家ごとに桁が違っても0付近に潰れない。保有比率(%)を描く HoldingsTrendLines とは別物。
  */
 export default function HoldingsValueTrendLines({ rows }: { rows: InstitutionalInvestor[] }) {
   const value = (r: InstitutionalInvestor) => r.value_usd ?? 0
   const dates = [...new Set(rows.map(r => r.report_date))].sort()
-  const investorNames = [...new Set(rows.map(r => r.investor_name))]
 
-  if (dates.length < 2 || investorNames.length === 0) {
+  if (dates.length < 2) {
     return <EmptyChart />
   }
 
-  // (date → {date, 投資家名: 保有額合計}) を構築する。
-  const byDate = new Map<string, Record<string, number | string>>()
-  for (const d of dates) byDate.set(d, { date: d })
+  // (date → 保有額合計) を構築し、1本の系列にする。
+  const totalByDate = new Map<string, number>()
+  for (const d of dates) totalByDate.set(d, 0)
   for (const r of rows) {
-    const row = byDate.get(r.report_date)
-    if (!row) continue
-    row[r.investor_name] = (Number(row[r.investor_name] ?? 0)) + value(r)
+    if (!totalByDate.has(r.report_date)) continue
+    totalByDate.set(r.report_date, (totalByDate.get(r.report_date) ?? 0) + value(r))
   }
-  const data = dates.map(d => byDate.get(d)!)
+  const data = dates.map(d => ({ date: d, value: totalByDate.get(d) ?? 0 }))
 
   return (
-    <ResponsiveContainer width="100%" height={340}>
+    <ResponsiveContainer width="100%" height={240}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
         <XAxis dataKey="date" tick={{ fontSize: 11 }} />
@@ -37,18 +36,14 @@ export default function HoldingsValueTrendLines({ rows }: { rows: InstitutionalI
           labelStyle={{ fontSize: 12 }}
           formatter={v => `$${formatCompact(Number(v))}`}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        {investorNames.map((name, i) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-            strokeWidth={2}
-            dot={{ r: 2 }}
-            connectNulls
-          />
-        ))}
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={SERIES_COLORS[0]}
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          connectNulls
+        />
       </LineChart>
     </ResponsiveContainer>
   )

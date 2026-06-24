@@ -83,9 +83,14 @@ export default function InvestorsPage() {
             <h2 className="text-lg font-semibold text-foreground">{t('investors.valueTrend.title')}</h2>
             <p className="text-sm text-muted-foreground mt-0.5">{t('investors.valueTrend.subtitle')}</p>
           </div>
-          <ChartCard title={t('investors.valueTrend.title')}>
-            <HoldingsValueTrendLines rows={allInvestors} />
-          </ChartCard>
+          {/* SOT-1187: 投資家ごとにカードを分け、各カードを独立Y軸で描画する。 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {investorCharts.map(({ investor }) => (
+              <ChartCard key={investor} title={investor}>
+                <HoldingsValueTrendLines rows={allInvestors.filter(inv => inv.investor_name === investor)} />
+              </ChartCard>
+            ))}
+          </div>
         </section>
       )}
     </div>
