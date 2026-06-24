@@ -1,33 +1,38 @@
 # Worker Report
 
 ## Summary
-SOT-1178「個別株メニュー追加」を実装。新メニュー「個別株」(/individual-stock) を追加し、財務
-ファンダメンタルズ時系列セクション（SOT-1121）を株価ページから新ページへ移設した。フロントエンド単独変更。
+SOT-1179「読み込み中」— fixed pages that rendered a "no data" / empty state during data
+fetch so they now show a loading indicator while loading.
 
 **Worker non-response (fallback disclosure):** `scripts/ai/run_gemini.sh` exited with code 75
-(Gemini CLI crashed: IneligibleTierError / UNSUPPORTED_CLIENT — free-tier no longer supported).
-Codex も usage-limit cooldown (exit 75) で非応答。Per the Worker Non-Response Fallback Policy,
-Claude Code performed both the implementation and the verification directly.
+(IneligibleTierError / UNSUPPORTED_CLIENT — Gemini CLI free-tier no longer supported, crash exit 1
+→ normalized to 75). `scripts/ai/run_codex.sh` was also non-responsive (exit 75, usage-limit
+cooldown). Per the Worker Non-Response Fallback Policy, Claude Code performed BOTH the
+implementation and the verification (lint + build) directly.
 
 ## Changed Files
-- `frontend/src/pages/IndividualStockPage.tsx` — 新規。財務ファンダメンタルズ時系列セクションのみを表示する個別株ページ。
-- `frontend/src/pages/StockPage.tsx` — 財務ファンダメンタルズの state/query/JSX セクションを削除、未使用 import（FinancialFundamentalsChart, fetchFundamentalsCompanies, fetchFinancialFundamentals）を除去。
-- `frontend/src/App.tsx` — IndividualStockPage の lazy import、NAV_ITEMS に「個別株」(/individual-stock, 株価の隣)、/individual-stock ルートを追加。
-- `frontend/src/i18n/messages.ts` — `nav.individualStock` を ja「個別株」/ en「Individual Stock」に追加。
+- `frontend/src/pages/PatentsPage.tsx` — expose `isLoading` from the `patent-yearly` and
+  `patent-top-assignees` queries; render `<ChartSkeleton>` in the 年次トレンド, 特許×論文 overlay,
+  and 主要出願人 chart cards while loading (instead of the charts' "no data" EmptyChart).
+- `frontend/src/pages/IndividualStockPage.tsx` — expose `isLoading` from the
+  `fundamentals-companies` query; show `<PageLoading>` while the company list loads instead of the
+  `fundamentals.noData` message.
+- `frontend/src/pages/ListPage.tsx` — expose `isLoading` from the themes/papers/companies/investors
+  queries; show `<PageLoading>` per tab while loading instead of an empty table.
 
 ## Commands Run
-- `cd frontend && npm run lint` → exit 0
-- `cd frontend && npm run build` → exit 0（IndividualStockPage チャンク生成、StockPage チャンク縮小を確認）
+- `npm run lint` (frontend) → exit 0 (clean)
+- `npm run build` (frontend) → exit 0 (built in ~0.4s)
 
 ## Acceptance Criteria
-- [x] New「個別株」nav item appears next to 株価
-- [x] New /individual-stock page shows the financial fundamentals time series
-- [x] Fundamentals section removed from StockPage (no unused imports)
-- [x] lint + build pass
+- [x] PatentsPage charts show loading state (ChartSkeleton), not "no data", during fetch
+- [x] IndividualStockPage shows PageLoading (not noData) during companies fetch
+- [x] ListPage shows PageLoading (not empty table) during fetch
+- [x] lint clean, build succeeds
 
 ## Risks
-- メニューラベル/ルート名は Issue 未指定のため「個別株」/`/individual-stock` を採用（可逆）。
-- 既存の fundamentals.* i18n キーをそのまま再利用（重複追加なし）。
+- Frontend-only, low risk. No new i18n keys (PageLoading uses existing `common.loading`).
+  Reused existing `AsyncState` components. No backend or data-fetching logic changes.
 
 ## Next Action
 READY_FOR_REVIEW

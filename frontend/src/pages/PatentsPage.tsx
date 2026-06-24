@@ -5,7 +5,7 @@ import { useFilters } from '../contexts/useFilters'
 import ChartCard, { EmptyChart } from '../components/charts/ChartCard'
 import PatentCountsByYearBar from '../components/charts/PatentCountsByYearBar'
 import PatentsVsPapersComposed from '../components/charts/PatentsVsPapersComposed'
-import { PageLoading, PageEmpty } from '../components/AsyncState'
+import { PageLoading, PageEmpty, ChartSkeleton } from '../components/AsyncState'
 import { GRAPH_FROM_YEAR } from './dashboardData'
 import { useI18n } from '../i18n/useI18n'
 
@@ -27,12 +27,12 @@ export default function PatentsPage() {
     queryFn: () => fetchPatents(themeArg),
     staleTime: 1000 * 60 * 30,
   })
-  const { data: yearly = [] } = useQuery({
+  const { data: yearly = [], isLoading: isYearlyLoading } = useQuery({
     queryKey: ['patent-yearly'],
     queryFn: () => fetchPatentYearly(),
     staleTime: 1000 * 60 * 30,
   })
-  const { data: topAssignees = [] } = useQuery({
+  const { data: topAssignees = [], isLoading: isAssigneesLoading } = useQuery({
     queryKey: ['patent-top-assignees', selectedTheme],
     queryFn: () => fetchPatentTopAssignees(themeArg, 10),
     staleTime: 1000 * 60 * 30,
@@ -145,7 +145,7 @@ export default function PatentsPage() {
       {/* 年次トレンド */}
       <section className="space-y-3">
         <ChartCard title={t('patents.trend.title')} subtitle={t('patents.trend.subtitle')}>
-          <PatentCountsByYearBar data={yearlyChart} />
+          {isYearlyLoading ? <ChartSkeleton height={300} /> : <PatentCountsByYearBar data={yearlyChart} />}
         </ChartCard>
       </section>
 
@@ -153,7 +153,11 @@ export default function PatentsPage() {
       {selectedTheme && (
         <section className="space-y-3">
           <ChartCard title={t('patents.overlay.title')} subtitle={t('patents.overlay.subtitle')}>
-            <PatentsVsPapersComposed patents={yearlyChart} papers={signalReport?.paper_counts_by_year ?? []} />
+            {isYearlyLoading ? (
+              <ChartSkeleton height={300} />
+            ) : (
+              <PatentsVsPapersComposed patents={yearlyChart} papers={signalReport?.paper_counts_by_year ?? []} />
+            )}
           </ChartCard>
         </section>
       )}
@@ -161,7 +165,9 @@ export default function PatentsPage() {
       {/* 主要出願人 */}
       <section className="space-y-3">
         <ChartCard title={t('patents.assignees.title')} subtitle={t('patents.assignees.subtitle')}>
-          {topAssignees.length === 0 ? (
+          {isAssigneesLoading ? (
+            <ChartSkeleton height={160} />
+          ) : topAssignees.length === 0 ? (
             <EmptyChart message={t('patents.assignees.empty')} />
           ) : (
             <ul className="space-y-2">
