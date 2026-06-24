@@ -287,6 +287,8 @@ export const messages = {
     'investors.byInvestor.total': '総投資額',
     'investors.valueTrend.title': '保有金額の推移',
     'investors.valueTrend.subtitle': '各機関投資家の保有額(評価額)合計の推移。13F報告ごとの保有金額の増減を確認できます。',
+    'investors.shareTrend.title': '投資対象ごとの構成比の推移',
+    'investors.shareTrend.subtitle': '各投資家の保有銘柄ごとの構成比(%)の推移。13F報告ごとに各銘柄のシェアの増減を確認できます。',
     // signal detection page
     'signals.title': '前兆検知 — 技術トレンド',
     'signals.surgingThemes': '急増テーマ TOP5',
@@ -926,6 +928,8 @@ export const messages = {
     'investors.byInvestor.total': 'Total holdings',
     'investors.valueTrend.title': 'Holding value over time',
     'investors.valueTrend.subtitle': 'Trend of each institutional investor’s total holding value across SEC 13F reports.',
+    'investors.shareTrend.title': 'Holding share over time',
+    'investors.shareTrend.subtitle': 'Per-holding share (%) of each investor over time across SEC 13F reports.',
     // signal detection page
     'signals.title': 'Signal detection — tech trends',
     'signals.surgingThemes': 'Top 5 surging themes',

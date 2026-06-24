@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { EmptyChart } from './ChartCard'
-import { SERIES_COLORS } from './chartUtils'
+import { holdingColor, OTHERS_KEY } from './chartUtils'
 import { useI18n } from '../../i18n/useI18n'
 
 const TOP_N = 8
@@ -14,7 +14,7 @@ const TOP_N = 8
 export default function InvestorHoldingsPie({
   data,
 }: {
-  data: { company: string; value: number }[]
+  data: { company: string; colorKey: string; value: number }[]
 }) {
   const { t } = useI18n()
 
@@ -26,7 +26,9 @@ export default function InvestorHoldingsPie({
   const top = sorted.slice(0, TOP_N)
   const rest = sorted.slice(TOP_N)
   const restTotal = rest.reduce((sum, d) => sum + d.value, 0)
-  const slices = restTotal > 0 ? [...top, { company: t('investors.concentration.others'), value: restTotal }] : top
+  const slices = restTotal > 0
+    ? [...top, { company: t('investors.concentration.others'), colorKey: OTHERS_KEY, value: restTotal }]
+    : top
 
   const total = slices.reduce((sum, d) => sum + d.value, 0)
   const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0)
@@ -44,8 +46,8 @@ export default function InvestorHoldingsPie({
           label={entry => `${entry.name} ${pct(Number(entry.value)).toFixed(1)}%`}
           labelLine={false}
         >
-          {slices.map((_, i) => (
-            <Cell key={i} fill={SERIES_COLORS[i % SERIES_COLORS.length]} />
+          {slices.map((slice, i) => (
+            <Cell key={i} fill={holdingColor(slice.colorKey)} />
           ))}
         </Pie>
         <Tooltip formatter={v => `${pct(Number(v)).toFixed(1)}%`} />
