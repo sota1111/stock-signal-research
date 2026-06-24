@@ -916,9 +916,14 @@ def seed_dashboard_data_firestore():
 
 
 def seed_investors_firestore():
-    """本番(Firestore)向けに機関投資家(13F実データ)を冪等投入する(SOT-965)。
+    """本番(Firestore)向けに機関投資家(13F実データ)を投入/更新する(SOT-965, refresh: SOT-1201)。
     `run_seed()` は SQLite 専用のため、本番では別途 institutional_investors コレクションへ
-    投入しないと投資家情報ページが空になる。冪等(既に投入済みならスキップ)。
+    投入しないと投資家情報ページが空になる。
+
+    冪等かつ自己修復(reconcile): collected-investors.json の投資家集合・件数と既存データが
+    一致していればスキップ(churn なし)。不一致(=データ陳腐化。例: 旧5社のまま/新10社へ拡充)なら
+    既存を洗い替え(delete_all → 全件再投入)して最新スナップショットへ更新する。これにより
+    JSON を更新して再デプロイするだけで本番が最新化される。
     調査・仮説検証用の公開開示データであり投資助言ではない。失敗しても起動を妨げない。"""
     import logging
 
@@ -929,17 +934,33 @@ def seed_investors_firestore():
         if not records:
             return
 
+        # 投入対象は company_name を持つレコードのみ(従来と同じフィルタ)。
+        seedable = [r for r in records if r.get("company_name")]
+        expected_names = {r["investor_name"] for r in seedable if r.get("investor_name")}
+        expected_count = len(seedable)
+
         from .repositories.investor_repository import get_investor_repository
 
         repo = get_investor_repository()
-        if repo.list_all():
+        existing = repo.list_all()
+        existing_names = {e.get("investor_name") for e in existing if e.get("investor_name")}
+
+        # 既存が期待集合・件数と一致 → 最新なのでスキップ。
+        if existing and existing_names == expected_names and len(existing) == expected_count:
             return
 
+        # 陳腐化(集合 or 件数が不一致) → 洗い替え。
+        if existing:
+            removed = repo.delete_all()
+            logger.info(
+                "Refreshing institutional investors in Firestore: removed %d stale records "
+                "(existing investors %d, expected %d)",
+                removed, len(existing_names), len(expected_names),
+            )
+
         seeded = 0
-        for rec in records:
-            company_name = rec.get("company_name")
-            if not company_name:
-                continue
+        for rec in seedable:
+            company_name = rec["company_name"]
             data = {
                 "investor_name": rec["investor_name"],
                 "company_id": f"company-{_slug(company_name)}",
@@ -956,7 +977,10 @@ def seed_investors_firestore():
             }
             if repo.save(data):
                 seeded += 1
-        logger.info("Seeded %d institutional investors to Firestore", seeded)
+        logger.info(
+            "Seeded %d institutional investors to Firestore (%d distinct investors)",
+            seeded, len(expected_names),
+        )
     except Exception as e:  # noqa: BLE001 - startup must never crash on seeding failure
         logger.warning(f"Could not seed institutional investors to Firestore: {e}")
 
