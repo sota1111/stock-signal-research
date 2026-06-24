@@ -284,6 +284,9 @@ export const messages = {
     'investors.relation.subtitle': '各投資家が最新報告で保有する企業の一覧。',
     'investors.byInvestor.title': '投資家ごとの保有内訳',
     'investors.byInvestor.subtitle': '各機関投資家が最新報告(SEC 13F)で保有する企業の構成比（保有額シェア）を円グラフで表示します。',
+    'investors.byInvestor.total': '総投資額',
+    'investors.valueTrend.title': '保有金額の推移',
+    'investors.valueTrend.subtitle': '各機関投資家の保有額(評価額)合計の推移。13F報告ごとの保有金額の増減を確認できます。',
     // signal detection page
     'signals.title': '前兆検知 — 技術トレンド',
     'signals.surgingThemes': '急増テーマ TOP5',
@@ -905,6 +908,9 @@ export const messages = {
     'investors.relation.subtitle': 'Companies held by each investor in the latest report.',
     'investors.byInvestor.title': 'Holdings breakdown by investor',
     'investors.byInvestor.subtitle': 'A pie chart per institutional investor showing the composition (holding-value share) of companies held in the latest SEC 13F report.',
+    'investors.byInvestor.total': 'Total holdings',
+    'investors.valueTrend.title': 'Holding value over time',
+    'investors.valueTrend.subtitle': 'Trend of each institutional investor’s total holding value across SEC 13F reports.',
     // signal detection page
     'signals.title': 'Signal detection — tech trends',
     'signals.surgingThemes': 'Top 5 surging themes',

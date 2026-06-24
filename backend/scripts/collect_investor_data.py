@@ -38,12 +38,19 @@ RETRIES = 3
 YEARS_BACK = 10
 
 # 主要機関投資家(マネージャー): (CIK 10桁ゼロ埋め, 表示名)
+# CIK は SEC EDGAR submissions エンドポイントで 13F-HR を提出する filer であることを確認済み。
+# SOT-1177: 大手 13F filer を追加し、投資家ページに表示される投資家を拡充する。
 MANAGERS = [
     ("0000102909", "Vanguard Group"),
     ("0001364742", "BlackRock"),
     ("0000093751", "State Street"),
     ("0001214717", "Geode Capital Management"),
     ("0000315066", "FMR (Fidelity)"),
+    ("0000895421", "Morgan Stanley"),
+    ("0000019617", "JPMorgan Chase"),
+    ("0000886982", "Goldman Sachs"),
+    ("0000902219", "Wellington Management"),
+    ("0000070858", "Bank of America"),
 ]
 
 # 追跡対象企業(SOT-1120: 主要テーマ銘柄へ拡大)。name は seed.py の Company.name と一致させる。
