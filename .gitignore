@@ -50,6 +50,12 @@ node_modules/
 .npm/
 *.tgz
 
+# Playwright E2E artifacts (SOT-1154)
+playwright-report/
+test-results/
+frontend/playwright-report/
+frontend/test-results/
+
 # Local database files
 *.db
 *.sqlite
