@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchFundamentalsCompanies, fetchFinancialFundamentals } from '../api'
 import ChartCard from '../components/charts/ChartCard'
 import FinancialFundamentalsChart from '../components/charts/FinancialFundamentalsChart'
+import { PageLoading } from '../components/AsyncState'
 import { useI18n } from '../i18n/useI18n'
 
 const CATEGORY_STALE_TIME = 1000 * 60 * 30
@@ -12,7 +13,7 @@ export default function IndividualStockPage() {
 
   // === 財務ファンダメンタルズ時系列（SOT-1121 / 候補D・SEC EDGAR XBRL）===
   // SOT-1178: 株価ページから個別株ページへ移設。
-  const { data: fundCompanies } = useQuery({
+  const { data: fundCompanies, isLoading: isCompaniesLoading } = useQuery({
     queryKey: ['fundamentals-companies'],
     queryFn: fetchFundamentalsCompanies,
     staleTime: CATEGORY_STALE_TIME,
@@ -40,7 +41,9 @@ export default function IndividualStockPage() {
           <h2 className="text-lg font-semibold text-foreground">{t('fundamentals.section.title')}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">{t('fundamentals.section.subtitle')}</p>
         </div>
-        {fundTickers.length === 0 ? (
+        {isCompaniesLoading ? (
+          <PageLoading />
+        ) : fundTickers.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('fundamentals.noData')}</p>
         ) : (
           <>

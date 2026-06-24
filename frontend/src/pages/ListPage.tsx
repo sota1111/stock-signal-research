@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchThemes, fetchPapers, fetchCompanies, fetchInvestors, fetchDashboard } from '../api'
 import { useI18n } from '../i18n/useI18n'
+import { PageLoading } from '../components/AsyncState'
 import type { MessageKey } from '../i18n/messages'
 
 const TABS = ['テーマ', '論文', '企業', '投資家'] as const
@@ -35,10 +36,10 @@ export default function ListPage() {
   const [companySortDesc, setCompanySortDesc] = useState(true)
   const [investorSortDesc, setInvestorSortDesc] = useState(true)
 
-  const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, enabled: tab === 'テーマ' })
-  const { data: papers } = useQuery({ queryKey: ['papers'], queryFn: () => fetchPapers(), enabled: tab === '論文' })
-  const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies, enabled: tab === '企業' })
-  const { data: investors } = useQuery({ queryKey: ['investors'], queryFn: fetchInvestors, enabled: tab === '投資家' })
+  const { data: themes, isLoading: isThemesLoading } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, enabled: tab === 'テーマ' })
+  const { data: papers, isLoading: isPapersLoading } = useQuery({ queryKey: ['papers'], queryFn: () => fetchPapers(), enabled: tab === '論文' })
+  const { data: companies, isLoading: isCompaniesLoading } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies, enabled: tab === '企業' })
+  const { data: investors, isLoading: isInvestorsLoading } = useQuery({ queryKey: ['investors'], queryFn: fetchInvestors, enabled: tab === '投資家' })
   const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard, enabled: tab === 'テーマ' })
 
   const alignmentMap = new Map<string, { score: number; confidence: number }>()
@@ -93,7 +94,8 @@ export default function ListPage() {
         />
       </div>
 
-      {tab === 'テーマ' && (
+      {tab === 'テーマ' && isThemesLoading && <PageLoading />}
+      {tab === 'テーマ' && !isThemesLoading && (
         <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
             <thead className="bg-surface-muted text-muted-foreground">
@@ -147,7 +149,8 @@ export default function ListPage() {
         </div>
       )}
 
-      {tab === '論文' && (
+      {tab === '論文' && isPapersLoading && <PageLoading />}
+      {tab === '論文' && !isPapersLoading && (
         <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
             <thead className="bg-surface-muted text-muted-foreground">
@@ -179,7 +182,8 @@ export default function ListPage() {
         </div>
       )}
 
-      {tab === '企業' && (
+      {tab === '企業' && isCompaniesLoading && <PageLoading />}
+      {tab === '企業' && !isCompaniesLoading && (
         <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
             <thead className="bg-surface-muted text-muted-foreground">
@@ -213,7 +217,8 @@ export default function ListPage() {
         </div>
       )}
 
-      {tab === '投資家' && (
+      {tab === '投資家' && isInvestorsLoading && <PageLoading />}
+      {tab === '投資家' && !isInvestorsLoading && (
         <div className="bg-surface rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm responsive-table">
             <thead className="bg-surface-muted text-muted-foreground">
