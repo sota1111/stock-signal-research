@@ -26,10 +26,19 @@ def test_aggregate_counts_and_series_continuity():
     ]
     rows = aggregate_paper_monthly_counts(papers, 2023, 2024)
 
-    # 窓内に論文があるテーマのみ(Alpha, Beta)。各テーマ 2年=24ヶ月の連続系列。
+    # 窓内に論文があるテーマのみ(Alpha, Beta)。
     themes = sorted({r["theme"] for r in rows})
     assert themes == ["Alpha", "Beta"]
-    assert len(rows) == 2 * 24
+    # 末尾の空月はトリムされる。Alpha は最終データ月=2024-01 で終端(2023-01..2024-01=13ヶ月)、
+    # Beta は最終データ月=2023-06 で終端(2023-01..2023-06=6ヶ月)。
+    alpha_months = [r["year_month"] for r in rows if r["theme"] == "Alpha"]
+    beta_months = [r["year_month"] for r in rows if r["theme"] == "Beta"]
+    assert alpha_months[0] == "2023-01" and alpha_months[-1] == "2024-01"
+    assert len(alpha_months) == 13
+    assert beta_months[0] == "2023-01" and beta_months[-1] == "2023-06"
+    assert len(beta_months) == 6
+    # 未来側・データ無しの末尾月は存在しない
+    assert ("Alpha", "2024-02") not in {(r["theme"], r["year_month"]) for r in rows}
 
     by_key = {(r["theme"], r["year_month"]): r for r in rows}
     # カウント
@@ -64,6 +73,22 @@ def test_aggregate_is_deterministic_and_window_bounded():
     assert all(not r["year_month"].startswith("2010") for r in r1)
     total = sum(r["count"] for r in r1)
     assert total == 1
+
+
+def test_trailing_empty_months_trimmed_inner_zeros_kept():
+    # 先頭・中間の0月は連続性のため残し、末尾の連続0月のみ落とす。
+    papers = [
+        {"theme": "G", "pub": "2022-03-01"},  # 中間にデータ
+        {"theme": "G", "pub": "2022-05-01"},  # 2022-04 は中間の0月(残す)
+    ]
+    rows = aggregate_paper_monthly_counts(papers, 2022, 2024)
+    months = [r["year_month"] for r in rows]
+    # 系列は窓先頭(2022-01)から最終データ月(2022-05)まで。以降(2022-06..2024-12)はトリム。
+    assert months[0] == "2022-01"
+    assert months[-1] == "2022-05"
+    by_key = {r["year_month"]: r for r in rows}
+    assert by_key["2022-04"]["count"] == 0  # 中間の0月は保持
+    assert "2022-06" not in by_key            # 末尾の0月はトリム
 
 
 def test_empty_input_returns_empty():
