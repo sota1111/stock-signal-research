@@ -219,9 +219,17 @@ def get_dashboard():
     sc_repo = get_supply_chain_repository()
     trend_repo = get_trend_repository()
 
+    # SOT-1168: テーマ情報は list_all() で1回だけ取得し id->theme のマップで解決する。
+    # 以前は top_keywords / supply_chain_highlights / alignment の各ループで
+    # レコードごとに theme_repo.get_by_id を呼んでおり（供給網は1エッジ×2回）、
+    # デプロイ環境(Firestore)では供給網拡張(SOT-1124)で逐次読み取りが数百回に達し
+    # タイムアウト→ダッシュボード読み込み失敗を招いていた（/investors/ と同型の N+1）。
+    all_themes = theme_repo.list_all()
+    theme_by_id = {t["id"]: t for t in all_themes}
+
     # trending_themes: 注目テーマを前兆スコアの高い順に最大30件表示する
     trending_themes = sorted(
-        theme_repo.list_all(),
+        all_themes,
         key=lambda t: t.get("precursor_score", 0) or 0,
         reverse=True,
     )[:30]
@@ -230,7 +238,7 @@ def get_dashboard():
     pm_counts = trend_repo.list_monthly_counts(limit=10)
     top_keywords = []
     for pm in pm_counts:
-        theme = theme_repo.get_by_id(pm["theme_id"])
+        theme = theme_by_id.get(pm["theme_id"])
         top_keywords.append({
             "keyword": pm["keyword"],
             "mom_change_pct": pm["mom_change_pct"],
@@ -248,8 +256,8 @@ def get_dashboard():
     sc_results = sc_repo.list_all()
     supply_chain_highlights = []
     for item in sc_results:
-        from_theme = theme_repo.get_by_id(item["from_theme_id"])
-        to_theme = theme_repo.get_by_id(item["to_theme_id"])
+        from_theme = theme_by_id.get(item["from_theme_id"])
+        to_theme = theme_by_id.get(item["to_theme_id"])
 
         res_item = schemas.SupplyChainResponse.model_validate(item)
         res_item.from_theme_name = from_theme["name"] if from_theme else None
@@ -264,7 +272,7 @@ def get_dashboard():
     high_alignment = []
     paper_only_ids = set()
     for row in alignment_rows:
-        theme = theme_repo.get_by_id(row["theme_id"])
+        theme = theme_by_id.get(row["theme_id"])
         if not theme:
             continue
         if row["score"] >= 30:
@@ -272,8 +280,7 @@ def get_dashboard():
             paper_only_ids.add(theme["id"])
 
     paper_only = []
-    # Re-using trending_themes or fetching more if needed
-    all_themes = theme_repo.list_all()
+    # Re-using all_themes (一括取得済み・precursor_score 降順)。再取得しない。
     for theme in all_themes[:20]:  # Check top 20 for paper_only
         if theme["id"] not in paper_only_ids and theme["precursor_score"] >= 20:
             paper_only.append({"theme": theme, "precursor_score": theme["precursor_score"]})

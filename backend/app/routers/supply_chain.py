@@ -39,10 +39,15 @@ def read_supply_chains(
     results = repo.list_all()
     company_theme_ids = _company_theme_ids(company_id) if company_id else None
 
+    # SOT-1168: テーマ情報は1回だけ一括取得して id->theme マップで解決する。
+    # エッジ1件ごとに theme_repo.get_by_id を2回呼ぶ N+1 はデプロイ環境(Firestore)で
+    # 供給網拡張時に逐次読み取りタイムアウトを招くため。
+    theme_by_id = {t["id"]: t for t in theme_repo.list_all()}
+
     response = []
     for item in results:
-        from_theme = theme_repo.get_by_id(item["from_theme_id"])
-        to_theme = theme_repo.get_by_id(item["to_theme_id"])
+        from_theme = theme_by_id.get(item["from_theme_id"])
+        to_theme = theme_by_id.get(item["to_theme_id"])
 
         from_cat = from_theme.get("category") if from_theme else None
         to_cat = to_theme.get("category") if to_theme else None

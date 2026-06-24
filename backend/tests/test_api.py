@@ -131,6 +131,70 @@ def test_investors_resolve_company_name_without_per_record_lookup(client, monkey
     assert calls["get_by_id"] == 0
 
 
+def test_dashboard_resolves_theme_names_without_per_record_lookup(client, monkeypatch):
+    # SOT-1168: GET /dashboard/ は供給網ハイライト等のテーマ名を一括取得で解決し、
+    # レコードごとの theme_repo.get_by_id (N+1 → Firestore タイムアウト) を行わないこと。
+    theme_a = client.post(
+        "/api/themes/",
+        json={
+            "name": "Theme A",
+            "category": "Cat",
+            "description": "d",
+            "precursor_score": 80.0,
+            "is_trending": True,
+        },
+    ).json()
+    theme_b = client.post(
+        "/api/themes/",
+        json={
+            "name": "Theme B",
+            "category": "Cat",
+            "description": "d",
+            "precursor_score": 70.0,
+            "is_trending": True,
+        },
+    ).json()
+
+    import app.routers.dashboard as dashboard_router
+
+    # 供給網エッジはリポジトリ経由で直接シードする（read 経路の N+1 を検証する目的）。
+    dashboard_router.get_supply_chain_repository().save(
+        {
+            "id": "sc-test-1",
+            "from_theme_id": theme_a["id"],
+            "to_theme_id": theme_b["id"],
+            "relationship": "supplies",
+            "order": 0,
+            "relation_type": "depends_on",
+            "confidence": 0.9,
+            "evidence": [],
+        }
+    )
+
+
+    repo = dashboard_router.get_theme_repository()
+    calls = {"get_by_id": 0}
+    original_get_by_id = repo.get_by_id
+
+    def counting_get_by_id(theme_id):
+        calls["get_by_id"] += 1
+        return original_get_by_id(theme_id)
+
+    monkeypatch.setattr(repo, "get_by_id", counting_get_by_id)
+    monkeypatch.setattr(dashboard_router, "get_theme_repository", lambda: repo)
+
+    response = client.get("/api/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+
+    highlights = body["supply_chain_highlights"]
+    assert len(highlights) == 1
+    assert highlights[0]["from_theme_name"] == "Theme A"
+    assert highlights[0]["to_theme_name"] == "Theme B"
+    # 一括取得(list_all)で解決するため、レコードごとの get_by_id は発生しない。
+    assert calls["get_by_id"] == 0
+
+
 def test_create_and_get_paper(client):
     paper_data = {
         "paper_id": "p001",
