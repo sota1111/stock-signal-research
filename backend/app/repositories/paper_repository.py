@@ -15,8 +15,12 @@ class PaperRepository(ABC):
         ...
 
     @abstractmethod
-    def list_all(self, theme_id: str = None) -> List[Dict[str, Any]]:
-        """List all papers, optionally filtered by theme_id."""
+    def list_all(self, theme_id: str = None, limit: int = None) -> List[Dict[str, Any]]:
+        """List papers (引用数の多い順), optionally filtered by theme_id.
+
+        SOT-1213: theme_id 未指定時の全件取得は本番(Firestore 1万件超)で数十秒かかり
+        リクエストタイムアウトを誘発する。`limit` を渡すと引用数上位 N 件のみを取得して
+        応答を有界化する(フロントは引用数降順・ページ送り表示なので体感は不変)。"""
         ...
 
     @abstractmethod
@@ -110,7 +114,7 @@ class SQLitePaperRepository(PaperRepository):
             logger.error(f"SQLite repository error: {e}")
             return False
 
-    def list_all(self, theme_id: str = None) -> List[Dict[str, Any]]:
+    def list_all(self, theme_id: str = None, limit: int = None) -> List[Dict[str, Any]]:
         try:
             from app.models import Paper
             db = self._session_factory()
@@ -119,9 +123,12 @@ class SQLitePaperRepository(PaperRepository):
                 if theme_id:
                     query = query.filter(Paper.theme_id == theme_id)
                 # 引用数の多い順に並べる（同数は新しいものから）。
-                papers = query.order_by(
+                query = query.order_by(
                     Paper.citation_count.desc(), Paper.published_at.desc()
-                ).all()
+                )
+                if limit is not None:
+                    query = query.limit(limit)
+                papers = query.all()
                 return [
                     {
                         "id": p.id,
@@ -238,13 +245,22 @@ class FirestorePaperRepository(PaperRepository):
             items.append((doc_id, data))
         return batch_upsert_documents("papers", items)
 
-    def list_all(self, theme_id: str = None) -> List[Dict[str, Any]]:
+    def list_all(self, theme_id: str = None, limit: int = None) -> List[Dict[str, Any]]:
         try:
             from firestore_client import get_db
+            from google.cloud.firestore_v1 import Query
             db = get_db()
             query = db.collection("papers")
             if theme_id:
+                # テーマ指定時は等価フィルタのみ(複合インデックス不要)。件数が少ないため
+                # Python 側で引用数ソートする。SOT-1209 と同様 where(==)+order_by の併用は避ける。
                 query = query.where("theme_id", "==", theme_id)
+            elif limit is not None:
+                # SOT-1213: 全件(本番1万件超)ストリームは数十秒かかりタイムアウトするため、
+                # 引用数の単一フィールド order_by + limit で上位 N 件だけをサーバ側取得する。
+                query = query.order_by(
+                    "citation_count", direction=Query.DESCENDING
+                ).limit(limit)
 
             docs = query.stream()
             results = []
