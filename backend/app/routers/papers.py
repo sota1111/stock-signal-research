@@ -30,7 +30,15 @@ def create_paper(paper: schemas.PaperCreate):
     raise HTTPException(status_code=500, detail="Failed to create paper")
 
 
-@router.get("/monthly", response_model=List[schemas.PaperMonthlyCountResponse])
+# SOT-1209: response_model は `id` を要求しない PaperMonthlyCountBase を使う。
+# 旧 PaperMonthlyCountResponse は必須 `id` を持つが、月次系列リポジトリ
+# (`trend_repository.list_monthly_counts`) は集計結果の dict を返すだけで `id` を持たない。
+# そのため月次データが1件でもあるテーマ（ai-drug-discovery 等）では FastAPI の応答検証が
+# `id Field required` で失敗し HTTP 500 になり、投資候補ページの「ラグ別 相関」「論文 × 株価
+# （正規化）」が常に「相関を算出するデータが不足しています」になっていた（データ無テーマは
+# 空配列で検証対象が無く 200 を返すため見落とされていた）。フロントは `id` を参照しないため
+# `id` 抜きの Base で応答すればよい。
+@router.get("/monthly", response_model=List[schemas.PaperMonthlyCountBase])
 def read_paper_monthly_counts(theme_id: Optional[str] = None):
     repo = get_trend_repository()
     # 単一テーマ指定時は月次系列全体を返す(10年=120ヶ月超でも切れないよう十分大きな limit)。

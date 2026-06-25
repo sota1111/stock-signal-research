@@ -122,18 +122,23 @@ class FirestoreTrendRepository(TrendRepository):
                 # 複合インデックス不要のためサーバ側ソートのまま。
                 docs = query.order_by("mom_change_pct", direction=firestore.Query.DESCENDING).limit(limit).stream()
                 rows = [d for doc in docs if (d := doc.to_dict())]
+            # SOT-1209: 応答スキーマ(PaperMonthlyCountBase)の必須型(str/int/float)を満たすよう
+            # None を既定値へ丸める防御コーディング。本番 Firestore に欠損フィールドの doc が混ざっても
+            # FastAPI の応答検証で 500 にならないようにする。year_month の無い行は月次系列として無意味
+            # なので除外する。
             return [
                 {
-                    "theme_id": d.get("theme_id"),
-                    "keyword": d.get("keyword"),
-                    "year_month": d.get("year_month"),
-                    "count": d.get("count", 0),
-                    "prev_month_count": d.get("prev_month_count", 0),
-                    "prev_year_count": d.get("prev_year_count", 0),
-                    "mom_change_pct": d.get("mom_change_pct", 0.0),
-                    "yoy_change_pct": d.get("yoy_change_pct", 0.0),
+                    "theme_id": str(d.get("theme_id") or (theme_id or "")),
+                    "keyword": str(d.get("keyword") or ""),
+                    "year_month": str(d.get("year_month")),
+                    "count": int(d.get("count") or 0),
+                    "prev_month_count": int(d.get("prev_month_count") or 0),
+                    "prev_year_count": int(d.get("prev_year_count") or 0),
+                    "mom_change_pct": float(d.get("mom_change_pct") or 0.0),
+                    "yoy_change_pct": float(d.get("yoy_change_pct") or 0.0),
                 }
                 for d in rows
+                if d.get("year_month")
             ]
         except Exception as e:
             logger.error(f"Firestore list_monthly_counts failed: {e}")
