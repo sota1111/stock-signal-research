@@ -36,6 +36,7 @@ export default function InvestmentCandidatesPage() {
   const { data, isLoading, error } = useDashboardQuery()
   const companies = useMemo(() => data?.notable_companies ?? [], [data])
 
+  const [categoryId, setCategoryId] = useState('')
   const [themeId, setThemeId] = useState('')
   const [growthMode, setGrowthMode] = useState<GrowthMode>('mom')
 
@@ -71,15 +72,26 @@ export default function InvestmentCandidatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadLagThemes, monthlySignature])
 
-  // 既定テーマはデータがある最初のテーマ（ユーザー選択があればそれを優先）。
-  const firstThemeWithData = leadLagThemes.find(th => monthlyByTheme.has(th.id))?.id ?? ''
-  const effThemeId = themeId || firstThemeWithData || leadLagThemes[0]?.id || ''
   // SOT-1209: テーマ選択ドロップダウンは、実際に月次論文データを持つテーマのみで構成する。
   // データの無いテーマを選ぶと相関が出ない（noData）ため、そもそも選択肢に出さない。
   const themesWithData = useMemo(
     () => leadLagThemes.filter(th => monthlyByTheme.has(th.id)),
     [leadLagThemes, monthlyByTheme],
   )
+  // SOT-1246: カテゴリでの絞り込みを追加（PapersPage と同じ「カテゴリ→テーマ」連動方式）。
+  // カテゴリ候補は月次データを持つテーマからのみ作り、選んでも空にならないようにする。
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    for (const th of themesWithData) if (th.category) set.add(th.category)
+    return [...set].sort()
+  }, [themesWithData])
+  const themesInCategory = useMemo(
+    () => (categoryId ? themesWithData.filter(th => th.category === categoryId) : themesWithData),
+    [themesWithData, categoryId],
+  )
+  // 既定テーマは、選択中カテゴリ内でデータがある最初のテーマ（ユーザー選択があればそれを優先）。
+  const firstThemeInScope = themesInCategory.find(th => monthlyByTheme.has(th.id))?.id ?? themesInCategory[0]?.id ?? ''
+  const effThemeId = themeId || firstThemeInScope || ''
   const sourceMonthly = useMemo(() => monthlyByTheme.get(effThemeId) ?? [], [monthlyByTheme, effThemeId])
   const paperMonthly = useMemo(() => aggregatePaperMonthly(sourceMonthly), [sourceMonthly])
 
@@ -134,7 +146,21 @@ export default function InvestmentCandidatesPage() {
                 </button>
               ))}
             </div>
-            {themesWithData.length > 0 && (
+            {categories.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="leadlag-category" className="shrink-0 text-sm text-muted-foreground">{t('dashboard.categoryLabel')}</label>
+                <select
+                  id="leadlag-category"
+                  value={categoryId}
+                  onChange={e => { setCategoryId(e.target.value); setThemeId('') }}
+                  className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
+                >
+                  <option value="">{t('dashboard.allCategories')}</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+            {themesInCategory.length > 0 && (
               <div className="flex items-center gap-2">
                 <label htmlFor="leadlag-theme" className="shrink-0 text-sm text-muted-foreground">{t('candidates.leadlag.selectTheme')}</label>
                 <select
@@ -143,7 +169,7 @@ export default function InvestmentCandidatesPage() {
                   onChange={e => setThemeId(e.target.value)}
                   className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
                 >
-                  {themesWithData.map(th => <option key={th.id} value={th.id}>{th.name}</option>)}
+                  {themesInCategory.map(th => <option key={th.id} value={th.id}>{th.name}</option>)}
                 </select>
               </div>
             )}
