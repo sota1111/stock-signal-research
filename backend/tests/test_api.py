@@ -213,3 +213,47 @@ def test_create_and_get_paper(client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["title"] == "Test Paper"
+
+
+def test_papers_monthly_endpoint_returns_rows_without_id(client):
+    """SOT-1209 regression: /papers/monthly must return 200 for themes that HAVE
+    monthly data. The repository builds dicts without an `id` field, so the endpoint
+    must NOT require `id` in its response_model (previously it did, causing every
+    data-bearing theme to fail response validation with HTTP 500 — the investment
+    candidates page then showed 'データが不足しています' forever).
+
+    This exercises the real HTTP path (response_model serialization), which the
+    repository-layer tests did not cover. The trend repository reads via SessionLocal
+    (committed data), so the row is inserted through SessionLocal and cleaned up after.
+    """
+    from app.database import SessionLocal
+    from app.models import PaperMonthlyCount
+
+    session = SessionLocal()
+    try:
+        session.add(
+            PaperMonthlyCount(
+                theme_id="theme-monthly-reg",
+                keyword="kw",
+                year_month="2024-01",
+                count=12,
+                prev_month_count=10,
+                prev_year_count=8,
+                mom_change_pct=0.2,
+                yoy_change_pct=0.5,
+            )
+        )
+        session.commit()
+
+        response = client.get("/api/papers/monthly", params={"theme_id": "theme-monthly-reg"})
+        assert response.status_code == 200, response.text
+        rows = response.json()
+        assert len(rows) == 1
+        body = rows[0]
+        assert body["year_month"] == "2024-01"
+        assert body["count"] == 12
+        assert body["theme_id"] == "theme-monthly-reg"
+    finally:
+        session.query(PaperMonthlyCount).filter_by(theme_id="theme-monthly-reg").delete()
+        session.commit()
+        session.close()
