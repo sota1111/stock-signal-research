@@ -24,9 +24,12 @@ import { useI18n } from '../i18n/useI18n'
 import type { PaperMonthlyCount } from '../types'
 
 const STALE = 1000 * 60 * 30
-// リードラグの対象テーマは前兆スコア上位のトレンドテーマに限定する（月次系列をまとめて取得して
-// 「データがあるテーマ」へ自動フォールバックするため、件数を抑える）。
-const LEADLAG_THEME_LIMIT = 10
+// SOT-1209: リードラグの対象テーマは、ダッシュボードが返すトレンドテーマ全体（前兆スコア上位、
+// 最大30件）を走査して「月次論文データがあるテーマ」へ自動フォールバックする。以前は上位10件のみ
+// 走査していたが、本番で月次データを持つテーマは少数（前兆スコア順位が散在）で、上位10件に1件しか
+// 入らないことがある。前兆スコアは再シードで変動するため、その1件が10位圏外へ落ちると表示中の全テーマが
+// 月次データ無し＝「相関を算出するデータが不足しています」になっていた。走査範囲を広げて堅牢化する。
+const LEADLAG_THEME_LIMIT = 30
 
 export default function InvestmentCandidatesPage() {
   const { t } = useI18n()
@@ -71,6 +74,12 @@ export default function InvestmentCandidatesPage() {
   // 既定テーマはデータがある最初のテーマ（ユーザー選択があればそれを優先）。
   const firstThemeWithData = leadLagThemes.find(th => monthlyByTheme.has(th.id))?.id ?? ''
   const effThemeId = themeId || firstThemeWithData || leadLagThemes[0]?.id || ''
+  // SOT-1209: テーマ選択ドロップダウンは、実際に月次論文データを持つテーマのみで構成する。
+  // データの無いテーマを選ぶと相関が出ない（noData）ため、そもそも選択肢に出さない。
+  const themesWithData = useMemo(
+    () => leadLagThemes.filter(th => monthlyByTheme.has(th.id)),
+    [leadLagThemes, monthlyByTheme],
+  )
   const sourceMonthly = useMemo(() => monthlyByTheme.get(effThemeId) ?? [], [monthlyByTheme, effThemeId])
   const paperMonthly = useMemo(() => aggregatePaperMonthly(sourceMonthly), [sourceMonthly])
 
@@ -125,7 +134,7 @@ export default function InvestmentCandidatesPage() {
                 </button>
               ))}
             </div>
-            {leadLagThemes.length > 0 && (
+            {themesWithData.length > 0 && (
               <div className="flex items-center gap-2">
                 <label htmlFor="leadlag-theme" className="shrink-0 text-sm text-muted-foreground">{t('candidates.leadlag.selectTheme')}</label>
                 <select
@@ -134,7 +143,7 @@ export default function InvestmentCandidatesPage() {
                   onChange={e => setThemeId(e.target.value)}
                   className="rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
                 >
-                  {leadLagThemes.map(th => <option key={th.id} value={th.id}>{th.name}</option>)}
+                  {themesWithData.map(th => <option key={th.id} value={th.id}>{th.name}</option>)}
                 </select>
               </div>
             )}
