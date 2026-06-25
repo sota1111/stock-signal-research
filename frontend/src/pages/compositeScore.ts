@@ -36,26 +36,43 @@ export function parseThemeIds(raw?: string): string[] {
     .filter(Boolean)
 }
 
+/** 0（値なし）企業に割り当てる固定の偏差値。 */
+const ZERO_DEVIATION = 20
+
 /**
  * 各成分を偏差値（T-score）に変換する。
  *   偏差値 = 50 + 10 × (値 − 平均) ÷ 標準偏差
  * 平均なら 50、+1標準偏差で 60、−1標準偏差で 40。
- * 母標準偏差（N で割る）を用いる。標準偏差が 0（全社同値 / N≤1）の場合は
- * ゼロ除算を避け、全社 50 を返す。最終値は 0〜100 にクランプする（外れ値で
- * 100超/0未満にならないようにする）。
+ *
+ * 平均・標準偏差は **非ゼロの値のみ**から算出する（0 の企業＝当該成分の実績なしを
+ * 統計に含めると分布が歪み、少数の非ゼロ企業の偏差値が過大になるため）。
+ * - raw 値が 0 の企業: 偏差値 20（固定, ZERO_DEVIATION）。
+ * - 非ゼロの企業: 非ゼロ集合の母標準偏差を用いて偏差値を算出し、0〜100 にクランプ。
+ *   非ゼロが 1 社のみ等で標準偏差が 0 の場合はゼロ除算を避け 50 を返す。
+ * 非ゼロが 1 社も無い場合は全社 20 となる。
  */
 function normalize(raw: Map<string, number>): Map<string, number> {
   const out = new Map<string, number>()
-  const n = raw.size
-  if (n === 0) return out
-  let sum = 0
-  for (const v of raw.values()) sum += v
-  const mean = sum / n
-  let variance = 0
-  for (const v of raw.values()) variance += (v - mean) ** 2
-  variance /= n
-  const sd = Math.sqrt(variance)
+  if (raw.size === 0) return out
+  const nonZero: number[] = []
+  for (const v of raw.values()) if (v !== 0) nonZero.push(v)
+  const n = nonZero.length
+  let mean = 0
+  let sd = 0
+  if (n > 0) {
+    let sum = 0
+    for (const v of nonZero) sum += v
+    mean = sum / n
+    let variance = 0
+    for (const v of nonZero) variance += (v - mean) ** 2
+    variance /= n
+    sd = Math.sqrt(variance)
+  }
   for (const [k, v] of raw) {
+    if (v === 0) {
+      out.set(k, ZERO_DEVIATION)
+      continue
+    }
     const t = sd > 0 ? 50 + 10 * (v - mean) / sd : 50
     out.set(k, Math.min(100, Math.max(0, t)))
   }
