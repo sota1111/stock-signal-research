@@ -242,9 +242,9 @@ export default function InvestmentCandidatesPage() {
                     <td className="px-4 py-2 text-right font-bold text-foreground" data-label={t('candidates.ranking.col.composite')}>
                       {row.composite.toFixed(1)}
                     </td>
-                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.paper')}>{row.paper.toFixed(0)}</td>
-                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.patent')}>{row.patent.toFixed(0)}</td>
-                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.investor')}>{row.investor.toFixed(0)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.paper')}>{row.paper.toFixed(1)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.patent')}>{row.patent.toFixed(1)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.investor')}>{row.investor.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>
