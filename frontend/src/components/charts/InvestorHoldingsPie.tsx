@@ -34,8 +34,8 @@ export default function InvestorHoldingsPie({
   const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0)
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
+    <ResponsiveContainer width="100%" height={360}>
+      <PieChart margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
         <Pie
           data={slices}
           dataKey="value"
