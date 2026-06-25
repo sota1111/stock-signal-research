@@ -3,11 +3,11 @@ import type { Company, Theme, PatentYearlyCount, InstitutionalInvestor } from '.
 export interface CompositeRow {
   rank: number
   company: Company
-  /** 0-100 正規化後の各成分。 */
+  /** 偏差値（平均50・標準偏差10）化した各成分。理論上0未満/100超もありうる。 */
   paper: number
   patent: number
   investor: number
-  /** 0-100 の複合スコア。 */
+  /** 各成分の偏差値を加重合成した複合スコア（偏差値スケール）。 */
   composite: number
 }
 
@@ -36,11 +36,25 @@ export function parseThemeIds(raw?: string): string[] {
     .filter(Boolean)
 }
 
+/**
+ * 各成分を偏差値（T-score）に変換する。
+ *   偏差値 = 50 + 10 × (値 − 平均) ÷ 標準偏差
+ * 平均なら 50、+1標準偏差で 60、−1標準偏差で 40。
+ * 母標準偏差（N で割る）を用いる。標準偏差が 0（全社同値 / N≤1）の場合は
+ * ゼロ除算を避け、全社 50 を返す。値はクランプしない（理論上 0未満/100超もありうる）。
+ */
 function normalize(raw: Map<string, number>): Map<string, number> {
-  let max = 0
-  for (const v of raw.values()) max = Math.max(max, v)
   const out = new Map<string, number>()
-  for (const [k, v] of raw) out.set(k, max > 0 ? (v / max) * 100 : 0)
+  const n = raw.size
+  if (n === 0) return out
+  let sum = 0
+  for (const v of raw.values()) sum += v
+  const mean = sum / n
+  let variance = 0
+  for (const v of raw.values()) variance += (v - mean) ** 2
+  variance /= n
+  const sd = Math.sqrt(variance)
+  for (const [k, v] of raw) out.set(k, sd > 0 ? 50 + 10 * (v - mean) / sd : 50)
   return out
 }
 
@@ -51,7 +65,7 @@ function normalize(raw: Map<string, number>): Map<string, number> {
  * - 特許成分: 企業が紐づくテーマの特許件数合計
  * - 投資家成分: 当該企業の最新報告における機関投資家の保有比率合計
  *
- * 各成分を企業横断で 0-100 に正規化し、重み付き合成する。
+ * 各成分を企業横断で偏差値（平均50・標準偏差10）化し、重み付き合成する。
  */
 export function buildCompositeRanking(
   companies: Company[],
