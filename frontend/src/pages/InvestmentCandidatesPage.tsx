@@ -72,27 +72,33 @@ export default function InvestmentCandidatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadLagThemes, monthlySignature])
 
-  // SOT-1209: テーマ選択ドロップダウンは、実際に月次論文データを持つテーマのみで構成する。
-  // データの無いテーマを選ぶと相関が出ない（noData）ため、そもそも選択肢に出さない。
-  const themesWithData = useMemo(
-    () => leadLagThemes.filter(th => monthlyByTheme.has(th.id)),
-    [leadLagThemes, monthlyByTheme],
-  )
-  // SOT-1246: カテゴリでの絞り込みを追加（PapersPage と同じ「カテゴリ→テーマ」連動方式）。
-  // カテゴリ候補は月次データを持つテーマからのみ作り、選んでも空にならないようにする。
+  // SOT-1209: カテゴリ候補は「テーマ一覧全体」から作る（PapersPage と同じ方式）。以前は月次データを持つ
+  // テーマだけからカテゴリを作っていたため、本番では2カテゴリしか選べなかった。全カテゴリを選べるようにする。
   const categories = useMemo(() => {
     const set = new Set<string>()
-    for (const th of themesWithData) if (th.category) set.add(th.category)
+    for (const th of themes ?? []) if (th.category) set.add(th.category)
     return [...set].sort()
-  }, [themesWithData])
-  const themesInCategory = useMemo(
-    () => (categoryId ? themesWithData.filter(th => th.category === categoryId) : themesWithData),
-    [themesWithData, categoryId],
-  )
-  // 既定テーマは、選択中カテゴリ内でデータがある最初のテーマ（ユーザー選択があればそれを優先）。
+  }, [themes])
+  // テーマ選択ドロップダウンも一覧全体を対象にし、選択カテゴリで絞り込む（PapersPage と同じ連動方式）。
+  const themesInCategory = useMemo(() => {
+    const list = themes ?? []
+    return categoryId ? list.filter(th => th.category === categoryId) : list
+  }, [themes, categoryId])
+  // 既定テーマは、スコープ内で月次データがある最初のテーマを優先（無ければ先頭、ユーザー選択が最優先）。
   const firstThemeInScope = themesInCategory.find(th => monthlyByTheme.has(th.id))?.id ?? themesInCategory[0]?.id ?? ''
   const effThemeId = themeId || firstThemeInScope || ''
-  const sourceMonthly = useMemo(() => monthlyByTheme.get(effThemeId) ?? [], [monthlyByTheme, effThemeId])
+  // SOT-1209: 選択テーマが上位30トレンド外でも相関を描けるよう、当該テーマの月次系列をオンデマンド取得する。
+  // 上位30に含まれるテーマは monthlyByTheme と同じ queryKey で dedupe される。
+  const effThemeMonthly = useQuery({
+    queryKey: ['papers-monthly', effThemeId],
+    queryFn: () => fetchMonthlyData(effThemeId),
+    staleTime: STALE,
+    enabled: !!effThemeId,
+  })
+  const sourceMonthly = useMemo(
+    () => monthlyByTheme.get(effThemeId) ?? effThemeMonthly.data ?? [],
+    [monthlyByTheme, effThemeId, effThemeMonthly.data],
+  )
   const paperMonthly = useMemo(() => aggregatePaperMonthly(sourceMonthly), [sourceMonthly])
 
   const { results, bestLag } = useMemo(
@@ -110,7 +116,7 @@ export default function InvestmentCandidatesPage() {
   )
 
   // 読み込み中（株価・月次のいずれかが取得中）か、データはあるが重なりが無いかを区別する。
-  const leadLagLoading = stockQueries.some(q => q.isLoading) || monthlyQueries.some(q => q.isLoading)
+  const leadLagLoading = stockQueries.some(q => q.isLoading) || monthlyQueries.some(q => q.isLoading) || effThemeMonthly.isLoading
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
