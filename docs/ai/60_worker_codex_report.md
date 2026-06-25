@@ -1,59 +1,48 @@
-# Worker Report
+# Worker Report — SOT-1238 特許調査と収納
+
+## Fallback disclosure (audit)
+- Non-responsive worker: Codex CLI
+- Detected failure mode: usage-limit cooldown (`run_codex.sh` exit 75, until ~2026-06-28)
+- Action: Per the Worker Non-Response Fallback Policy, Claude Code performed the task
+  check, the targeted re-collection, and verification directly.
 
 ## Summary
-Initial task check for SOT-1179「読み込み中」.
-
-**Worker non-response (fallback disclosure):** `scripts/ai/run_codex.sh` exited with code 75
-(CODEX_COOLDOWN_ACTIVE — usage-limit cooldown until epoch 1782609660). Per the Worker
-Non-Response Fallback Policy, Claude Code performed this task check directly.
-
-SOT-1179 is actionable. It is a frontend-only UX bug: while data is being fetched, several
-pages render charts/tables that display a "no data" / empty state instead of a loading
-indicator. The patents page is the explicit example named in the issue.
-
-Root cause pattern: a chart/table is rendered with `data ?? []` (empty during fetch) while the
-owning `useQuery` either does not expose `isLoading`, or `isLoading` is not used to gate the
-render. The empty array then trips the component's empty-state branch ("データがありません").
+SOT-1238 was actionable: the dataset covered all 100 themes' yearly counts but
+`precision agriculture` had ZERO representative patents despite 88,825 matches.
+Root cause: the script uses a single global dedup set keyed on `patent_id` (the DB
+primary key). `precision agriculture`'s auto-generated query ORs generic terms
+(`"machine learning"` etc.), so its top-80-by-date results were all already collected
+under other AI themes and got deduped out, leaving the theme with 0 reps. Fixed by
+fetching a deeper page (500) for that theme and keeping the first 80 records whose
+`patent_id` was not already in the dataset.
 
 ## Changed Files
-- none (task check only)
-
-## Findings
-- **Patents page** `frontend/src/pages/PatentsPage.tsx`:
-  - `yearly` query (line 30) and `topAssignees` query (line 35) do NOT destructure `isLoading`.
-  - 年次トレンド `<PatentCountsByYearBar data={yearlyChart}>` (line 148) → `PatentCountsByYearBar`
-    renders `<EmptyChart>` when data empty (`PatentCountsByYearBar.tsx:8`) → shows "no data" during load.
-  - 主要出願人 (line 164) `topAssignees.length === 0 ? <EmptyChart>` → shows empty during load.
-  - 特許×論文 overlay (line 156) likewise empty during load.
-  - Only the patent *list* (line 191) guards `isLoading` correctly.
-- **IndividualStockPage** `frontend/src/pages/IndividualStockPage.tsx:43-44`:
-  - `fundCompanies` query (line 15) does not expose `isLoading`; outer `fundTickers.length === 0`
-    shows `t('fundamentals.noData')` while the companies query is still loading. (The inner chart is
-    correctly gated by `isFundLoading`.)
-- **ListPage** `frontend/src/pages/ListPage.tsx`: per-tab queries (lines 38-42) do not expose
-  `isLoading`; tables render an empty `<tbody>` during load (no loading indicator).
-- Pages that already handle loading correctly (reference pattern):
-  DashboardPage / StockPage / InvestmentCandidatesPage / InvestorsPage / StatusPage
-  (`if (isLoading) return <DashboardLoading />`), PapersPage, SupplyChainPage / DetailPage /
-  ResearchHubPage (`if (isLoading) return <PageLoading />`), SignalDetectionPage, ResearchSeedsPage
-  (`isLoading && <loading>`; empty guarded by `seeds &&`).
-- Reusable components for the fix: `frontend/src/components/AsyncState.tsx` →
-  `PageLoading`, `ChartSkeleton`, `PageError`, `PageEmpty`; `ChartCard` + `EmptyChart`.
+- `backend/data/collected-patents.json` — added 80 representative patents for
+  `precision agriculture` (7923 → 8003); refreshed `generated_at`.
 
 ## Commands Run
-- grep over `frontend/src/pages/` for `EmptyChart` / `isLoading` / loading guards; read
-  PatentsPage.tsx, PapersPage.tsx, ListPage.tsx, IndividualStockPage.tsx, ResearchSeedsPage.tsx,
-  AsyncState.tsx, ChartCard.tsx, PatentCountsByYearBar.tsx.
+- Targeted re-collection via `scripts/collect_dashboard_patents.py` module
+  (`Ppubs.search`, `_normalize`) for the single theme `precision agriculture`.
+- `ruff check scripts/collect_dashboard_patents.py app/seed.py` → All checks passed
+- `pytest tests/test_patents.py -q` → 7 passed
+
+## Findings
+- THEME_QUERIES: 100; `theme_yearly_counts`: 100 (exact match).
+- Representative patents: 8003, all `patent_id` unique.
+- Themes with representative patents: 99/100.
+- Only theme with 0 reps: `mixture of experts` — legitimate 0 (0 title/abstract
+  matches; not a bug).
 
 ## Acceptance Criteria
-- [x] Patents page: identified charts that show empty/no-data during fetch (yearly trend, top
-  assignees, patents×papers overlay) — fix = gate on `isLoading` with a loading state.
-- [x] Other affected pages identified: IndividualStockPage (outer noData during companies load),
-  ListPage (empty tables during load).
+- [x] All categories/titles (100 themes) researched and stored in collected-patents.json
+- [x] `precision agriculture` > 0 representative patents (now 80)
+- [x] No data corruption; patent_ids globally unique
 
 ## Risks
-- Frontend-only, low risk. No backend changes. Gate = lint + build (repo has no typecheck/test script).
-- Decomposition: NOT needed — one cohesive UX fix across a few frontend pages, one PR.
+- `precision agriculture` representatives are dominated by generic ML patents because
+  its auto-generated BRS query ORs broad terms. This is consistent with how its yearly
+  counts are computed (same query) and matches the behavior of other sot994 themes.
+  Improving per-theme query precision is a separate, larger scope.
 
 ## Next Action
 READY_FOR_REVIEW
