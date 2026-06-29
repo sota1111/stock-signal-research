@@ -55,6 +55,10 @@ export const messages = {
     'candidates.ranking.col.paper': '論文',
     'candidates.ranking.col.patent': '特許',
     'candidates.ranking.col.investor': '投資家',
+    'candidates.ranking.weights.title': '重み設定',
+    'candidates.ranking.weights.reset': '既定に戻す',
+    'candidates.ranking.weights.total': '合計 {sum}%',
+    'candidates.ranking.weights.sumHint': '合計が100%でない場合は自動で正規化されます',
     'common.logout': 'ログアウト',
     'footer.tagline': 'Stock Signal Research — 技術トレンド前兆検知',
     // dashboard header
@@ -696,6 +700,10 @@ export const messages = {
     'candidates.ranking.col.paper': 'Papers',
     'candidates.ranking.col.patent': 'Patents',
     'candidates.ranking.col.investor': 'Investors',
+    'candidates.ranking.weights.title': 'Weights',
+    'candidates.ranking.weights.reset': 'Reset to default',
+    'candidates.ranking.weights.total': 'Total {sum}%',
+    'candidates.ranking.weights.sumHint': "Weights are normalized automatically when they don't total 100%.",
     'common.logout': 'Log out',
     'footer.tagline': 'Stock Signal Research — Early signal detection for tech trends',
     // dashboard header

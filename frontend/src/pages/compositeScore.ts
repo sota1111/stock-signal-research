@@ -11,8 +11,11 @@ export interface CompositeRow {
   composite: number
 }
 
+/** 複合スコアの各成分の重み（0〜1 スケール）。 */
+export type CompositeWeights = { paper: number; patent: number; investor: number }
+
 // 透明な既定の重み。論文(前兆)を最重視し、特許・投資家動向を補助とする。
-export const COMPOSITE_WEIGHTS = { paper: 0.4, patent: 0.3, investor: 0.3 }
+export const COMPOSITE_WEIGHTS: CompositeWeights = { paper: 0.4, patent: 0.3, investor: 0.3 }
 
 /**
  * `Company.theme_ids` は任意文字列。JSON配列 / カンマ / 空白区切りのいずれにも耐える
@@ -93,7 +96,15 @@ export function buildCompositeRanking(
   themes: Theme[],
   patentYearly: PatentYearlyCount[],
   investors: InstitutionalInvestor[],
+  weights: CompositeWeights = COMPOSITE_WEIGHTS,
 ): CompositeRow[] {
+  // 受け取った重みを合計1.0に正規化する。合計が0以下なら既定の重みにフォールバック。
+  // これにより合計が100%でない入力でも複合スコアが偏差値スケール（0〜100）に保たれる。
+  const weightSum = weights.paper + weights.patent + weights.investor
+  const w = weightSum > 0
+    ? { paper: weights.paper / weightSum, patent: weights.patent / weightSum, investor: weights.investor / weightSum }
+    : COMPOSITE_WEIGHTS
+
   const themeById = new Map(themes.map(t => [t.id, t]))
 
   // テーマ別 特許件数合計
@@ -143,9 +154,9 @@ export function buildCompositeRanking(
       const patent = patentN.get(c.id) ?? 0
       const investor = investorN.get(c.id) ?? 0
       const composite =
-        paper * COMPOSITE_WEIGHTS.paper +
-        patent * COMPOSITE_WEIGHTS.patent +
-        investor * COMPOSITE_WEIGHTS.investor
+        paper * w.paper +
+        patent * w.patent +
+        investor * w.investor
       return { company: c, paper, patent, investor, composite, rank: 0 }
     })
     .sort((a, b) => b.composite - a.composite)

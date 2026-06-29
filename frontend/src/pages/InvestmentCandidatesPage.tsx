@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import {
   fetchThemes,
@@ -19,7 +19,7 @@ import {
   computeLeadLag,
   type GrowthMode,
 } from './leadLagData'
-import { buildCompositeRanking, COMPOSITE_WEIGHTS } from './compositeScore'
+import { buildCompositeRanking, COMPOSITE_WEIGHTS, type CompositeWeights } from './compositeScore'
 import { useI18n } from '../i18n/useI18n'
 import type { PaperMonthlyCount } from '../types'
 
@@ -31,6 +31,36 @@ const STALE = 1000 * 60 * 30
 // 月次データ無し＝「相関を算出するデータが不足しています」になっていた。走査範囲を広げて堅牢化する。
 const LEADLAG_THEME_LIMIT = 30
 
+// SOT-1388: 複合スコアの重みをユーザーが % で設定できるようにする。既定は論文40/特許30/投資家30
+// （= COMPOSITE_WEIGHTS を×100）。値は localStorage に保持する。
+const WEIGHTS_STORAGE_KEY = 'ssr.compositeWeights'
+const DEFAULT_WEIGHTS: CompositeWeights = {
+  paper: Math.round(COMPOSITE_WEIGHTS.paper * 100),
+  patent: Math.round(COMPOSITE_WEIGHTS.patent * 100),
+  investor: Math.round(COMPOSITE_WEIGHTS.investor * 100),
+}
+
+function sanitizeWeight(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.min(100, Math.round(n))
+}
+
+function loadWeights(): CompositeWeights {
+  try {
+    const raw = localStorage.getItem(WEIGHTS_STORAGE_KEY)
+    if (!raw) return DEFAULT_WEIGHTS
+    const parsed = JSON.parse(raw)
+    const paper = sanitizeWeight(parsed?.paper)
+    const patent = sanitizeWeight(parsed?.patent)
+    const investor = sanitizeWeight(parsed?.investor)
+    if (paper == null || patent == null || investor == null) return DEFAULT_WEIGHTS
+    return { paper, patent, investor }
+  } catch {
+    return DEFAULT_WEIGHTS
+  }
+}
+
 export default function InvestmentCandidatesPage() {
   const { t } = useI18n()
   const { data, isLoading, error } = useDashboardQuery()
@@ -39,6 +69,8 @@ export default function InvestmentCandidatesPage() {
   const [categoryId, setCategoryId] = useState('')
   const [themeId, setThemeId] = useState('')
   const [growthMode, setGrowthMode] = useState<GrowthMode>('mom')
+  // SOT-1388: 複合スコアの重み（% 整数）。localStorage から復元。
+  const [weights, setWeights] = useState<CompositeWeights>(loadWeights)
 
   const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, staleTime: STALE })
   const { data: patentYearly } = useQuery({ queryKey: ['patent-yearly-all'], queryFn: () => fetchPatentYearly(), staleTime: STALE })
@@ -110,9 +142,23 @@ export default function InvestmentCandidatesPage() {
     [paperMonthly, stockMonthly],
   )
 
+  // SOT-1388: 重みを localStorage に保持。
+  useEffect(() => {
+    try {
+      localStorage.setItem(WEIGHTS_STORAGE_KEY, JSON.stringify(weights))
+    } catch {
+      // 保存失敗は無視（プライベートモード等）
+    }
+  }, [weights])
+
+  const weightSum = weights.paper + weights.patent + weights.investor
   const ranking = useMemo(
-    () => buildCompositeRanking(companies, themes ?? [], patentYearly ?? [], investors ?? []),
-    [companies, themes, patentYearly, investors],
+    () => buildCompositeRanking(companies, themes ?? [], patentYearly ?? [], investors ?? [], {
+      paper: weights.paper / 100,
+      patent: weights.patent / 100,
+      investor: weights.investor / 100,
+    }),
+    [companies, themes, patentYearly, investors, weights],
   )
 
   // 読み込み中（株価・月次のいずれかが取得中）か、データはあるが重なりが無いかを区別する。
@@ -206,15 +252,57 @@ export default function InvestmentCandidatesPage() {
 
       {/* 提案4: 複合スコア投資候補ランキング */}
       <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t('candidates.ranking.title')}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t('candidates.ranking.subtitle', {
-              paper: Math.round(COMPOSITE_WEIGHTS.paper * 100),
-              patent: Math.round(COMPOSITE_WEIGHTS.patent * 100),
-              investor: Math.round(COMPOSITE_WEIGHTS.investor * 100),
-            })}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{t('candidates.ranking.title')}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t('candidates.ranking.subtitle', {
+                paper: weights.paper,
+                patent: weights.patent,
+                investor: weights.investor,
+              })}
+            </p>
+          </div>
+          {/* SOT-1388: 重み設定 UI */}
+          <div className="rounded-md border border-gray-300 bg-surface px-3 py-2">
+            <div className="flex flex-wrap items-end gap-3">
+              <span className="text-xs font-medium text-muted-foreground self-center">{t('candidates.ranking.weights.title')}</span>
+              {([
+                ['paper', 'candidates.ranking.col.paper'],
+                ['patent', 'candidates.ranking.col.patent'],
+                ['investor', 'candidates.ranking.col.investor'],
+              ] as const).map(([key, labelKey]) => (
+                <label key={key} className="flex flex-col text-xs text-muted-foreground">
+                  {t(labelKey)}
+                  <span className="mt-0.5 inline-flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={weights[key]}
+                      onChange={e => {
+                        const v = sanitizeWeight(e.target.value) ?? 0
+                        setWeights(w => ({ ...w, [key]: v }))
+                      }}
+                      className="w-16 rounded-md border border-gray-300 bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    />
+                    <span className="text-muted-foreground">%</span>
+                  </span>
+                </label>
+              ))}
+              <button
+                onClick={() => setWeights(DEFAULT_WEIGHTS)}
+                className="rounded-md border border-gray-300 bg-surface px-3 py-1 text-sm text-foreground hover:bg-surface-muted"
+              >
+                {t('candidates.ranking.weights.reset')}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('candidates.ranking.weights.total', { sum: weightSum })}
+              {weightSum !== 100 && <span className="ml-2">{t('candidates.ranking.weights.sumHint')}</span>}
+            </p>
+          </div>
         </div>
         {ranking.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('candidates.ranking.empty')}</p>
