@@ -25,12 +25,18 @@ export default function SupplyChainGraphView({
   const cy = H / 2
   const radius = Math.min(W, H) / 2 - 70
 
-  // ノードを円周上に配置
-  const pos = new Map<string, { x: number; y: number }>()
+  // ノードを円周上に配置。ラベルを図の外側へ放射状に出すため、各ノードの角度と
+  // 外向き単位ベクトル(ux, uy)も保持する。
+  const pos = new Map<string, { x: number; y: number; ux: number; uy: number }>()
   nodes.forEach((n, i) => {
     const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2
-    pos.set(n.id, { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) })
+    const ux = Math.cos(angle)
+    const uy = Math.sin(angle)
+    pos.set(n.id, { x: cx + radius * ux, y: cy + radius * uy, ux, uy })
   })
+
+  // ラベルをノード中心から外向きに離す距離（円の外側に文字を配置して重なりを防ぐ）。
+  const LABEL_GAP = 16
 
   // typeごとに色を割り当てる
   const types = Array.from(new Set(nodes.map(n => n.type)))
@@ -76,13 +82,18 @@ export default function SupplyChainGraphView({
         })}
         {nodes.map(n => {
           const p = pos.get(n.id)!
+          // ラベルの基準点をノード中心から外向き(ux, uy)へずらし、図の外側に文字を出す。
+          const lx = p.x + p.ux * LABEL_GAP
+          const ly = p.y + p.uy * LABEL_GAP
+          // 円の左右どちら側かで text-anchor を切り替え、文字が円の内側へ伸びないようにする。
+          const anchor: 'start' | 'middle' | 'end' = p.ux > 0.3 ? 'start' : p.ux < -0.3 ? 'end' : 'middle'
           return (
             <g key={n.id}>
               <circle cx={p.x} cy={p.y} r={8} fill={colorOf(n.type)} />
-              <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize={11} fill="#1f2937" fontWeight={600}>
+              <text x={lx} y={ly} textAnchor={anchor} dominantBaseline="middle" fontSize={11} fill="#1f2937" fontWeight={600}>
                 {n.label}
               </text>
-              <text x={p.x} y={p.y + 20} textAnchor="middle" fontSize={9} fill="#94a3b8">
+              <text x={lx} y={ly + 12} textAnchor={anchor} dominantBaseline="middle" fontSize={9} fill="#94a3b8">
                 {n.type}
               </text>
             </g>
