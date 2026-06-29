@@ -13,7 +13,10 @@
 import sys
 import types
 
-from app.repositories.trend_repository import FirestoreTrendRepository
+from app.repositories.trend_repository import (
+    FirestoreTrendRepository,
+    _monthly_doc_id,
+)
 
 
 class _FakeDoc:
@@ -97,3 +100,47 @@ def test_list_monthly_counts_theme_id_applies_limit_after_sort(monkeypatch):
 
     # ソート後に limit を適用するため、最も古い2ヶ月が返る。
     assert [r["year_month"] for r in result] == ["2024-01", "2024-02"]
+
+
+# --- SOT-1391: doc_id に `/` を含むテーマ名(keyword)があるとバッチ書き込みが失敗する回帰 ---
+
+
+def test_monthly_doc_id_sanitizes_slash_in_keyword():
+    # keyword(=テーマ名)に `/` を含んでも、Firestore のパス区切りにならないよう `_` に置換される。
+    for keyword in ("SSD / NVMe", "I/O bottleneck"):
+        doc_id = _monthly_doc_id("theme-x", keyword, "2024-01")
+        assert "/" not in doc_id, f"doc_id must not contain '/': {doc_id!r}"
+    # `/` を含まないテーマ名は従来どおりの組み立て。
+    assert _monthly_doc_id("theme-hbm", "HBM", "2024-01") == "theme-hbm_HBM_2024-01"
+
+
+def test_save_monthly_counts_many_builds_slash_free_doc_ids(monkeypatch):
+    """`/` を含むテーマ名でも save_monthly_counts_many が `/` を含まない doc_id を生成すること。
+
+    以前は doc_id = f"{theme_id}_{keyword}_{year_month}" を直接使っており、keyword に `/` が
+    あると Firestore が "even number of path elements" でバッチごと失敗し、月次データが大半
+    投入されなかった(モメンタム散布図に数テーマしか出ない原因)。
+    """
+    captured = {}
+
+    def _fake_batch_upsert(collection, items):
+        captured["collection"] = collection
+        captured["items"] = list(items)
+        return len(items)
+
+    fake_module = types.ModuleType("firestore_client")
+    fake_module.batch_upsert_documents = _fake_batch_upsert
+    monkeypatch.setitem(sys.modules, "firestore_client", fake_module)
+
+    repo = FirestoreTrendRepository()
+    rows = [
+        {"theme_id": "theme-ssd-nvme", "keyword": "SSD / NVMe", "year_month": "2024-01", "count": 5},
+        {"theme_id": "theme-io", "keyword": "I/O bottleneck", "year_month": "2024-02", "count": 7},
+    ]
+    written = repo.save_monthly_counts_many(rows)
+
+    assert written == 2
+    doc_ids = [doc_id for doc_id, _data in captured["items"]]
+    assert all("/" not in d for d in doc_ids), doc_ids
+    # 保存されるフィールドの実値(theme_id/keyword)は `/` を保持したまま不変。
+    assert captured["items"][0][1]["keyword"] == "SSD / NVMe"
