@@ -7,6 +7,19 @@ from typing import List, Dict, Any
 logger = logging.getLogger(__name__)
 
 
+def _monthly_doc_id(theme_id: Any, keyword: Any, year_month: Any) -> str:
+    """paper_monthly_counts の Firestore ドキュメントID を組み立てる。
+
+    SOT-1391: keyword はテーマ名(例: "I/O bottleneck", "SSD / NVMe")で、`/` を含むと
+    Firestore がパス区切りと解釈し "A document must have an even number of path elements" で
+    バッチ書き込みごと失敗する(=月次データが大半投入されず、モメンタム散布図が数テーマしか
+    出ない原因)。他コレクション(papers/investors)と同様に `/` を `_` に置換して無害化する。
+    ドキュメントID を変えるだけで、保存される theme_id/keyword/year_month フィールドの実値は不変。
+    """
+    raw = f"{theme_id}_{keyword}_{year_month}"
+    return raw.replace("/", "_")
+
+
 class TrendRepository(ABC):
     @abstractmethod
     def list_monthly_counts(self, theme_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -147,8 +160,10 @@ class FirestoreTrendRepository(TrendRepository):
     def save_monthly_count(self, count_data: Dict[str, Any]) -> bool:
         try:
             from firestore_client import upsert_document
-            # {theme_id}_{keyword}_{year_month}
-            doc_id = f"{count_data['theme_id']}_{count_data['keyword']}_{count_data['year_month']}"
+            # {theme_id}_{keyword}_{year_month} (`/` は _monthly_doc_id で _ に無害化, SOT-1391)
+            doc_id = _monthly_doc_id(
+                count_data["theme_id"], count_data["keyword"], count_data["year_month"]
+            )
 
             data = {
                 **count_data,
@@ -167,7 +182,8 @@ class FirestoreTrendRepository(TrendRepository):
         items = []
         for row in rows:
             try:
-                doc_id = f"{row['theme_id']}_{row['keyword']}_{row['year_month']}"
+                # `/` を含む keyword(テーマ名)で失敗しないよう無害化する (SOT-1391)
+                doc_id = _monthly_doc_id(row["theme_id"], row["keyword"], row["year_month"])
             except KeyError as e:
                 logger.error(f"Firestore save_monthly_counts_many skip row missing {e}: {row}")
                 continue
