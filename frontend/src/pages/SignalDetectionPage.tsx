@@ -6,8 +6,6 @@ import ScoreBadge from '../components/ScoreBadge'
 import ChartCard from '../components/charts/ChartCard'
 import PaperCountsByYearBar from '../components/charts/PaperCountsByYearBar'
 import MonthlyPapersLine from '../components/charts/MonthlyPapersLine'
-import PrecursorOverlayLine from '../components/charts/PrecursorOverlayLine'
-import PrecursorScoreBreakdown from '../components/charts/PrecursorScoreBreakdown'
 import ThemeMomentumScatter, { type ThemeMomentumPoint } from '../components/charts/ThemeMomentumScatter'
 import SignalTimeline from '../components/charts/SignalTimeline'
 import SurgingKeywordsBar from '../components/charts/SurgingKeywordsBar'
@@ -103,10 +101,6 @@ export default function SignalDetectionPage() {
   // 閾値フィルタ後の急増テーマ（/signals-2）。
   const filteredThemes = data.trending_themes.filter(theme => theme.precursor_score >= minScore)
 
-  // SOT-1159 (案A): 選択テーマの前兆スコア加点内訳（フロントで scoring.py を再現）。
-  const overlaySeries = aggregateMonthly(overlayMonthly ?? [])
-  const overlayBreakdown = computePrecursorBreakdown(overlaySeries)
-
   // SOT-1180: 「読み込み中」と「データなし」を区別できるよう、各グラフの取得中はスピナーを出す。
   // データ未取得（in-flight）かつ手元に行がまだ無いときだけ読み込み中表示にする。
   const isOverlayBusy = (isOverlayLoading || isOverlayFetching) && (overlayMonthly?.length ?? 0) === 0
@@ -136,60 +130,6 @@ export default function SignalDetectionPage() {
             </div>
           ) : (
             <ThemeMomentumScatter points={momentumPoints} />
-          )}
-        </ChartCard>
-      </section>
-
-      {/* === 前兆判定オーバーレイ（案A, SOT-1159）: 加点根拠を月次折れ線に重ね描き＋前兆スコア内訳 — ページ上部 (SOT-1180) === */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{t('signals.precursorOverlay.title')}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{t('signals.precursorOverlay.subtitle')}</p>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            {t('signals.precursorOverlay.selectTheme')}
-            <select
-              value={overlayThemeId}
-              onChange={e => setSelectedThemeId(e.target.value)}
-              className="rounded border border-border bg-surface px-2 py-1 text-sm text-foreground"
-            >
-              {data.trending_themes.map(theme => (
-                <option key={theme.id} value={theme.id}>{theme.name}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <ChartCard
-          title={
-            isOverlayBusy
-              ? t('signals.precursorOverlay.loading')
-              : overlayBreakdown.total > 0
-              ? t('signals.precursorOverlay.formula', {
-                  total: overlayBreakdown.total,
-                  mom: `+${overlayBreakdown.momPoints}`,
-                  streak: `+${overlayBreakdown.streakPoints}`,
-                })
-              : t('signals.precursorOverlay.noSignal')
-          }
-          subtitle={t('signals.precursorOverlay.thresholdNote')}
-        >
-          {isOverlayBusy
-            ? renderChartLoading(t('signals.precursorOverlay.loading'))
-            : <PrecursorOverlayLine data={overlayMonthly ?? []} />}
-        </ChartCard>
-        {/* 案B (SOT-1160): 前兆スコアを加点要素（MoM寄与・連続増寄与）に分解した積み上げ内訳 */}
-        <ChartCard
-          title={t('signals.precursorBreakdown.title')}
-          subtitle={t('signals.precursorBreakdown.subtitle')}
-        >
-          {isOverlayBusy ? (
-            renderChartLoading(t('signals.precursorBreakdown.loading'))
-          ) : (
-            <PrecursorScoreBreakdown
-              breakdown={overlayBreakdown}
-              alignmentScore={alignmentMap.get(overlayThemeId)}
-            />
           )}
         </ChartCard>
       </section>
@@ -248,9 +188,23 @@ export default function SignalDetectionPage() {
 
       {/* === 前兆→その後タイムライン（案D, SOT-1162）: 選択テーマの発火月＋発火後追従 === */}
       <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t('signals.signalTimeline.title')}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('signals.signalTimeline.subtitle')}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{t('signals.signalTimeline.title')}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('signals.signalTimeline.subtitle')}</p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {t('signals.precursorOverlay.selectTheme')}
+            <select
+              value={overlayThemeId}
+              onChange={e => setSelectedThemeId(e.target.value)}
+              className="rounded border border-border bg-surface px-2 py-1 text-sm text-foreground"
+            >
+              {data.trending_themes.map(theme => (
+                <option key={theme.id} value={theme.id}>{theme.name}</option>
+              ))}
+            </select>
+          </label>
         </div>
         <ChartCard title={t('signals.signalTimeline.title')}>
           {isOverlayBusy
