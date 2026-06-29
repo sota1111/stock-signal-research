@@ -34,6 +34,9 @@ const LEADLAG_THEME_LIMIT = 30
 // SOT-1388: 複合スコアの重みをユーザーが % で設定できるようにする。既定は論文40/特許30/投資家30
 // （= COMPOSITE_WEIGHTS を×100）。値は localStorage に保持する。
 const WEIGHTS_STORAGE_KEY = 'ssr.compositeWeights'
+
+// SOT-1389: ランキング表で並べ替え可能な数値カラム。
+type SortKey = 'composite' | 'paper' | 'patent' | 'investor'
 const DEFAULT_WEIGHTS: CompositeWeights = {
   paper: Math.round(COMPOSITE_WEIGHTS.paper * 100),
   patent: Math.round(COMPOSITE_WEIGHTS.patent * 100),
@@ -71,6 +74,9 @@ export default function InvestmentCandidatesPage() {
   const [growthMode, setGrowthMode] = useState<GrowthMode>('mom')
   // SOT-1388: 複合スコアの重み（% 整数）。localStorage から復元。
   const [weights, setWeights] = useState<CompositeWeights>(loadWeights)
+  // SOT-1389: ランキング表の並べ替え（数値カラムをクリックで降順/昇順ソート）。既定は複合スコア降順。
+  const [sortKey, setSortKey] = useState<SortKey>('composite')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
 
   const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, staleTime: STALE })
   const { data: patentYearly } = useQuery({ queryKey: ['patent-yearly-all'], queryFn: () => fetchPatentYearly(), staleTime: STALE })
@@ -160,6 +166,24 @@ export default function InvestmentCandidatesPage() {
     }),
     [companies, themes, patentYearly, investors, weights],
   )
+
+  // SOT-1389: 選択カラムでランキングを並べ替える（ranking 自体は破壊しない）。
+  const sortedRanking = useMemo(
+    () =>
+      [...ranking].sort((a, b) =>
+        sortDir === 'desc' ? b[sortKey] - a[sortKey] : a[sortKey] - b[sortKey],
+      ),
+    [ranking, sortKey, sortDir],
+  )
+  // カラム見出しクリック: 同じカラムなら向きを反転、別カラムなら降順から開始。
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir(d => (d === 'desc' ? 'asc' : 'desc'))
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
 
   // 読み込み中（株価・月次のいずれかが取得中）か、データはあるが重なりが無いかを区別する。
   const leadLagLoading = stockQueries.some(q => q.isLoading) || monthlyQueries.some(q => q.isLoading) || effThemeMonthly.isLoading
@@ -313,16 +337,38 @@ export default function InvestmentCandidatesPage() {
                 <tr>
                   <th className="px-4 py-2 text-right">#</th>
                   <th className="px-4 py-2 text-left">{t('candidates.ranking.col.company')}</th>
-                  <th className="px-4 py-2 text-right">{t('candidates.ranking.col.composite')}</th>
-                  <th className="px-4 py-2 text-right">{t('candidates.ranking.col.paper')}</th>
-                  <th className="px-4 py-2 text-right">{t('candidates.ranking.col.patent')}</th>
-                  <th className="px-4 py-2 text-right">{t('candidates.ranking.col.investor')}</th>
+                  {([
+                    ['composite', 'candidates.ranking.col.composite'],
+                    ['paper', 'candidates.ranking.col.paper'],
+                    ['patent', 'candidates.ranking.col.patent'],
+                    ['investor', 'candidates.ranking.col.investor'],
+                  ] as const).map(([key, labelKey]) => {
+                    const active = sortKey === key
+                    return (
+                      <th
+                        key={key}
+                        className="px-4 py-2 text-right"
+                        aria-sort={active ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(key)}
+                          className="inline-flex w-full items-center justify-end gap-1 cursor-pointer select-none hover:text-foreground"
+                        >
+                          {t(labelKey)}
+                          <span aria-hidden="true" className={active ? '' : 'opacity-30'}>
+                            {active ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
+                          </span>
+                        </button>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {ranking.map(row => (
+                {sortedRanking.map((row, i) => (
                   <tr key={row.company.id} className="border-t hover:bg-surface-muted">
-                    <td className="px-4 py-2 text-right text-muted-foreground" data-label="#">{row.rank}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label="#">{i + 1}</td>
                     <td className="px-4 py-2" data-label={t('candidates.ranking.col.company')}>
                       <span className="font-medium text-foreground">{row.company.name}</span>
                       {row.company.ticker && <span className="ml-2 text-xs text-muted-foreground">{row.company.ticker}</span>}
