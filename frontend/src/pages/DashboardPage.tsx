@@ -1,25 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors, fetchSupplyChain, fetchExternalInfos } from '../api'
-import type { SupplyChainGraphNode, SupplyChainGraphEdge } from '../types'
+// SOT-1396 案A: ダッシュボードを俯瞰ハブに純化。専門ページに実体がある分析ビュー（13F/サプライ
+// チェーン/エビデンス/論文件数トレンド/時価総額/財務）のカードは撤去し、専門ページに無い複合俯瞰
+// （レーダー/クロス分析/全カテゴリ平均論文/引用マトリクス）のみ残す。撤去カードのクエリでも、残す
+// レーダーが byThemeId で消費するもの（投資家/エビデンス/財務/カテゴリ論文）は温存する。
+import { fetchSignalReport, fetchThemeCitationMatrix, fetchCategoryPaperAverages, fetchCategoryPaperCounts, fetchInvestors, fetchExternalInfos } from '../api'
 import { useFilters } from '../contexts/useFilters'
 import ChartCard from '../components/charts/ChartCard'
-import PapersCountChart from '../components/charts/PapersCountChart'
 import CategoryAvgPapersChart from '../components/charts/CategoryAvgPapersChart'
-import CategoryPaperCountsChart from '../components/charts/CategoryPaperCountsChart'
-import TopMarketCapChart from '../components/charts/TopMarketCapChart'
 import PapersMarketCapCrossChart from '../components/charts/PapersMarketCapCrossChart'
-import ResearchToPerformanceChart from '../components/charts/ResearchToPerformanceChart'
-import RnDIntensityScatter from '../components/charts/RnDIntensityScatter'
-import SmartMoneyFlowBar from '../components/charts/SmartMoneyFlowBar'
-import HoldingsTrendLines from '../components/charts/HoldingsTrendLines'
-import SupplyChainGraphView from '../components/charts/SupplyChainGraphView'
-import EvidenceTimeline from '../components/charts/EvidenceTimeline'
 import RadarSignalChart from '../components/charts/RadarSignalChart'
 import ThemeCitationMatrix from '../components/ThemeCitationMatrix'
 import DataProvenanceBadge, { DataProvenanceLegend } from '../components/DataProvenanceBadge'
-import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, useThemePatentCounts, filterCompaniesByCategory, buildTopMarketCapYearly, buildTopMarketCapCompanyYearly, buildResearchPerformanceSeries, buildRnDIntensityPoints, buildRadarAxes, latestRnd, parseThemeIds, GRAPH_FROM_YEAR } from './dashboardData'
+import { useDashboardQuery, useAllThemes, useTickerStocks, useTickerFundamentals, useThemePatentCounts, filterCompaniesByCategory, buildTopMarketCapYearly, buildRadarAxes, latestRnd, parseThemeIds, GRAPH_FROM_YEAR } from './dashboardData'
 import { DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
 
@@ -79,11 +73,9 @@ export default function DashboardPage() {
   // 財務ファンダメンタルズ（SOT-1126 子1 / G1・G2）。選択中の大カテゴリに属する企業（未選択時は全注目企業）
   // の財務時系列を per-ticker で取得し、研究→業績連鎖（集計）と R&D集約度散布図を描く。
   // hooks 数を一定に保つためガード(return)より前で呼ぶ。
-  const { items: fundamentalsItems, queries: fundamentalsQueries } = useTickerFundamentals(scopedCompanies)
-  const researchPerformance = buildResearchPerformanceSeries(fundamentalsItems)
-  const rndIntensityPoints = buildRnDIntensityPoints(fundamentalsItems, stockItems)
-  const isFundamentalsLoading =
-    fundamentalsQueries.some(q => q.isLoading || q.isFetching) && researchPerformance.length === 0
+  // SOT-1396: research→業績 / R&D散布のカードは撤去（home: /stock・/individual-stock）。
+  // fundamentalsItems はレーダー(G7)の financials 軸が消費するため温存する。
+  const { items: fundamentalsItems } = useTickerFundamentals(scopedCompanies)
 
   const { data: signalReport, isLoading: isReportLoading, isFetching: isReportFetching } = useQuery({
     queryKey: ['signal-report', reportQuery, PAPER_HISTORY_FROM_YEAR],
@@ -114,7 +106,8 @@ export default function DashboardPage() {
 
   // 論文カードは大カテゴリ選択で駆動する（SOT-1081 要件③④）。選択中の大カテゴリ内の
   // テーマごとの年別論文数を取得する（queryCategory は上で算出済み）。
-  const { data: categoryPaperCounts, isLoading: isCatPapersLoading, isFetching: isCatPapersFetching } = useQuery({
+  // 論文件数トレンドのカードは撤去（home: /signals）。data はレーダー(G7)の papers 軸が消費するため温存。
+  const { data: categoryPaperCounts } = useQuery({
     queryKey: ['category-paper-counts', queryCategory, PAPER_HISTORY_FROM_YEAR],
     queryFn: () => fetchCategoryPaperCounts(queryCategory, PAPER_HISTORY_FROM_YEAR),
     staleTime: 1000 * 60 * 30,
@@ -130,17 +123,9 @@ export default function DashboardPage() {
     enabled: !!data,
   })
 
-  // サプライチェーン依存関係（G5, SOT-1126 子3）。大カテゴリ選択時はカテゴリで、未選択時は選択テーマで絞る。
+  // SOT-1396: サプライチェーン依存グラフ(G5)のカードは撤去（home: /supply-chain）。
+  // selectedThemeId はレーダー(G7)の buildRadarAxes が消費するため温存する。
   const selectedThemeId = queryThemes.find(th => th.name === reportQuery)?.id ?? ''
-  const { data: supplyChainEdges } = useQuery({
-    queryKey: ['supply-chain', 'dashboard', queryCategory, selectedThemeId],
-    queryFn: () =>
-      fetchSupplyChain(
-        queryCategory ? { category: queryCategory } : selectedThemeId ? { theme_id: selectedThemeId } : undefined,
-      ),
-    staleTime: 1000 * 60 * 10,
-    enabled: !!data,
-  })
 
   // 最新エビデンス横断フィード（G6, SOT-1126 子4）。全テーマ横断の最新の動きを取得する。
   const { data: externalInfos } = useQuery({
@@ -171,8 +156,6 @@ export default function DashboardPage() {
   }
 
   const paperCounts = signalReport?.paper_counts_by_year ?? []
-  // データ取得中（初期表示・テーマ切替時）は空表示ではなくローディングを出す
-  const isPapersLoading = (isReportLoading || isReportFetching) && !signalReport
   // クロス分析が使う時価総額系列（SOT-1128: scoped 空ならグローバルにフォールバック）。
   const marketCapYearly = crossMarketCapYearly
   // クロス分析の時価総額がまだ無く、scoped かフォールバックのどちらかが取得中ならローディング扱い。
@@ -188,8 +171,6 @@ export default function DashboardPage() {
     stockQueries.some(q => q.isLoading || q.isFetching) ||
     (needGlobalMarketCap && globalStockQueries.some(q => q.isLoading || q.isFetching)) ||
     isMarketCapLoading
-  // 上位N社時価総額カードは従来通りカテゴリ絞り込み（scoped）のまま（SOT-1081 ⑤）。
-  const marketCapByCompany = buildTopMarketCapCompanyYearly(stockItems, TOP_N)
 
   // 表示年レンジ: 論文件数・時価総額の年の和集合を選択可能ドメインとする
   const yearSet = new Set<number>()
@@ -205,9 +186,6 @@ export default function DashboardPage() {
     (effStart == null || year >= effStart) && (effEnd == null || year <= effEnd)
   const filteredPaperCounts = paperCounts.filter(c => inRange(c.year))
   const filteredMarketCapYearly = marketCapYearly.filter(m => inRange(m.year))
-  const filteredMarketCapByCompanyData = marketCapByCompany.data.filter(d => inRange(d.year))
-  // G1: 研究→業績連鎖は年レンジ選択にも追随させる（散布図 G2 は最新年スナップショットなので非追随）。
-  const filteredResearchPerformance = researchPerformance.filter(r => inRange(r.year))
   const showYearRange = availableYears.length > 1 && effStart != null && effEnd != null
 
   // === 13F 機関投資家（G3 スマートマネー・フロー / G4 保有推移, SOT-1126 子2） ===
@@ -226,53 +204,9 @@ export default function DashboardPage() {
     const cur = latestInvestorByPair.get(key)
     if (!cur || inv.report_date > cur.report_date) latestInvestorByPair.set(key, inv)
   }
-  const smartMoneyDeltaByCompany = new Map<string, number>()
-  for (const inv of latestInvestorByPair.values()) {
-    if (inv.quarter_delta != null && inv.quarter_delta !== 0) {
-      const co = investorCompanyKey(inv)
-      smartMoneyDeltaByCompany.set(co, (smartMoneyDeltaByCompany.get(co) ?? 0) + inv.quarter_delta)
-    }
-  }
-  const smartMoneyFlow = [...smartMoneyDeltaByCompany.entries()]
-    .filter(([, d]) => d !== 0)
-    .map(([name, delta]) => ({ name, delta }))
-    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-    .slice(0, 12)
-  // G4: 報告期が最も多い企業を保有推移の対象にする（複数期あるほど推移が見える）。
-  const investorDatesByCompany = new Map<string, Set<string>>()
-  for (const inv of scopedInvestors) {
-    const co = investorCompanyKey(inv)
-    const s = investorDatesByCompany.get(co) ?? new Set<string>()
-    s.add(inv.report_date)
-    investorDatesByCompany.set(co, s)
-  }
-  let holdingsCompany = ''
-  let holdingsDates = 0
-  for (const [co, s] of investorDatesByCompany) {
-    if (s.size > holdingsDates) {
-      holdingsDates = s.size
-      holdingsCompany = co
-    }
-  }
-  const holdingsRows = scopedInvestors.filter(inv => investorCompanyKey(inv) === holdingsCompany)
-
-  // === サプライチェーン依存関係グラフ（G5, SOT-1126 子3） ===
-  // 構造化 edge（SupplyChainItem[]）を node.type=大カテゴリ で色分けする nodes/edges に変換。
-  // 円形レイアウトが破綻しないよう edge 数を上限で抑える。
-  const SC_MAX_EDGES = 24
-  const cappedScEdges = (supplyChainEdges ?? []).slice(0, SC_MAX_EDGES)
-  const scNodeMap = new Map<string, SupplyChainGraphNode>()
-  const scGraphEdges: SupplyChainGraphEdge[] = []
-  for (const e of cappedScEdges) {
-    if (!scNodeMap.has(e.from_theme_id)) {
-      scNodeMap.set(e.from_theme_id, { id: e.from_theme_id, type: e.from_category ?? 'theme', label: e.from_theme_name ?? e.from_theme_id })
-    }
-    if (!scNodeMap.has(e.to_theme_id)) {
-      scNodeMap.set(e.to_theme_id, { id: e.to_theme_id, type: e.to_category ?? 'theme', label: e.to_theme_name ?? e.to_theme_id })
-    }
-    scGraphEdges.push({ source: e.from_theme_id, target: e.to_theme_id, relation: e.relation_type, evidence: e.evidence ?? [] })
-  }
-  const scNodes = [...scNodeMap.values()]
+  // SOT-1396: スマートマネー(G3)/保有推移(G4)/サプライチェーン(G5) のカードは撤去
+  // （home: /investors, /supply-chain）。latestInvestorByPair はレーダー(G7)の smartMoney 軸が
+  // 消費するため温存する。
 
   // === G7 多面シグナル レーダー（SOT-1126 子5） ===
   // 5軸の theme_id 別 生値を集め、コホート(選択カテゴリ内テーマ)で軸別 max-scaling して 0–100 にする。
@@ -384,18 +318,12 @@ export default function DashboardPage() {
   })()
 
   // カード表示ON/OFF（SOT-1002 / 提案5）。
+  // SOT-1396 案A: 専門ページに実体がある分析ビューのカードは撤去し、専門ページに無い複合俯瞰
+  // （レーダー/クロス分析/全カテゴリ平均論文/引用マトリクス）のみダッシュボードに残す。
   const CARDS: { id: string; label: string }[] = [
     { id: 'radar', label: t('chart.radar.title') },
     { id: 'cross', label: t('chart.cross.title') },
-    { id: 'papers', label: t('chart.papers.title') },
-    { id: 'research', label: t('chart.research.title') },
-    { id: 'rndScatter', label: t('chart.rndScatter.title') },
     { id: 'categoryAvg', label: t('chart.categoryAvg.title') },
-    { id: 'marketCap', label: t('chart.topMarketCap.title', { n: TOP_N }) },
-    { id: 'smartMoney', label: t('chart.smartMoney.title') },
-    { id: 'holdings', label: t('chart.holdings.title') },
-    { id: 'supplyChain', label: t('chart.supplyChainPanel.title') },
-    { id: 'evidence', label: t('chart.evidence.title') },
     { id: 'matrix', label: t('chart.citationMatrix.title') },
   ]
   const isCardVisible = (id: string) => !hiddenCards[id]
@@ -560,81 +488,6 @@ export default function DashboardPage() {
         </ChartCard>
         )}
 
-        {/* グラフ① 論文件数（大カテゴリ駆動: その中のカテゴリ=テーマごとの折れ線, SOT-1081 要件③④） */}
-        {isCardVisible('papers') && (
-        <ChartCard
-          title={t('chart.papers.title')}
-          subtitle={`${t('dashboard.categoryLabel')}: ${effectiveCategory || t('dashboard.allCategories')}${
-            effStart != null && effEnd != null ? ` / ${effStart}–${effEnd}` : ''
-          }`}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} asOf={lastAnalyzed} />}
-        >
-          {effectiveCategory ? (
-            categoryPaperCounts && categoryPaperCounts.series.length > 0 ? (
-              <CategoryPaperCountsChart data={categoryPaperCounts} fromYear={effStart} toYear={effEnd} />
-            ) : (isCatPapersLoading || isCatPapersFetching) && !categoryPaperCounts ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-                <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-                <p>{t('chart.papers.loading')}</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-                <p>{t('chart.papers.empty')}</p>
-                <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
-              </div>
-            )
-          ) : filteredPaperCounts.length > 0 ? (
-            <PapersCountChart counts={filteredPaperCounts} />
-          ) : isPapersLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-              <p>{t('chart.papers.loading')}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <p>{t('chart.papers.empty')}</p>
-              <Link to="/research-seeds" className="mt-2 text-sky-600 hover:underline">{t('chart.papers.emptyCta')}</Link>
-            </div>
-          )}
-        </ChartCard>
-        )}
-
-        {/* G1 研究→業績 連鎖チャート（財務ファンダメンタルズ集計, SOT-1126 子1） */}
-        {isCardVisible('research') && (
-        <ChartCard
-          title={t('chart.research.title')}
-          subtitle={`${t('chart.research.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
-        >
-          {isFundamentalsLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-              <p>{t('chart.research.loading')}</p>
-            </div>
-          ) : (
-            <ResearchToPerformanceChart data={filteredResearchPerformance} />
-          )}
-        </ChartCard>
-        )}
-
-        {/* G2 R&D集約度 散布図（SOT-1126 子1） */}
-        {isCardVisible('rndScatter') && (
-        <ChartCard
-          title={t('chart.rndScatter.title')}
-          subtitle={`${t('chart.rndScatter.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
-          actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
-        >
-          {isFundamentalsLoading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
-              <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
-              <p>{t('chart.research.loading')}</p>
-            </div>
-          ) : (
-            <RnDIntensityScatter points={rndIntensityPoints} />
-          )}
-        </ChartCard>
-        )}
-
         {/* グラフ① -2 カテゴリグループ別 平均論文数（テーマあたり, SOT-1049） */}
         {isCardVisible('categoryAvg') && (
         <ChartCard
@@ -650,61 +503,6 @@ export default function DashboardPage() {
               <p>{t('chart.categoryAvg.loading')}</p>
             </div>
           )}
-        </ChartCard>
-        )}
-
-        {/* グラフ② 上位10社時価総額合計 */}
-        {isCardVisible('marketCap') && (
-        <ChartCard
-          title={t('chart.topMarketCap.title', { n: TOP_N })}
-          subtitle={`${t('chart.topMarketCap.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
-          actions={<DataProvenanceBadge kind="approx" scope={t('provenance.scope.usMostly')} />}
-        >
-          <TopMarketCapChart data={filteredMarketCapByCompanyData} series={marketCapByCompany.series} />
-        </ChartCard>
-        )}
-
-        {/* G3 スマートマネー・フロー（13F 最新四半期Δ, SOT-1126 子2） */}
-        {isCardVisible('smartMoney') && (
-        <ChartCard
-          title={t('chart.smartMoney.title')}
-          subtitle={`${t('chart.smartMoney.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ''}`}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
-        >
-          <SmartMoneyFlowBar items={smartMoneyFlow} />
-        </ChartCard>
-        )}
-
-        {/* G4 機関投資家 保有推移（13F, SOT-1126 子2） */}
-        {isCardVisible('holdings') && (
-        <ChartCard
-          title={t('chart.holdings.title')}
-          subtitle={`${t('chart.holdings.subtitle')}${holdingsCompany ? ` / ${holdingsCompany}` : ''}`}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.usMostly')} asOf={lastAnalyzed} />}
-        >
-          <HoldingsTrendLines rows={holdingsRows} />
-        </ChartCard>
-        )}
-
-        {/* G5 サプライチェーン依存関係ネットワーク（SOT-1126 子3） */}
-        {isCardVisible('supplyChain') && (
-        <ChartCard
-          title={t('chart.supplyChainPanel.title')}
-          subtitle={`${t('chart.supplyChainPanel.subtitle')}${effectiveCategory ? ` / ${t('dashboard.categoryLabel')}: ${effectiveCategory}` : ` / ${reportQuery}`}`}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
-        >
-          <SupplyChainGraphView nodes={scNodes} edges={scGraphEdges} />
-        </ChartCard>
-        )}
-
-        {/* G6 最新エビデンス・タイムライン（全テーマ横断, SOT-1126 子4） */}
-        {isCardVisible('evidence') && (
-        <ChartCard
-          title={t('chart.evidence.title')}
-          subtitle={t('chart.evidence.subtitle')}
-          actions={<DataProvenanceBadge kind="measured" scope={t('provenance.scope.allThemes')} />}
-        >
-          <EvidenceTimeline items={externalInfos ?? []} />
         </ChartCard>
         )}
 
