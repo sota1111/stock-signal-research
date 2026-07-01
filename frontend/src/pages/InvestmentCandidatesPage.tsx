@@ -80,7 +80,7 @@ export default function InvestmentCandidatesPage() {
 
   const { data: themes } = useQuery({ queryKey: ['themes'], queryFn: fetchThemes, staleTime: STALE })
   const { data: patentYearly } = useQuery({ queryKey: ['patent-yearly-all'], queryFn: () => fetchPatentYearly(), staleTime: STALE })
-  const { data: investors } = useQuery({ queryKey: ['investors'], queryFn: fetchInvestors, staleTime: STALE })
+  const { data: investors, isLoading: isInvestorsLoading, isFetching: isInvestorsFetching } = useQuery({ queryKey: ['investors'], queryFn: fetchInvestors, staleTime: STALE })
 
   // リードラグ: 注目企業の株価から合成マーケット指数を組み立てる。
   const { stockItems, stockQueries } = useTickerStocks(companies)
@@ -187,6 +187,8 @@ export default function InvestmentCandidatesPage() {
 
   // 読み込み中（株価・月次のいずれかが取得中）か、データはあるが重なりが無いかを区別する。
   const leadLagLoading = stockQueries.some(q => q.isLoading) || monthlyQueries.some(q => q.isLoading) || effThemeMonthly.isLoading
+  // SOT-1453: 投資家データ取得中は投資家偏差値が0扱いで一律20に落ちるため、値ではなくローディングを表示する。
+  const investorLoading = (isInvestorsLoading || isInvestorsFetching) && !investors
 
   if (isLoading) return <DashboardLoading />
   if (error || !data) return <DashboardError />
@@ -378,7 +380,9 @@ export default function InvestmentCandidatesPage() {
                     </td>
                     <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.paper')}>{row.paper.toFixed(1)}</td>
                     <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.patent')}>{row.patent.toFixed(1)}</td>
-                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.investor')}>{row.investor.toFixed(1)}</td>
+                    <td className="px-4 py-2 text-right text-muted-foreground" data-label={t('candidates.ranking.col.investor')}>
+                      {investorLoading ? <span className="text-muted-foreground">{t('common.loading')}</span> : row.investor.toFixed(1)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
