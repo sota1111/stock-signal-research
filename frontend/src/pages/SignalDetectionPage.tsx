@@ -323,10 +323,14 @@ export default function SignalDetectionPage() {
               : <MonthlyPapersLine data={monthly ?? []} />}
           </ChartCard>
           <ChartCard title={t('signals.b3')} subtitle={t('signals.b3.subtitle')}>
-            <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />
+            {(isReportLoading || isReportFetching) && !signalReport
+              ? renderChartLoading(t('chart.papers.loading'))
+              : <SurgingKeywordsBar data={signalReport?.surging_keywords ?? []} />}
           </ChartCard>
           <ChartCard title={t('signals.b4')}>
-            <CompanyScoreBar data={signalReport?.top_companies ?? []} />
+            {(isReportLoading || isReportFetching) && !signalReport
+              ? renderChartLoading(t('chart.papers.loading'))
+              : <CompanyScoreBar data={signalReport?.top_companies ?? []} />}
           </ChartCard>
         </div>
       </section>
