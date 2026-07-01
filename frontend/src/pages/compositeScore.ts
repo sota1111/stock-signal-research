@@ -87,7 +87,10 @@ function normalize(raw: Map<string, number>): Map<string, number> {
  *
  * - 論文成分: 企業が紐づくテーマの precursor_score 平均（無ければ benefit_score を代用）
  * - 特許成分: 企業が紐づくテーマの特許件数合計
- * - 投資家成分: 当該企業の最新報告における機関投資家の保有比率合計
+ * - 投資家成分: 当該企業の最新報告における機関投資家の保有評価額(value_usd)合計
+ *   （SOT-1434: 以前は保有比率(ownership_pct=保有株数÷発行済株式数)の合計だったが、
+ *    発行済株式数が少ない小型株ほど比率が高くなり、多くの資金が投じられた大型株より
+ *    偏差値が高くなる逆転が生じていた。保有評価額合計に変更し直感と整合させる。）
  *
  * 各成分を企業横断で偏差値（平均50・標準偏差10）化し、重み付き合成する。
  */
@@ -113,7 +116,7 @@ export function buildCompositeRanking(
     patentByTheme.set(p.theme_id, (patentByTheme.get(p.theme_id) ?? 0) + p.count)
   }
 
-  // 企業別 投資家保有（最新報告のみ・投資家×企業ペアで最新を採用）
+  // 企業別 投資家保有評価額（最新報告のみ・投資家×企業ペアで最新を採用, SOT-1434）
   const companyKey = (inv: InstitutionalInvestor) => inv.company_name ?? inv.company_id
   const latestByPair = new Map<string, InstitutionalInvestor>()
   for (const inv of investors) {
@@ -121,10 +124,10 @@ export function buildCompositeRanking(
     const cur = latestByPair.get(key)
     if (!cur || inv.report_date > cur.report_date) latestByPair.set(key, inv)
   }
-  const ownershipByCompany = new Map<string, number>()
+  const holdingsByCompany = new Map<string, number>()
   for (const inv of latestByPair.values()) {
     const name = companyKey(inv)
-    ownershipByCompany.set(name, (ownershipByCompany.get(name) ?? 0) + inv.ownership_pct)
+    holdingsByCompany.set(name, (holdingsByCompany.get(name) ?? 0) + (inv.value_usd ?? 0))
   }
 
   // 企業ごとの raw 成分
@@ -141,7 +144,7 @@ export function buildCompositeRanking(
       : c.benefit_score
     paperRaw.set(c.id, paper)
     patentRaw.set(c.id, themeIds.reduce((sum, id) => sum + (patentByTheme.get(id) ?? 0), 0))
-    investorRaw.set(c.id, ownershipByCompany.get(c.name) ?? 0)
+    investorRaw.set(c.id, holdingsByCompany.get(c.name) ?? 0)
   }
 
   const paperN = normalize(paperRaw)
