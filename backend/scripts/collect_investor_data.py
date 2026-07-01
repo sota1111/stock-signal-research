@@ -51,6 +51,28 @@ MANAGERS = [
     ("0000886982", "Goldman Sachs"),
     ("0000902219", "Wellington Management"),
     ("0000070858", "Bank of America"),
+    # SOT-1454: 機関投資家を10→30社に拡張。以下の20社はSEC EDGARで13F-HR filer かつ
+    # 追跡対象銘柄の保有を最新四半期(2026-03-31)で検証済み。
+    ("0000073124", "Northern Trust"),
+    ("0000080255", "T. Rowe Price"),
+    ("0000914208", "Invesco"),
+    ("0000038777", "Franklin Resources"),
+    ("0000354204", "Dimensional Fund Advisors"),
+    ("0001109448", "AllianceBernstein"),
+    ("0000072971", "Wells Fargo"),
+    ("0001390777", "Bank of New York Mellon"),
+    ("0000948046", "Deutsche Bank"),
+    ("0000820027", "Ameriprise Financial"),
+    ("0001163653", "Nomura Holdings"),
+    ("0000713676", "PNC Financial Services"),
+    ("0000036104", "U.S. Bancorp"),
+    ("0000720005", "Raymond James Financial"),
+    ("0001137774", "Prudential Financial"),
+    ("0001037389", "Renaissance Technologies"),
+    ("0001179392", "Two Sigma Investments"),
+    ("0001273087", "Millennium Management"),
+    ("0001423053", "Citadel Advisors"),
+    ("0001167557", "AQR Capital Management"),
 ]
 
 # 追跡対象企業(SOT-1120: 主要テーマ銘柄へ拡大)。name は seed.py の Company.name と一致させる。
