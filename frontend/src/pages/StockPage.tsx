@@ -8,6 +8,7 @@ import ReturnRankingBar from '../components/charts/ReturnRankingBar'
 import ValuationScatter from '../components/charts/ValuationScatter'
 import SignalBacktestTable from '../components/charts/SignalBacktestTable'
 import CategoryMarketCapChart from '../components/charts/CategoryMarketCapChart'
+import { validStockItems } from '../components/charts/chartUtils'
 import { useDashboardQuery, useTickerStocks, useAllThemes, filterCompaniesByCategory } from './dashboardData'
 import { StockEvalCard, DashboardLoading, DashboardError } from './dashboardShared'
 import { useI18n } from '../i18n/useI18n'
@@ -65,6 +66,17 @@ export default function StockPage() {
 
   // 株価データ取得カバレッジ（取得失敗を「全体失敗」に見せないための要約, SOT-1003）。
   const loadedCount = stockItems.filter(it => it.stock && !it.stock.error && it.stock.prices.length > 0).length
+
+  // 概観グラフ(A1〜A4)は各ティッカーの株価を並行取得する。取得中でまだ有効データが
+  // 手元に無いときは「データがありません」ではなく読み込み中を出す（SOT-1451）。
+  const isStockBusy =
+    stockQueries.some(q => q.isLoading || q.isFetching) && validStockItems(stockItems).length === 0
+  const renderStockLoading = () => (
+    <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
+      <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+      <p>{t('common.loading')}</p>
+    </div>
+  )
 
   // 概観グラフの表示/非表示トグル（SOT-1003 / ページ上部）。
   const GRAPHS = [
@@ -181,24 +193,24 @@ export default function StockPage() {
         </div>
         {isGraphVisible('a1') && (
           <ChartCard title={t('stock.a1')} subtitle={t('stock.chart.title')}>
-            <StockPriceLines items={stockItems} />
+            {isStockBusy ? renderStockLoading() : <StockPriceLines items={stockItems} />}
           </ChartCard>
         )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {isGraphVisible('a2') && (
             <ChartCard title={t('stock.a2.title')} subtitle={t('stock.a2.subtitle')}>
-              <NormalizedCompareLines items={stockItems} />
+              {isStockBusy ? renderStockLoading() : <NormalizedCompareLines items={stockItems} />}
             </ChartCard>
           )}
           {isGraphVisible('a3') && (
             <ChartCard title={t('stock.a3.title')} subtitle={t('stock.a3.subtitle')}>
-              <ReturnRankingBar items={stockItems} />
+              {isStockBusy ? renderStockLoading() : <ReturnRankingBar items={stockItems} />}
             </ChartCard>
           )}
         </div>
         {isGraphVisible('a4') && (
           <ChartCard title={t('stock.a4.title')} subtitle={t('stock.a4.subtitle')}>
-            <ValuationScatter items={stockItems} />
+            {isStockBusy ? renderStockLoading() : <ValuationScatter items={stockItems} />}
           </ChartCard>
         )}
       </section>

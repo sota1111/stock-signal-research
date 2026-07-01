@@ -95,6 +95,16 @@ export default function SupplyChainPage() {
   if (allQuery.isLoading) return <PageLoading />
   if (allQuery.error) return <PageError onRetry={() => allQuery.refetch()} />
 
+  // フィルタ切替でサーバ側の絞り込み結果を取得し直している間（結果未到達）は、
+  // 「データがありません」ではなく読み込み中を出す（SOT-1451）。
+  const isFilterBusy = filteredQuery.isLoading || filteredQuery.isFetching
+  const renderFilterLoading = () => (
+    <div className="flex flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
+      <span className="h-6 w-6 mb-2 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin" aria-hidden />
+      <p>{t('common.loading')}</p>
+    </div>
+  )
+
   const selected: SupplyChainItem | undefined =
     selectedEdge !== undefined ? visibleItems[selectedEdge] : undefined
 
@@ -245,7 +255,7 @@ export default function SupplyChainPage() {
         {view === 'matrix' ? (
           // 行列はフィルタ前(items)で全体を俯瞰し、セルクリックでドリルダウン
           items.length === 0 ? (
-            <PageEmpty message={t('supplyChain.empty')} />
+            isFilterBusy ? renderFilterLoading() : <PageEmpty message={t('supplyChain.empty')} />
           ) : (
             <SupplyChainMatrix
               items={items.filter(e => (!relationType || e.relation_type === relationType) && (e.confidence ?? 0) >= minConfidence)}
@@ -254,7 +264,7 @@ export default function SupplyChainPage() {
             />
           )
         ) : visibleItems.length === 0 ? (
-          <PageEmpty message={t('supplyChain.empty')} />
+          isFilterBusy ? renderFilterLoading() : <PageEmpty message={t('supplyChain.empty')} />
         ) : view === 'sankey' ? (
           <SupplyChainSankey items={visibleItems} onEdgeClick={setSelectedEdge} selectedIndex={selectedEdge} />
         ) : (
@@ -295,7 +305,7 @@ export default function SupplyChainPage() {
       {/* edge 一覧（根拠/関係タイプ/信頼度/作成日） */}
       <ChartCard title={t('supplyChain.listTitle')}>
         {visibleItems.length === 0 ? (
-          <PageEmpty message={t('supplyChain.empty')} />
+          isFilterBusy ? renderFilterLoading() : <PageEmpty message={t('supplyChain.empty')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
