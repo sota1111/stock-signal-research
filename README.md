@@ -224,7 +224,7 @@ AI需要 → GPU memory bottleneck → HBM → SSD / NVMe → data center power 
 |--------|------------------|--------------|----------------|----------------|
 | 論文 (Papers) | arXiv（被引用数は Semantic Scholar で付与） | 9,560 件 / 100 テーマ / 2000–2026 | `backend/data/collected-papers.json` | `collect_dashboard_papers.py` |
 | 特許 (Patents) | USPTO Patent Public Search (PPUBS) | 2,292 件 / 29 テーマ＋年次集計 30 テーマ / 2000–2026 | `backend/data/collected-patents.json` | `collect_dashboard_patents.py` |
-| 大口投資家 / 13F | SEC EDGAR Form 13F-HR | 212 行 / 5 社（Vanguard, BlackRock, State Street, Geode, FMR）× NVDA/AMD/MU/TSM / 2016–2026 | `backend/data/collected-investors.json` | `collect_investor_data.py` |
+| 大口投資家 / 13F | SEC EDGAR Form 13F-HR | 主要機関投資家 30 社（Vanguard, BlackRock, State Street, Geode, FMR, JPMorgan, Goldman Sachs, Morgan Stanley, Bank of America, Wellington ほか）× 半導体関連銘柄 / 過去約10年・年次 | `backend/data/collected-investors.json` | `collect_investor_data.py` |
 | 株価 (Stock Prices) | yfinance（オフライン収集 → 実行時読込） | 242 ティッカー（231 が価格系列、11 は価格なし） / 2000-01-03〜2026-06-19 | `backend/data/stock-prices.json` | `collect_stock_data.py`（個別: `fetch_stock_data.py`） |
 | 時価総額履歴 (Market Cap History) | SEC EDGAR XBRL 発行済株式数 × 年末終値 | 米国上場 237 ティッカー中 199 をカバー / 2009 年以降 | `backend/data/market-cap-history.json` | `collect_market_cap_history.py` |
 | テーマ/企業ユニバース (SOT-994) | ローカル定義（30→100 テーマ拡張） | 追加 70 テーマ / 10 カテゴリ、ユニーク企業 228（221 がティッカー付き） | `backend/data/sot994_universe.json` | `seed.py`・上記収集スクリプトが参照 |
